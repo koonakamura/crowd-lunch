@@ -85,9 +85,10 @@ export default function HomePage() {
 
     setSelectedItems(prev => {
       if (!selectedDay || selectedDay === menuDay) {
+        const isCurrentlySelected = prev[menuId]
         const newSelection = {
           ...prev,
-          [menuId]: !prev[menuId]
+          [menuId]: isCurrentlySelected ? false : true
         }
         
         const hasSelections = Object.values(newSelection).some(selected => selected)
