@@ -130,7 +130,10 @@ export default function AdminPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-bold">管理画面</h1>
+          <h1 className="text-xl font-bold">
+            CROWD LUNCH<br />
+            ADMIN
+          </h1>
           <span className="text-sm text-muted-foreground">
             {format(new Date(), 'yyyy年M月d日')}
           </span>

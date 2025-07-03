@@ -285,9 +285,8 @@ def test_crud_edge_cases(client, test_user, test_menu):
     from app.crud import get_user_by_email, create_user
     from app.schemas import UserCreate
     from app.models import Menu
-    from app.database import SessionLocal
     
-    db = SessionLocal()
+    db = TestingSessionLocal()
     
     user = get_user_by_email(db, "test@example.com")
     assert user is not None
@@ -295,9 +294,9 @@ def test_crud_edge_cases(client, test_user, test_menu):
     menu = db.query(Menu).filter(Menu.id == test_menu.id).first()
     assert menu is not None
     
-    new_user_data = UserCreate(name="New User", email="newuser@example.com", seat_id="B2")
+    new_user_data = UserCreate(name="New User", email="crud_test_user@example.com", seat_id="B2")
     new_user = create_user(db, new_user_data)
-    assert new_user.email == "newuser@example.com"
+    assert new_user.email == "crud_test_user@example.com"
     
     db.close()
 
