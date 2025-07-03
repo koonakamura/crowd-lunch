@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { apiClient } from '../lib/api'
@@ -5,12 +6,21 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
-import { ArrowLeft } from 'lucide-react'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { ArrowLeft, Upload, Calendar } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import AdminSplashScreen from '../components/AdminSplashScreen'
 
 export default function AdminPage() {
+  const [showSplash, setShowSplash] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+
+  const handleSplashTransition = () => {
+    setShowSplash(false)
+  }
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['todayOrders'],
@@ -65,6 +75,14 @@ export default function AdminPage() {
     updateStatusMutation.mutate({ orderId, status: newStatus })
   }
 
+  if (showSplash) {
+    return <AdminSplashScreen onTransition={handleSplashTransition} />
+  }
+
+  const formatOrderItems = (orderItems: Array<{ menu: { title: string }; qty: number }>) => {
+    return orderItems.map(item => `${item.menu.title} × ${item.qty}`).join('、')
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -73,41 +91,6 @@ export default function AdminPage() {
     )
   }
 
-  const menuSummary = orders?.reduce((acc, order) => {
-    order.order_items.forEach(item => {
-      const key = item.menu.title
-      if (!acc[key]) {
-        acc[key] = {
-          title: item.menu.title,
-          price: item.menu.price,
-          totalQty: 0,
-          orders: []
-        }
-      }
-      acc[key].totalQty += item.qty
-      acc[key].orders.push({
-        orderId: order.id,
-        qty: item.qty,
-        status: order.status,
-        deliveryType: order.delivery_type,
-        requestTime: order.request_time || null,
-        userName: order.user.name
-      })
-    })
-    return acc
-  }, {} as Record<string, {
-    title: string;
-    price: number;
-    totalQty: number;
-    orders: Array<{
-      orderId: number;
-      qty: number;
-      status: string;
-      deliveryType: string;
-      requestTime: string | null;
-      userName: string;
-    }>;
-  }>) || {}
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,74 +108,106 @@ export default function AdminPage() {
       </header>
 
       <div className="p-4 space-y-6">
-        {/* Menu Summary */}
+        {/* Date Selection Buttons */}
         <Card>
           <CardHeader>
-            <CardTitle>本日のメニュー別集計</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              日付ごとの注文ページ
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {Object.values(menuSummary).length === 0 ? (
-              <p className="text-center text-muted-foreground py-4">
-                本日の注文はありません
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {Object.values(menuSummary).map((menu) => (
-                  <div key={menu.title} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-semibold">{menu.title}</h3>
-                      <Badge variant="outline">合計 {menu.totalQty}個</Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-3">
-                      単価: ¥{menu.price} | 売上: ¥{menu.price * menu.totalQty}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-2 flex-wrap">
+              {Array.from({ length: 7 }, (_, i) => {
+                const date = new Date()
+                date.setDate(date.getDate() + i)
+                const dateStr = format(date, 'yyyy-MM-dd')
+                const dayStr = format(date, 'M/d (E)')
+                return (
+                  <Button
+                    key={dateStr}
+                    variant={selectedDate === dateStr ? "default" : "outline"}
+                    onClick={() => setSelectedDate(dateStr)}
+                    className="rounded-full"
+                  >
+                    {dayStr}
+                  </Button>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
 
-        {/* Order Management */}
+        {/* Menu Configuration */}
         <Card>
           <CardHeader>
-            <CardTitle>注文管理</CardTitle>
+            <CardTitle>メニュー構成</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="menu-name">メニュー名</Label>
+                <Input id="menu-name" placeholder="メニュー名を入力" />
+              </div>
+              <div>
+                <Label htmlFor="menu-price">金額</Label>
+                <Input id="menu-price" type="number" placeholder="金額を入力" />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="menu-image">画像の表示・登録</Label>
+              <div className="flex gap-2 mt-1">
+                <Input id="menu-image" type="file" accept="image/*" />
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  アップロード
+                </Button>
+              </div>
+            </div>
+            <Button className="w-full">メニューを保存</Button>
+          </CardContent>
+        </Card>
+
+        {/* Order History */}
+        <Card>
+          <CardHeader>
+            <CardTitle>注文履歴</CardTitle>
           </CardHeader>
           <CardContent>
             {!orders || orders.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
-                本日の注文はありません
+                注文履歴がありません
               </p>
             ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
+              <div className="space-y-3">
+                {orders
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                  .map((order) => (
                   <div key={order.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-2 text-sm">
                       <div>
-                        <h3 className="font-semibold">注文 #{order.id}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {order.user.name} | {order.delivery_type === 'pickup' ? '店頭受取' : 'デスク配達'}
-                          {order.request_time && ` (${order.request_time})`}
-                        </p>
+                        <span className="font-semibold">注文ID:</span> #{order.id}
                       </div>
-                      <div className="text-right">
-                        <Badge className={getStatusColor(order.status)}>
-                          {getStatusText(order.status)}
-                        </Badge>
-                        <p className="text-sm font-semibold mt-1">¥{order.total_price}</p>
+                      <div>
+                        <span className="font-semibold">注文時間:</span> {format(new Date(order.created_at), 'HH:mm')}
+                      </div>
+                      <div className="md:col-span-2">
+                        <span className="font-semibold">注文品目:</span> {formatOrderItems(order.order_items)}
+                      </div>
+                      <div>
+                        <span className="font-semibold">金額:</span> ¥{order.total_price}
+                      </div>
+                      <div>
+                        <span className="font-semibold">名前:</span> {order.user.name}
+                      </div>
+                      <div>
+                        <span className="font-semibold">配達時間:</span> {order.request_time || '店頭受取'}
                       </div>
                     </div>
-
-                    <div className="space-y-2 mb-3">
-                      {order.order_items.map((item) => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span>{item.menu.title} × {item.qty}</span>
-                          <span>¥{item.menu.price * item.qty}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-2">
+                    <div className="flex justify-between items-center mt-3">
+                      <Badge className={getStatusColor(order.status)}>
+                        {getStatusText(order.status)}
+                      </Badge>
                       <Select
                         value={order.status}
                         onValueChange={(value) => handleStatusChange(order.id, value)}
