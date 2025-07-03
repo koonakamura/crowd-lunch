@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
-import { ArrowLeft, Upload, Calendar } from 'lucide-react'
+import { ArrowLeft, Upload, Calendar, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AdminSplashScreen from '../components/AdminSplashScreen'
 
@@ -193,37 +193,35 @@ export default function AdminPage() {
               {/* Center: Menu Items */}
               <div className="flex-1 space-y-3">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between py-2 border-b">
-                    <span className="text-sm">• カレーライス</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">900円</span>
-                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">○</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 py-2 border-b">
+                    <Input defaultValue="カレーライス" className="flex-1" />
+                    <Input defaultValue="900" type="number" className="w-20" />
+                    <Input defaultValue="34" type="number" className="w-16" />
+                    <Button variant="ghost" size="sm" className="p-2">
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="flex items-center justify-between py-2 border-b">
-                    <span className="text-sm">• 大盛り</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">100円</span>
-                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">○</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 py-2 border-b">
+                    <Input defaultValue="大盛り" className="flex-1" />
+                    <Input defaultValue="100" type="number" className="w-20" />
+                    <Input defaultValue="5" type="number" className="w-16" />
+                    <Button variant="ghost" size="sm" className="p-2">
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <div className="flex items-center justify-between py-2 border-b">
-                    <span className="text-sm">• 南蛮漬け</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">100円</span>
-                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">○</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 py-2 border-b">
+                    <Input defaultValue="南蛮漬け" className="flex-1" />
+                    <Input defaultValue="100" type="number" className="w-20" />
+                    <Input defaultValue="8" type="number" className="w-16" />
+                    <Button variant="ghost" size="sm" className="p-2">
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Input placeholder="メニュー名を入力" className="flex-1" />
-                  <Input placeholder="金額" type="number" className="w-24" />
+                  <Input placeholder="金額" type="number" className="w-20" />
+                  <Input placeholder="数量" type="number" className="w-16" />
                   <Button size="sm">追加</Button>
                 </div>
               </div>
