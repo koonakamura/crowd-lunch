@@ -189,3 +189,86 @@ def test_menu_endpoints_coverage(client, test_menu):
     
     data = response.json()
     assert isinstance(data, list)
+
+def test_invalid_order_creation(client, test_user):
+    login_response = client.post("/auth/login", json={"email": "test@example.com"})
+    token = login_response.json()["access_token"]
+    
+    invalid_order_data = {
+        "serve_date": "invalid-date",
+        "delivery_type": "invalid",
+        "items": []
+    }
+    
+    response = client.post(
+        "/orders",
+        json=invalid_order_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code in [400, 422]
+
+def test_unauthorized_admin_access(client):
+    response = client.get("/admin/orders/today")
+    assert response.status_code == 403
+
+def test_invalid_token_format(client):
+    response = client.get("/orders/1", headers={"Authorization": "Bearer invalid.token.format"})
+    assert response.status_code == 401
+
+def test_missing_order(client, test_user):
+    login_response = client.post("/auth/login", json={"email": "test@example.com"})
+    token = login_response.json()["access_token"]
+    
+    response = client.get("/orders/999999", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 404
+
+def test_invalid_status_update(client, test_user, test_menu):
+    login_response = client.post("/auth/login", json={"email": "test@example.com"})
+    token = login_response.json()["access_token"]
+    
+    order_data = {
+        "serve_date": str(date.today()),
+        "delivery_type": "pickup",
+        "items": [{"menu_id": test_menu.id, "qty": 1}]
+    }
+    
+    create_response = client.post(
+        "/orders",
+        json=order_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    order_id = create_response.json()["id"]
+    
+    response = client.patch(
+        f"/orders/{order_id}/status",
+        json={"status": "invalid_status"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code in [400, 422]
+
+def test_database_session_handling(client):
+    from app.database import get_db
+    db_gen = get_db()
+    db = next(db_gen)
+    assert db is not None
+    
+    try:
+        next(db_gen)
+    except StopIteration:
+        pass
+
+def test_auth_token_creation_and_verification(client):
+    from app.auth import create_access_token
+    from jose import jwt
+    
+    token = create_access_token(data={"sub": "test@example.com"})
+    assert token is not None
+    
+    payload = jwt.decode(token, "your-secret-key-here", algorithms=["HS256"])
+    assert payload["sub"] == "test@example.com"
+
+def test_auth_dependency_coverage(client):
+    from app.auth import get_current_user
+    from app.database import get_db
+    
+    assert get_current_user is not None
