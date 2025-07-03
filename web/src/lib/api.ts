@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-ileuvmqz.fly.dev';
 
 export interface User {
   id: number;
