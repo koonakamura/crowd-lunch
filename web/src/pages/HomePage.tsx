@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardContent } from '../components/ui/card'
-import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { ShoppingCart } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Menu } from '../lib/api'
 
 const WEEKLY_MENU_DATA: Array<{
@@ -66,8 +64,9 @@ export { WEEKLY_MENU_DATA };
 export default function HomePage() {
   const navigate = useNavigate()
   const [selectedItems, setSelectedItems] = useState<Array<{ menuId: number; qty: number }>>([])
+  const [currentDayIndex, setCurrentDayIndex] = useState(2) // Start with Wednesday (index 2)
 
-
+  const currentDay = WEEKLY_MENU_DATA[currentDayIndex]
 
   const handleAddToCart = (menuId: number) => {
     setSelectedItems(prev => {
@@ -93,60 +92,75 @@ export default function HomePage() {
     }
   }
 
+  const goToPreviousDay = () => {
+    setCurrentDayIndex(prev => prev > 0 ? prev - 1 : WEEKLY_MENU_DATA.length - 1)
+  }
+
+  const goToNextDay = () => {
+    setCurrentDayIndex(prev => prev < WEEKLY_MENU_DATA.length - 1 ? prev + 1 : 0)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b border-border p-4 sticky top-0 z-40">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Crowd Lunch</h1>
+          <h1 className="text-xl font-bold">CROWD LUNCH</h1>
         </div>
       </header>
 
-      {/* Weekly Menu Sections */}
-      <div className="space-y-0">
-        {WEEKLY_MENU_DATA.map((day) => (
-          <section 
-            key={day.date}
-            className="relative min-h-screen bg-cover bg-center bg-no-repeat"
-            style={{
-              backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(${day.backgroundImage})`
-            }}
+      {/* Single Day Display */}
+      <section 
+        className="relative min-h-screen bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url(${currentDay.backgroundImage})`
+        }}
+      >
+        {/* Day Navigation */}
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-30">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={goToPreviousDay}
+            className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30"
           >
-            {/* Day Header */}
-            <div className="text-center py-12">
-              <h2 className="text-8xl font-bold text-white mb-2">{day.date.split('/')[1]}</h2>
-              <h3 className="text-3xl font-bold text-white">({day.dayName})</h3>
-            </div>
-            
-            {/* Menu Cards */}
-            <div className="px-4 pb-12 space-y-4 max-w-md mx-auto">
-              {day.menus.map((menu) => (
-                <Card key={menu.id} className="overflow-hidden bg-white/90 backdrop-blur-sm border-2 border-white/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg mb-2">{menu.title}</h3>
-                        <p className="text-2xl font-bold text-primary mb-2">¥{menu.price}</p>
-                        <Badge className="bg-green-500 text-white">
-                          残り{menu.remaining_qty}個
-                        </Badge>
-                      </div>
-                      <Button
-                        onClick={() => handleAddToCart(menu.id)}
-                        disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
-                        size="lg"
-                        className="bg-primary hover:bg-primary/90 text-white font-bold px-6 py-3"
-                      >
-                        追加
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={goToNextDay}
+            className="bg-white/20 backdrop-blur-sm text-white hover:bg-white/30"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Large Day Display */}
+        <div className="text-center py-20">
+          <h1 className="text-9xl font-bold text-white mb-2">{currentDay.date.split('/')[1]}</h1>
+          <h2 className="text-2xl text-white">({currentDay.dayName.toUpperCase()})</h2>
+        </div>
+        
+        {/* Menu Items - Pill Style */}
+        <div className="px-6 space-y-3 max-w-md mx-auto pb-20">
+          {currentDay.menus.map((menu) => (
+            <button
+              key={menu.id}
+              onClick={() => handleAddToCart(menu.id)}
+              disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
+              className="w-full bg-white/80 backdrop-blur-sm rounded-full px-6 py-4 flex justify-between items-center hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="font-medium text-gray-800">
+                {menu.title} ({menu.remaining_qty})
+              </span>
+              <span className="font-bold text-gray-800">
+                {menu.price}円
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* Cart Button */}
       {getTotalItems() > 0 && (
