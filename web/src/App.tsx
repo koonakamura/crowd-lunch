@@ -1,24 +1,20 @@
+import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { useAuth } from './lib/auth'
-import LoginPage from './pages/LoginPage'
+import SplashScreen from './components/SplashScreen'
 import HomePage from './pages/HomePage'
 import OrderPage from './pages/OrderPage'
 import ConfirmPage from './pages/ConfirmPage'
 import AdminPage from './pages/AdminPage'
 
 function App() {
-  const { user, isLoading } = useAuth()
+  const [showSplash, setShowSplash] = useState(true)
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    )
+  const handleSplashTransition = () => {
+    setShowSplash(false)
   }
 
-  if (!user) {
-    return <LoginPage />
+  if (showSplash) {
+    return <SplashScreen onTransition={handleSplashTransition} />
   }
 
   return (

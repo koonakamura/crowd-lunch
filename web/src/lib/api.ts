@@ -48,32 +48,12 @@ export interface WeeklyMenuResponse {
 }
 
 class ApiClient {
-  private token: string | null = null;
-
-  constructor() {
-    this.token = localStorage.getItem('auth_token');
-  }
-
-  setToken(token: string) {
-    this.token = token;
-    localStorage.setItem('auth_token', token);
-  }
-
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem('auth_token');
-  }
-
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
     };
-
-    if (this.token) {
-      (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
-    }
 
     const response = await fetch(url, {
       ...options,
@@ -88,12 +68,6 @@ class ApiClient {
     return response.json();
   }
 
-  async login(email: string): Promise<{ access_token: string; user: User }> {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
 
   async getWeeklyMenus(): Promise<WeeklyMenuResponse[]> {
     return this.request('/menus/weekly');

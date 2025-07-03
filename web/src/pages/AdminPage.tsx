@@ -5,20 +5,17 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
-import { useAuth } from '../lib/auth'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const queryClient = useQueryClient()
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['todayOrders'],
     queryFn: () => apiClient.getTodayOrders(),
     refetchInterval: 5000,
-    enabled: user?.email === 'admin@example.com',
   })
 
   const updateStatusMutation = useMutation({
@@ -29,16 +26,6 @@ export default function AdminPage() {
     },
   })
 
-  if (user?.email !== 'admin@example.com') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-lg mb-4">管理者権限が必要です</p>
-          <Button onClick={() => navigate('/')}>ホームに戻る</Button>
-        </div>
-      </div>
-    )
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

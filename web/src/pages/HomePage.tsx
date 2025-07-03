@@ -8,12 +8,10 @@ import { Card, CardContent } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, User } from 'lucide-react'
-import { useAuth } from '../lib/auth'
+import { ShoppingCart } from 'lucide-react'
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
   const [selectedItems, setSelectedItems] = useState<Array<{ menuId: number; qty: number }>>([])
 
   const { data: weeklyMenus, isLoading } = useQuery({
@@ -62,24 +60,23 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(/curry-rice-bg.jpg)'
+      }}
+    >
       {/* Header */}
-      <header className="bg-white border-b border-border p-4">
+      <header className="bg-white/90 backdrop-blur-sm border-b border-border p-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Crowd Lunch</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{user?.name}</span>
-            <Button variant="ghost" size="sm" onClick={logout}>
-              <User className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </header>
 
       {/* Weekly Tabs */}
       <div className="p-4">
         <Tabs defaultValue={format(weekDays[0], 'yyyy-MM-dd')} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-5 bg-white/90 backdrop-blur-sm">
             {weekDays.map((day) => (
               <TabsTrigger 
                 key={format(day, 'yyyy-MM-dd')} 
@@ -107,7 +104,7 @@ export default function HomePage() {
                     </div>
                   ) : (
                     dayMenus.map((menu) => (
-                      <Card key={menu.id} className="overflow-hidden">
+                      <Card key={menu.id} className="overflow-hidden bg-white/90 backdrop-blur-sm">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-4">
                             <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -157,7 +154,7 @@ export default function HomePage() {
         <div className="fixed bottom-4 right-4">
           <Button 
             onClick={handleProceedToOrder}
-            className="bg-primary hover:bg-primary/90 rounded-full p-4 shadow-lg"
+            className="bg-primary hover:bg-primary/90 rounded-full p-4 shadow-lg backdrop-blur-sm"
           >
             <ShoppingCart className="h-5 w-5 mr-2" />
             注文へ ({getTotalItems()})
