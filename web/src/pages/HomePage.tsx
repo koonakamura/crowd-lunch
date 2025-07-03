@@ -67,6 +67,7 @@ export default function HomePage() {
   const [selectedItems, setSelectedItems] = useState<Record<number, boolean>>({})
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [department, setDepartment] = useState('')
   const [name, setName] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
@@ -146,6 +147,11 @@ export default function HomePage() {
       total: getTotalPrice()
     })
     setIsModalOpen(false)
+    setIsSuccessModalOpen(true)
+  }
+
+  const handleCloseSuccessModal = () => {
+    setIsSuccessModalOpen(false)
     setSelectedItems({})
     setDepartment('')
     setName('')
@@ -293,6 +299,33 @@ export default function HomePage() {
               className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full py-3 font-bold"
             >
               注文確定
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Modal */}
+      <Dialog open={isSuccessModalOpen} onOpenChange={setIsSuccessModalOpen}>
+        <DialogContent className="max-w-md bg-black border-orange-500 border-2 rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-orange-500 text-center font-bold">注文完了</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 text-center">
+            <div className="space-y-3 text-white leading-relaxed">
+              <p>ご注文を承りました。</p>
+              <p>お時間にデスクにお届けします。</p>
+              <p>お支払いはタッチ決済でお願い致します。</p>
+              <p>それでは時間まで楽しみにお待ちください。</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleCloseSuccessModal}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full py-3 font-bold"
+            >
+              閉じる
             </Button>
           </DialogFooter>
         </DialogContent>
