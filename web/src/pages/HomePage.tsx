@@ -220,9 +220,9 @@ export default function HomePage() {
 
       {/* Order Confirmation Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-black border-orange-500 border-2 rounded-3xl">
           <DialogHeader>
-            <DialogTitle>ご注文内容</DialogTitle>
+            <DialogTitle className="text-orange-500 text-center font-bold">ご注文内容</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -232,13 +232,13 @@ export default function HomePage() {
                 const menu = getMenuById(menuId)
                 if (!menu) return null
                 return (
-                  <div key={menuId} className="flex justify-between">
+                  <div key={menuId} className="flex justify-between text-white">
                     <span>{menu.title}</span>
                     <span>{menu.price}円</span>
                   </div>
                 )
               })}
-              <div className="border-t pt-2 flex justify-between font-bold">
+              <div className="border-t border-gray-600 pt-2 flex justify-between font-bold text-white">
                 <span>合計</span>
                 <span>{getTotalPrice()}円</span>
               </div>
@@ -247,32 +247,34 @@ export default function HomePage() {
             {/* Form Fields */}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="department">部署</Label>
+                <Label htmlFor="department" className="text-white">部署</Label>
                 <Input
                   id="department"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
                   placeholder="部署名を入力"
+                  className="bg-white text-black rounded-xl border-0 mt-1"
                 />
               </div>
 
               <div>
-                <Label htmlFor="name">お名前</Label>
+                <Label htmlFor="name" className="text-white">お名前</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="お名前を入力"
+                  className="bg-white text-black rounded-xl border-0 mt-1"
                 />
               </div>
 
               <div>
-                <Label htmlFor="deliveryTime">希望お届け時間</Label>
+                <Label htmlFor="deliveryTime" className="text-white">希望お届け時間</Label>
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white text-black rounded-xl border-0 mt-1">
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     <SelectItem value="12:00-12:15">12:00～12:15</SelectItem>
                     <SelectItem value="12:15-12:30">12:15～12:30</SelectItem>
                     <SelectItem value="12:30-12:45">12:30～12:45</SelectItem>
@@ -288,7 +290,7 @@ export default function HomePage() {
             <Button
               onClick={handleConfirmOrder}
               disabled={!department || !name || !deliveryTime}
-              className="w-full bg-orange-500 hover:bg-orange-600"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full py-3 font-bold"
             >
               注文確定
             </Button>
