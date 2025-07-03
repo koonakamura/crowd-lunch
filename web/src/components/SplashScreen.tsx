@@ -50,11 +50,8 @@ export default function SplashScreen({ onTransition }: SplashScreenProps) {
             lineHeight: '1.1'
           }}
         >
-          Crowd Lunch
+          CROWD LUNCH
         </h1>
-        <p className="text-gray-500 text-sm mt-4 opacity-70">
-          タップまたはスクロールして続行
-        </p>
       </div>
     </div>
   )
