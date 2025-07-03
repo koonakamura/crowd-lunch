@@ -65,16 +65,40 @@ export { WEEKLY_MENU_DATA };
 
 export default function HomePage() {
   const [selectedItems, setSelectedItems] = useState<Record<number, boolean>>({})
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [department, setDepartment] = useState('')
   const [name, setName] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
 
+  const getMenuDay = (menuId: number) => {
+    for (const day of WEEKLY_MENU_DATA) {
+      const menu = day.menus.find(m => m.id === menuId)
+      if (menu) return day.date
+    }
+    return null
+  }
+
   const handleMenuSelect = (menuId: number) => {
-    setSelectedItems(prev => ({
-      ...prev,
-      [menuId]: !prev[menuId]
-    }))
+    const menuDay = getMenuDay(menuId)
+    if (!menuDay) return
+
+    setSelectedItems(prev => {
+      if (!selectedDay || selectedDay === menuDay) {
+        const newSelection = {
+          ...prev,
+          [menuId]: !prev[menuId]
+        }
+        
+        const hasSelections = Object.values(newSelection).some(selected => selected)
+        setSelectedDay(hasSelections ? menuDay : null)
+        
+        return newSelection
+      } else {
+        setSelectedDay(menuDay)
+        return { [menuId]: true }
+      }
+    })
   }
 
   const isMenuSelected = (menuId: number) => {
