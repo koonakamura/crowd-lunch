@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group'
 import { Label } from '../components/ui/label'
 import { Input } from '../components/ui/input'
 import { ArrowLeft, Plus, Minus } from 'lucide-react'
+import { WEEKLY_MENU_DATA } from './HomePage'
 
 interface SelectedItem {
   menuId: number
@@ -24,10 +25,6 @@ export default function OrderPage() {
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'desk'>('pickup')
   const [requestTime, setRequestTime] = useState('12:30')
 
-  const { data: weeklyMenus } = useQuery({
-    queryKey: ['weeklyMenus'],
-    queryFn: () => apiClient.getWeeklyMenus(),
-  })
 
   const createOrderMutation = useMutation({
     mutationFn: (orderData: {
@@ -48,8 +45,7 @@ export default function OrderPage() {
   }, [selectedItems, navigate])
 
   const getMenuById = (menuId: number) => {
-    if (!weeklyMenus) return null
-    for (const day of weeklyMenus) {
+    for (const day of WEEKLY_MENU_DATA) {
       const menu = day.menus.find(m => m.id === menuId)
       if (menu) return menu
     }
