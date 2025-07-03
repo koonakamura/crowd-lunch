@@ -21,9 +21,35 @@ export default function AdminPage() {
     setShowSplash(false)
   }
 
+  const mockOrders = [
+    {
+      id: 1,
+      created_at: new Date().toISOString(),
+      total_price: 1000,
+      status: 'paid',
+      request_time: '12:30',
+      user: { name: '田中太郎' },
+      order_items: [
+        { menu: { title: 'カレーライス' }, qty: 1 },
+        { menu: { title: '大盛り' }, qty: 1 }
+      ]
+    },
+    {
+      id: 2,
+      created_at: new Date().toISOString(),
+      total_price: 900,
+      status: 'preparing',
+      request_time: '店頭受取',
+      user: { name: '佐藤花子' },
+      order_items: [
+        { menu: { title: 'カレーライス' }, qty: 1 }
+      ]
+    }
+  ]
+
   const { data: orders, isLoading } = useQuery({
     queryKey: ['todayOrders'],
-    queryFn: () => apiClient.getTodayOrders(),
+    queryFn: () => Promise.resolve(mockOrders),
     refetchInterval: 5000,
   })
 
