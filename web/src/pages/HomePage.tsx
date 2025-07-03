@@ -1,6 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
 import { Menu } from '../lib/api'
 
 const WEEKLY_MENU_DATA: Array<{
@@ -61,40 +64,67 @@ const WEEKLY_MENU_DATA: Array<{
 export { WEEKLY_MENU_DATA };
 
 export default function HomePage() {
-  const navigate = useNavigate()
-  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({})
+  const [selectedItems, setSelectedItems] = useState<Record<number, boolean>>({})
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [department, setDepartment] = useState('')
+  const [name, setName] = useState('')
+  const [deliveryTime, setDeliveryTime] = useState('')
 
-  const handleMenuSelect = (menuId: number, dayDate: string) => {
-    setSelectedItems(prev => {
-      const newSelected = { ...prev }
-      
-      if (newSelected[dayDate] === menuId) {
-        delete newSelected[dayDate]
-      } else {
-        newSelected[dayDate] = menuId
-      }
-      
-      return newSelected
-    })
+  const handleMenuSelect = (menuId: number) => {
+    setSelectedItems(prev => ({
+      ...prev,
+      [menuId]: !prev[menuId]
+    }))
   }
 
-  const isMenuSelected = (menuId: number, dayDate: string) => {
-    return selectedItems[dayDate] === menuId
+  const isMenuSelected = (menuId: number) => {
+    return selectedItems[menuId] || false
   }
 
-  const getSelectedMenuForDay = (dayDate: string) => {
-    return selectedItems[dayDate]
+  const getSelectedMenus = () => {
+    return Object.keys(selectedItems)
+      .filter(menuId => selectedItems[parseInt(menuId)])
+      .map(menuId => parseInt(menuId))
   }
 
-  const handleProceedToOrder = (dayDate: string) => {
-    const selectedMenuId = selectedItems[dayDate]
-    if (selectedMenuId) {
-      navigate('/order', { 
-        state: { 
-          selectedItems: [{ menuId: selectedMenuId, qty: 1 }] 
-        } 
-      })
+  const getMenuById = (menuId: number) => {
+    for (const day of WEEKLY_MENU_DATA) {
+      const menu = day.menus.find(m => m.id === menuId)
+      if (menu) return menu
     }
+    return null
+  }
+
+  const getTotalPrice = () => {
+    return getSelectedMenus().reduce((total, menuId) => {
+      const menu = getMenuById(menuId)
+      return total + (menu?.price || 0)
+    }, 0)
+  }
+
+  const hasSelectedItems = () => {
+    return getSelectedMenus().length > 0
+  }
+
+  const handleOpenModal = () => {
+    if (hasSelectedItems()) {
+      setIsModalOpen(true)
+    }
+  }
+
+  const handleConfirmOrder = () => {
+    console.log('Order confirmed:', {
+      items: getSelectedMenus(),
+      department,
+      name,
+      deliveryTime,
+      total: getTotalPrice()
+    })
+    setIsModalOpen(false)
+    setSelectedItems({})
+    setDepartment('')
+    setName('')
+    setDeliveryTime('')
   }
 
   return (
@@ -118,18 +148,18 @@ export default function HomePage() {
           >
             {/* Day Header */}
             <div className="text-center py-20">
-              <h1 className="text-6xl font-bold text-white mb-2">{day.date}</h1>
-              <h2 className="text-2xl text-white">({day.dayName.toUpperCase()})</h2>
+              <h1 className="text-6xl font-bold text-white mb-2 font-droid-serif">{day.date}</h1>
+              <h2 className="text-2xl text-white font-droid-serif">({day.dayName.toUpperCase()})</h2>
             </div>
             
             {/* Menu Items - Pill Style */}
             <div className="px-6 space-y-3 max-w-md mx-auto pb-8">
               {day.menus.map((menu) => {
-                const isSelected = isMenuSelected(menu.id, day.date)
+                const isSelected = isMenuSelected(menu.id)
                 return (
                   <button
                     key={menu.id}
-                    onClick={() => handleMenuSelect(menu.id, day.date)}
+                    onClick={() => handleMenuSelect(menu.id)}
                     disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
                     className={`w-full backdrop-blur-sm rounded-full px-6 py-4 flex justify-between items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                       isSelected 
@@ -137,31 +167,109 @@ export default function HomePage() {
                         : 'bg-black/60 hover:bg-black/70'
                     }`}
                   >
-                    <span className="font-medium text-white">
+                    <span className="font-medium text-white font-hiragino">
                       {menu.title} ({menu.remaining_qty})
                     </span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-white font-hiragino">
                       {menu.price}円
                     </span>
                   </button>
                 )
               })}
-              
-              {/* Order Button for this day */}
-              {getSelectedMenuForDay(day.date) && (
-                <div className="pt-4">
-                  <Button
-                    onClick={() => handleProceedToOrder(day.date)}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full py-3 font-bold"
-                  >
-                    注文する
-                  </Button>
-                </div>
-              )}
             </div>
           </section>
         ))}
       </div>
+
+      {/* Global Order Button */}
+      {hasSelectedItems() && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+          <Button
+            onClick={handleOpenModal}
+            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-8 py-3 font-bold shadow-lg"
+          >
+            注文する ({getSelectedMenus().length}品)
+          </Button>
+        </div>
+      )}
+
+      {/* Order Confirmation Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>ご注文内容</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Selected Items */}
+            <div className="space-y-2">
+              {getSelectedMenus().map((menuId) => {
+                const menu = getMenuById(menuId)
+                if (!menu) return null
+                return (
+                  <div key={menuId} className="flex justify-between">
+                    <span>{menu.title}</span>
+                    <span>{menu.price}円</span>
+                  </div>
+                )
+              })}
+              <div className="border-t pt-2 flex justify-between font-bold">
+                <span>合計</span>
+                <span>{getTotalPrice()}円</span>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="department">部署</Label>
+                <Input
+                  id="department"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="部署名を入力"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="name">お名前</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="お名前を入力"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="deliveryTime">希望お届け時間</Label>
+                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="時間を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12:00-12:15">12:00～12:15</SelectItem>
+                    <SelectItem value="12:15-12:30">12:15～12:30</SelectItem>
+                    <SelectItem value="12:30-12:45">12:30～12:45</SelectItem>
+                    <SelectItem value="12:45-13:00">12:45～13:00</SelectItem>
+                    <SelectItem value="13:00-13:15">13:00～13:15</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleConfirmOrder}
+              disabled={!department || !name || !deliveryTime}
+              className="w-full bg-orange-500 hover:bg-orange-600"
+            >
+              注文確定
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )

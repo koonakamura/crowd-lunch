@@ -49,6 +49,8 @@ export default {
   		fontFamily: {
   			sans: ['Inter', 'system-ui', 'sans-serif'],
   			'urbane': ['Inter', 'system-ui', 'sans-serif'],
+  			'droid-serif': ['Droid Serif', 'serif'],
+  			'hiragino': ['Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'ヒラギノ角ゴ ProN W3', 'メイリオ', 'Meiryo', 'sans-serif'],
   		},
   		keyframes: {
   			'accordion-down': {
