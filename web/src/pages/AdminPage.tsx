@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table'
 import { ArrowLeft, Upload, Calendar, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import AdminSplashScreen from '../components/AdminSplashScreen'
@@ -28,6 +29,7 @@ export default function AdminPage() {
       total_price: 1000,
       status: 'paid',
       request_time: '12:30',
+      department: '営業部',
       user: { name: '田中太郎' },
       order_items: [
         { menu: { title: 'カレーライス' }, qty: 1 },
@@ -40,6 +42,7 @@ export default function AdminPage() {
       total_price: 900,
       status: 'preparing',
       request_time: '店頭受取',
+      department: '開発部',
       user: { name: '佐藤花子' },
       order_items: [
         { menu: { title: 'カレーライス' }, qty: 1 }
@@ -248,54 +251,57 @@ export default function AdminPage() {
                 注文履歴がありません
               </p>
             ) : (
-              <div className="space-y-3">
-                {orders
-                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((order) => (
-                  <div key={order.id} className="border rounded-lg p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-7 gap-2 text-sm">
-                      <div>
-                        <span className="font-semibold">注文ID:</span> #{order.id}
-                      </div>
-                      <div>
-                        <span className="font-semibold">注文時間:</span> {format(new Date(order.created_at), 'HH:mm')}
-                      </div>
-                      <div className="md:col-span-2">
-                        <span className="font-semibold">注文品目:</span> {formatOrderItems(order.order_items)}
-                      </div>
-                      <div>
-                        <span className="font-semibold">金額:</span> ¥{order.total_price}
-                      </div>
-                      <div>
-                        <span className="font-semibold">名前:</span> {order.user.name}
-                      </div>
-                      <div>
-                        <span className="font-semibold">配達時間:</span> {order.request_time || '店頭受取'}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center mt-3">
-                      <Badge className={getStatusColor(order.status)}>
-                        {getStatusText(order.status)}
-                      </Badge>
-                      <Select
-                        value={order.status}
-                        onValueChange={(value) => handleStatusChange(order.id, value)}
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="new">支払い待ち</SelectItem>
-                          <SelectItem value="paid">支払い完了</SelectItem>
-                          <SelectItem value="preparing">調理中</SelectItem>
-                          <SelectItem value="ready">受け取り可能</SelectItem>
-                          <SelectItem value="delivered">配達完了</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>注文ID</TableHead>
+                    <TableHead>注文時間</TableHead>
+                    <TableHead>注文品目</TableHead>
+                    <TableHead>金額</TableHead>
+                    <TableHead>部署</TableHead>
+                    <TableHead>名前</TableHead>
+                    <TableHead>希望配達時間</TableHead>
+                    <TableHead>ステータス</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>#{order.id}</TableCell>
+                      <TableCell>{format(new Date(order.created_at), 'HH:mm')}</TableCell>
+                      <TableCell>{formatOrderItems(order.order_items)}</TableCell>
+                      <TableCell>¥{order.total_price}</TableCell>
+                      <TableCell>{order.department || '-'}</TableCell>
+                      <TableCell>{order.user.name}</TableCell>
+                      <TableCell>{order.request_time || '店頭受取'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getStatusColor(order.status)}>
+                            {getStatusText(order.status)}
+                          </Badge>
+                          <Select
+                            value={order.status}
+                            onValueChange={(value) => handleStatusChange(order.id, value)}
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="new">支払い待ち</SelectItem>
+                              <SelectItem value="paid">支払い完了</SelectItem>
+                              <SelectItem value="preparing">調理中</SelectItem>
+                              <SelectItem value="ready">受け取り可能</SelectItem>
+                              <SelectItem value="delivered">配達完了</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
