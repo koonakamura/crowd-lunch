@@ -149,28 +149,68 @@ export default function AdminPage() {
           <CardHeader>
             <CardTitle>メニュー構成</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="menu-name">メニュー名</Label>
-                <Input id="menu-name" placeholder="メニュー名を入力" />
-              </div>
-              <div>
-                <Label htmlFor="menu-price">金額</Label>
-                <Input id="menu-price" type="number" placeholder="金額を入力" />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="menu-image">画像の表示・登録</Label>
-              <div className="flex gap-2 mt-1">
-                <Input id="menu-image" type="file" accept="image/*" />
-                <Button variant="outline">
+          <CardContent>
+            <div className="flex gap-6 items-start">
+              {/* Left: Image Section */}
+              <div className="flex-shrink-0">
+                <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                  <div className="text-center">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-xs text-gray-500">画像をアップロード</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="w-full mt-2">
                   <Upload className="h-4 w-4 mr-2" />
-                  アップロード
+                  選択
                 </Button>
               </div>
+
+              {/* Center: Menu Items */}
+              <div className="flex-1 space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm">• カレーライス</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">900円</span>
+                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">○</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm">• 大盛り</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">100円</span>
+                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">○</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm">• 南蛮漬け</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">100円</span>
+                      <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">○</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Input placeholder="メニュー名を入力" className="flex-1" />
+                  <Input placeholder="金額" type="number" className="w-24" />
+                  <Button size="sm">追加</Button>
+                </div>
+              </div>
+
+              {/* Right: Quantity Display */}
+              <div className="flex-shrink-0 text-right">
+                <div className="border-l pl-4">
+                  <p className="text-sm font-medium">数量：</p>
+                  <p className="text-lg font-bold">34 / 40</p>
+                </div>
+              </div>
             </div>
-            <Button className="w-full">メニューを保存</Button>
           </CardContent>
         </Card>
 
