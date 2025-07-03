@@ -129,8 +129,8 @@ export default function AdminPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl font-bold">
-            <span className="text-black">CROWD LUNCH</span>
-            <span className="text-gray-500 font-normal ml-2">Order sheet</span>
+            <span className="text-black">CROWD LUNCH </span>
+            <span className="text-gray-500 font-normal">Order sheet</span>
           </h1>
           <span className="text-sm text-muted-foreground">
             {format(new Date(), 'yyyy年M月d日')}
