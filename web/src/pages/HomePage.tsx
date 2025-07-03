@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/button'
-import { ShoppingCart } from 'lucide-react'
 import { Menu } from '../lib/api'
 
 const WEEKLY_MENU_DATA: Array<{
@@ -63,29 +62,38 @@ export { WEEKLY_MENU_DATA };
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const [selectedItems, setSelectedItems] = useState<Array<{ menuId: number; qty: number }>>([])
+  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({})
 
-  const handleAddToCart = (menuId: number) => {
+  const handleMenuSelect = (menuId: number, dayDate: string) => {
     setSelectedItems(prev => {
-      const existing = prev.find(item => item.menuId === menuId)
-      if (existing) {
-        return prev.map(item => 
-          item.menuId === menuId 
-            ? { ...item, qty: item.qty + 1 }
-            : item
-        )
+      const newSelected = { ...prev }
+      
+      if (newSelected[dayDate] === menuId) {
+        delete newSelected[dayDate]
+      } else {
+        newSelected[dayDate] = menuId
       }
-      return [...prev, { menuId, qty: 1 }]
+      
+      return newSelected
     })
   }
 
-  const getTotalItems = () => {
-    return selectedItems.reduce((total, item) => total + item.qty, 0)
+  const isMenuSelected = (menuId: number, dayDate: string) => {
+    return selectedItems[dayDate] === menuId
   }
 
-  const handleProceedToOrder = () => {
-    if (selectedItems.length > 0) {
-      navigate('/order', { state: { selectedItems } })
+  const getSelectedMenuForDay = (dayDate: string) => {
+    return selectedItems[dayDate]
+  }
+
+  const handleProceedToOrder = (dayDate: string) => {
+    const selectedMenuId = selectedItems[dayDate]
+    if (selectedMenuId) {
+      navigate('/order', { 
+        state: { 
+          selectedItems: [{ menuId: selectedMenuId, qty: 1 }] 
+        } 
+      })
     }
   }
 
@@ -115,39 +123,46 @@ export default function HomePage() {
             </div>
             
             {/* Menu Items - Pill Style */}
-            <div className="px-6 space-y-3 max-w-md mx-auto pb-20">
-              {day.menus.map((menu) => (
-                <button
-                  key={menu.id}
-                  onClick={() => handleAddToCart(menu.id)}
-                  disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
-                  className="w-full bg-black/60 backdrop-blur-sm rounded-full px-6 py-4 flex justify-between items-center hover:bg-black/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="font-medium text-white">
-                    {menu.title} ({menu.remaining_qty})
-                  </span>
-                  <span className="font-bold text-white">
-                    {menu.price}円
-                  </span>
-                </button>
-              ))}
+            <div className="px-6 space-y-3 max-w-md mx-auto pb-8">
+              {day.menus.map((menu) => {
+                const isSelected = isMenuSelected(menu.id, day.date)
+                return (
+                  <button
+                    key={menu.id}
+                    onClick={() => handleMenuSelect(menu.id, day.date)}
+                    disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
+                    className={`w-full backdrop-blur-sm rounded-full px-6 py-4 flex justify-between items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isSelected 
+                        ? 'bg-orange-500 hover:bg-orange-600' 
+                        : 'bg-black/60 hover:bg-black/70'
+                    }`}
+                  >
+                    <span className="font-medium text-white">
+                      {menu.title} ({menu.remaining_qty})
+                    </span>
+                    <span className="font-bold text-white">
+                      {menu.price}円
+                    </span>
+                  </button>
+                )
+              })}
+              
+              {/* Order Button for this day */}
+              {getSelectedMenuForDay(day.date) && (
+                <div className="pt-4">
+                  <Button
+                    onClick={() => handleProceedToOrder(day.date)}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white rounded-full py-3 font-bold"
+                  >
+                    注文する
+                  </Button>
+                </div>
+              )}
             </div>
           </section>
         ))}
       </div>
 
-      {/* Cart Button */}
-      {getTotalItems() > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Button 
-            onClick={handleProceedToOrder}
-            className="bg-primary hover:bg-primary/90 rounded-full p-4 shadow-lg backdrop-blur-sm"
-          >
-            <ShoppingCart className="h-5 w-5 mr-2" />
-            注文へ ({getTotalItems()})
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
