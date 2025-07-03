@@ -48,24 +48,26 @@ export default function AdminSplashScreen({ onTransition }: AdminSplashScreenPro
       style={{ opacity }}
     >
       <div className="text-center px-8">
-        <h1 
-          className="font-urbane font-bold text-black"
-          style={{ 
-            fontSize: 'min(16vw, 4rem)',
-            lineHeight: '1.1'
-          }}
-        >
-          CROWD LUNCH
-        </h1>
-        <h2 
-          className="font-urbane font-bold text-black mt-4"
-          style={{ 
-            fontSize: 'min(8vw, 2rem)',
-            lineHeight: '1.1'
-          }}
-        >
-          ADMIN
-        </h2>
+        <div className="space-y-2">
+          <h1 
+            className="font-urbane font-bold text-black"
+            style={{ 
+              fontSize: 'min(16vw, 4rem)',
+              lineHeight: '1.1'
+            }}
+          >
+            CROWD LUNCH
+          </h1>
+          <h2 
+            className="font-urbane font-bold text-black"
+            style={{ 
+              fontSize: 'min(12vw, 3rem)',
+              lineHeight: '1.1'
+            }}
+          >
+            ADMIN
+          </h2>
+        </div>
       </div>
     </div>
   )
