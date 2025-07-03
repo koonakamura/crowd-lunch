@@ -6,6 +6,7 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onTransition }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true)
+  const [opacity, setOpacity] = useState(1)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,10 +20,11 @@ export default function SplashScreen({ onTransition }: SplashScreenProps) {
     }
 
     const handleTransition = () => {
-      setIsVisible(false)
+      setOpacity(0)
       setTimeout(() => {
+        setIsVisible(false)
         onTransition()
-      }, 300)
+      }, 500)
     }
 
     window.addEventListener('scroll', handleScroll)
@@ -41,7 +43,10 @@ export default function SplashScreen({ onTransition }: SplashScreenProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex items-center justify-center transition-opacity duration-300">
+    <div 
+      className="fixed inset-0 bg-white z-50 flex items-center justify-center transition-opacity duration-500 ease-out"
+      style={{ opacity }}
+    >
       <div className="text-center px-8">
         <h1 
           className="font-urbane font-bold text-black"
