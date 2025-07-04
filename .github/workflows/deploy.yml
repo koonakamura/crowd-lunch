@@ -72,6 +72,14 @@ jobs:
     - name: Setup Fly CLI
       uses: superfly/flyctl-actions/setup-flyctl@master
     
+    - name: Create Fly.io app if it doesn't exist
+      run: |
+        if ! flyctl apps list | grep -q "crowd-lunch"; then
+          flyctl apps create crowd-lunch --org personal
+        fi
+      env:
+        FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    
     - name: Deploy to Fly.io
       run: flyctl deploy --remote-only
       env:
