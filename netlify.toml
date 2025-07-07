@@ -1,0 +1,7 @@
+[build]
+  base = "web"
+  publish = "web/dist"
+  command = "npm run build"
+
+[dev]
+  framework = "vite"
