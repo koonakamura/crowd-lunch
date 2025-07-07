@@ -88,5 +88,5 @@ jobs:
         # 新 CLI をインストール
         npm install -g @railway/cli
         # サービス名 backend をデプロイ
-        railway up --service backend
+        railway up --project c4e30747-7a07-495f-9647-277a30f70eae --service backend
 
