@@ -2,9 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel import SQLModel
 from app.main import app
 from app.database import get_db, Base
-from app.models import User, Menu, Order, OrderItem
+from app.models import User, MenuSQLAlchemy as Menu, OrderSQLAlchemy as Order, OrderItem
 from datetime import date, time
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -23,6 +24,7 @@ app.dependency_overrides[get_db] = override_get_db
 @pytest.fixture(scope="module")
 def client():
     Base.metadata.create_all(bind=engine)
+    SQLModel.metadata.create_all(bind=engine)
     with TestClient(app) as c:
         yield c
     Base.metadata.drop_all(bind=engine)
@@ -284,7 +286,6 @@ def test_cors_and_startup_coverage(client):
 def test_crud_edge_cases(client, test_user, test_menu):
     from app.crud import get_user_by_email, create_user
     from app.schemas import UserCreate
-    from app.models import Menu
     
     db = TestingSessionLocal()
     

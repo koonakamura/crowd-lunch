@@ -1,9 +1,9 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, time
 import enum
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -27,6 +27,45 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     seat_id = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class MenuSQLAlchemy(Base):
+    __tablename__ = "menus"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    serve_date = Column(Date, nullable=False)
+    title = Column(String, nullable=False)
+    price = Column(Integer, nullable=False)
+    max_qty = Column(Integer, nullable=False)
+    img_url = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    order_items = relationship("OrderItem", back_populates="menu")
+
+class OrderSQLAlchemy(Base):
+    __tablename__ = "orders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    serve_date = Column(Date, nullable=False)
+    delivery_type = Column(Enum(DeliveryType), nullable=False)
+    request_time = Column(Time)
+    total_price = Column(Integer, nullable=False)
+    status = Column(Enum(OrderStatus), default=OrderStatus.new)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User")
+    order_items = relationship("OrderItem", back_populates="order")
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    menu_id = Column(Integer, ForeignKey("menus.id"), nullable=False)
+    qty = Column(Integer, nullable=False)
+    
+    order = relationship("OrderSQLAlchemy", back_populates="order_items")
+    menu = relationship("MenuSQLAlchemy", back_populates="order_items")
 
 class Menu(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

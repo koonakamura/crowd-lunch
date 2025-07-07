@@ -22,20 +22,20 @@ def get_or_create_user(db: Session, email: str, name: str = None):
     return user
 
 def get_menus_by_date(db: Session, serve_date: date):
-    return db.query(models.Menu).filter(models.Menu.serve_date == serve_date).all()
+    return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
-    menus = db.query(models.Menu).filter(
-        and_(models.Menu.serve_date >= start_date, models.Menu.serve_date <= end_date)
+    menus = db.query(models.MenuSQLAlchemy).filter(
+        and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
     ).all()
     
     menu_with_remaining = []
     for menu in menus:
-        ordered_qty = db.query(func.sum(models.OrderItem.qty)).join(models.Order).filter(
+        ordered_qty = db.query(func.sum(models.OrderItem.qty)).join(models.OrderSQLAlchemy).filter(
             and_(
                 models.OrderItem.menu_id == menu.id,
-                models.Order.serve_date == menu.serve_date,
-                models.Order.status != models.OrderStatus.new
+                models.OrderSQLAlchemy.serve_date == menu.serve_date,
+                models.OrderSQLAlchemy.status != models.OrderStatus.new
             )
         ).scalar() or 0
         
@@ -49,11 +49,11 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
 def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     total_price = 0
     for item in order.items:
-        menu = db.query(models.Menu).filter(models.Menu.id == item.menu_id).first()
+        menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
         if menu:
             total_price += menu.price * item.qty
     
-    db_order = models.Order(
+    db_order = models.OrderSQLAlchemy(
         user_id=user_id,
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
@@ -78,10 +78,10 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     return db_order
 
 def get_order(db: Session, order_id: int):
-    return db.query(models.Order).filter(models.Order.id == order_id).first()
+    return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
 
 def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
-    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    order = db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
     if order:
         order.status = status
         db.commit()
@@ -89,7 +89,7 @@ def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
     return order
 
 def get_today_orders(db: Session, serve_date: date):
-    return db.query(models.Order).filter(models.Order.serve_date == serve_date).all()
+    return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.serve_date == serve_date).all()
 
 def create_sample_menus(db: Session):
     """Create sample menu data for testing"""
@@ -119,15 +119,15 @@ def create_sample_menus(db: Session):
     ]
     
     for menu_data in sample_menus:
-        existing = db.query(models.Menu).filter(
+        existing = db.query(models.MenuSQLAlchemy).filter(
             and_(
-                models.Menu.serve_date == menu_data["serve_date"],
-                models.Menu.title == menu_data["title"]
+                models.MenuSQLAlchemy.serve_date == menu_data["serve_date"],
+                models.MenuSQLAlchemy.title == menu_data["title"]
             )
         ).first()
         
         if not existing:
-            menu = models.Menu(**menu_data)
+            menu = models.MenuSQLAlchemy(**menu_data)
             db.add(menu)
     
     db.commit()
