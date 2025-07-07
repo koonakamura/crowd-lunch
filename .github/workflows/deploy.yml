@@ -84,7 +84,11 @@ jobs:
       working-directory: ./api
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        npm install -g railway
-        railway up --service backend --yes
+    run: |
+      # 新 CLI をインストール
+      npm install -g @railway/cli
+      # トークンでログイン （--yes で対話をスキップ）
+      railway login --token "$RAILWAY_TOKEN" --yes
+      # サービス名 backend をデプロイ
+      railway up --service backend --yes
 
