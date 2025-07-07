@@ -79,14 +79,3 @@ jobs:
       env:
         NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-
-    - name: Deploy Backend to Railway
-      working-directory: ./api
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        # 新 CLI をインストール
-        npm install -g @railway/cli
-        # サービス名 backend をデプロイ
-        railway up --project c4e30747-7a07-495f-9647-277a30f70eae --service backend
-
