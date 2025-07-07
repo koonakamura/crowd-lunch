@@ -106,3 +106,5 @@ GitHub Actions により自動デプロイ:
 
 - [@koonaka](https://github.com/koonaka)
 - Devin AI Integration
+
+<!-- Deployment trigger: 1751846786 -->
