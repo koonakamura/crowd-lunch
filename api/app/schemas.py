@@ -75,6 +75,47 @@ class Order(OrderBase):
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
+class MenuCreate(BaseModel):
+    date: date
+    title: str
+    photo_url: Optional[str] = None
+
+class MenuUpdate(BaseModel):
+    title: Optional[str] = None
+    photo_url: Optional[str] = None
+
+class MenuResponse(BaseModel):
+    id: int
+    date: date
+    title: str
+    photo_url: Optional[str] = None
+    items: List['MenuItemResponse'] = []
+
+    class Config:
+        from_attributes = True
+
+class MenuItemCreate(BaseModel):
+    name: str
+    price: float
+    stock: int
+
+class MenuItemUpdate(BaseModel):
+    name: Optional[str] = None
+    price: Optional[float] = None
+    stock: Optional[int] = None
+
+class MenuItemResponse(BaseModel):
+    id: int
+    menu_id: int
+    name: str
+    price: float
+    stock: int
+
+    class Config:
+        from_attributes = True
+
+MenuResponse.model_rebuild()
+
 class WeeklyMenuResponse(BaseModel):
     date: date
     menus: List[MenuWithRemaining]

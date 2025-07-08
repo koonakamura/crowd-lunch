@@ -3,6 +3,7 @@ from sqlalchemy import func, and_
 from datetime import date, datetime
 from typing import List, Optional
 from . import models, schemas
+from sqlmodel import select
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -131,3 +132,102 @@ def create_sample_menus(db: Session):
             db.add(menu)
     
     db.commit()
+
+def get_menus(db: Session, date_filter: date = None):
+    """Get menus with optional date filter"""
+    if date_filter:
+        menus = db.query(models.Menu).filter(models.Menu.date == date_filter).all()
+    else:
+        menus = db.query(models.Menu).all()
+    
+    result = []
+    for menu in menus:
+        menu_items = db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu.id).all()
+        menu_dict = {
+            "id": menu.id,
+            "date": menu.date,
+            "title": menu.title,
+            "photo_url": menu.photo_url,
+            "items": menu_items
+        }
+        result.append(menu_dict)
+    
+    return result
+
+def create_menu(db: Session, menu: schemas.MenuCreate):
+    """Create a new menu"""
+    db_menu = models.Menu(
+        date=menu.date,
+        title=menu.title,
+        photo_url=menu.photo_url
+    )
+    db.add(db_menu)
+    db.commit()
+    db.refresh(db_menu)
+    return db_menu
+
+def update_menu(db: Session, menu_id: int, menu_update: schemas.MenuUpdate):
+    """Update an existing menu"""
+    menu = db.query(models.Menu).filter(models.Menu.id == menu_id).first()
+    if not menu:
+        return None
+    
+    if menu_update.title is not None:
+        menu.title = menu_update.title
+    if menu_update.photo_url is not None:
+        menu.photo_url = menu_update.photo_url
+    
+    db.commit()
+    db.refresh(menu)
+    return menu
+
+def delete_menu(db: Session, menu_id: int):
+    """Delete a menu and its items"""
+    menu = db.query(models.Menu).filter(models.Menu.id == menu_id).first()
+    if not menu:
+        return False
+    
+    db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu_id).delete()
+    db.delete(menu)
+    db.commit()
+    return True
+
+def create_menu_item(db: Session, menu_id: int, item: schemas.MenuItemCreate):
+    """Create a new menu item"""
+    db_item = models.MenuItem(
+        menu_id=menu_id,
+        name=item.name,
+        price=item.price,
+        stock=item.stock
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def update_menu_item(db: Session, item_id: int, item_update: schemas.MenuItemUpdate):
+    """Update an existing menu item"""
+    item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+    if not item:
+        return None
+    
+    if item_update.name is not None:
+        item.name = item_update.name
+    if item_update.price is not None:
+        item.price = item_update.price
+    if item_update.stock is not None:
+        item.stock = item_update.stock
+    
+    db.commit()
+    db.refresh(item)
+    return item
+
+def delete_menu_item(db: Session, item_id: int):
+    """Delete a menu item"""
+    item = db.query(models.MenuItem).filter(models.MenuItem.id == item_id).first()
+    if not item:
+        return False
+    
+    db.delete(item)
+    db.commit()
+    return True

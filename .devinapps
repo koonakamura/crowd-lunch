@@ -1,0 +1,6 @@
+{
+  "root": "web",
+  "build": "npm run build",
+  "start": "npm run preview",
+  "dist": "dist"
+}

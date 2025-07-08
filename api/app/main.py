@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import List
 import json
 
-from .database import get_db, engine
+from .database import get_db, engine, create_db_and_tables
 from .models import Base
 from . import crud, schemas, auth
 
@@ -21,6 +21,7 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+create_db_and_tables()
 
 class ConnectionManager:
     def __init__(self):
@@ -145,6 +146,105 @@ async def get_today_orders(
     today = date.today()
     orders = crud.get_today_orders(db, today)
     return orders
+
+@app.get("/admin/menus", response_model=List[schemas.MenuResponse])
+async def get_menus(
+    date_filter: date = None,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    menus = crud.get_menus(db, date_filter)
+    return menus
+
+@app.post("/admin/menus", response_model=schemas.MenuResponse)
+async def create_menu(
+    menu: schemas.MenuCreate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_menu = crud.create_menu(db, menu)
+    return db_menu
+
+@app.patch("/admin/menus/{menu_id}", response_model=schemas.MenuResponse)
+async def update_menu(
+    menu_id: int,
+    menu_update: schemas.MenuUpdate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_menu = crud.update_menu(db, menu_id, menu_update)
+    if not db_menu:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    return db_menu
+
+@app.delete("/admin/menus/{menu_id}")
+async def delete_menu(
+    menu_id: int,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    success = crud.delete_menu(db, menu_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    return {"message": "メニューが削除されました"}
+
+@app.post("/admin/menus/{menu_id}/items", response_model=schemas.MenuItemResponse)
+async def create_menu_item(
+    menu_id: int,
+    item: schemas.MenuItemCreate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_item = crud.create_menu_item(db, menu_id, item)
+    return db_item
+
+@app.patch("/admin/menu-items/{item_id}", response_model=schemas.MenuItemResponse)
+async def update_menu_item(
+    item_id: int,
+    item_update: schemas.MenuItemUpdate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_item = crud.update_menu_item(db, item_id, item_update)
+    if not db_item:
+        raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
+    
+    return db_item
+
+@app.delete("/admin/menu-items/{item_id}")
+async def delete_menu_item(
+    item_id: int,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    success = crud.delete_menu_item(db, item_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
+    
+    return {"message": "メニューアイテムが削除されました"}
 
 @app.websocket("/ws/orders")
 async def websocket_endpoint(websocket: WebSocket):

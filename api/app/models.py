@@ -26,7 +26,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     seat_id = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 class MenuSQLAlchemy(Base):
     __tablename__ = "menus"
@@ -37,7 +37,7 @@ class MenuSQLAlchemy(Base):
     price = Column(Integer, nullable=False)
     max_qty = Column(Integer, nullable=False)
     img_url = Column(String)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     order_items = relationship("OrderItem", back_populates="menu")
 
@@ -51,7 +51,7 @@ class OrderSQLAlchemy(Base):
     request_time = Column(Time)
     total_price = Column(Integer, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.new)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     user = relationship("User")
     order_items = relationship("OrderItem", back_populates="order")
