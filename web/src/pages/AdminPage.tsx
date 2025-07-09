@@ -47,6 +47,7 @@ interface OrderItem {
   id: number
   menu: { title: string; price: number }
   qty: number
+  menu_item_name?: string
 }
 
 export default function AdminPage() {
