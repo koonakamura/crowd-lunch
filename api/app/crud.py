@@ -147,12 +147,22 @@ def get_menus(db: Session, date_filter: date = None):
     result = []
     for menu in menus:
         menu_items = db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu.id).all()
+        items_list = []
+        for item in menu_items:
+            items_list.append({
+                "id": item.id,
+                "name": item.name,
+                "price": item.price,
+                "stock": item.stock,
+                "menu_id": item.menu_id
+            })
+        
         menu_dict = {
             "id": menu.id,
             "date": menu.date,
             "title": menu.title,
             "photo_url": menu.photo_url,
-            "items": menu_items
+            "items": items_list
         }
         result.append(menu_dict)
     
