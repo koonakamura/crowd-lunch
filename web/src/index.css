@@ -25,3 +25,35 @@
   }
 }
 
+@layer components {
+  .bg-sushi {
+    background-image: url('https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .bg-fried {
+    background-image: url('https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .bg-curry {
+    background-image: url('https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .bg-ramen {
+    background-image: url('https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+  }
+
+  .bg-bento {
+    background-image: url('https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+  }
+}
+
