@@ -349,8 +349,9 @@ export default function HomePage() {
           </DialogHeader>
           
           <div className="space-y-4 text-center">
+            <p className="text-white">注文を承りました。</p>
             <p className="text-white">ご指定の時間にお座席にお届けします。</p>
-            <p className="text-white">支払いはタッチ決済になりますのでご用意をお願いします。</p>
+            <p className="text-white">支払いはタッチ決済のご用意をお願いします。</p>
             <p className="text-white">それでは時間まで楽しみにお待ちください。</p>
           </div>
 

@@ -5,7 +5,6 @@ import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { useAuth } from '../lib/auth'
 import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -418,44 +417,57 @@ export default function AdminPage() {
             <CardTitle>注文一覧</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>注文ID</TableHead>
-                  <TableHead>注文時間</TableHead>
-                  <TableHead>注文者情報</TableHead>
-                  <TableHead>注文品目</TableHead>
-                  <TableHead>金額</TableHead>
-                  <TableHead>希望配達時間</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders?.map((order: Order) => (
-                  order.order_items?.map((item: OrderItem) => (
-                    <TableRow key={`${order.id}-${item.id}`}>
-                      <TableCell>{order.id}</TableCell>
-                      <TableCell>{format(new Date(order.created_at), 'HH:mm')}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div>{order.user.name}</div>
+            <div className="space-y-4">
+              {orders?.length ? (
+                orders.map((order: Order) => (
+                  <div key={order.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-4">
+                        <div className="text-lg font-semibold">
+                          注文ID: #{order.id.toString().padStart(3, '0')}
                         </div>
-                      </TableCell>
-                      <TableCell>{item.menu.title}</TableCell>
-                      <TableCell>¥{item.menu.price * item.qty}</TableCell>
-                      <TableCell>
-                        {order.request_time || '時間指定なし'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )) || (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
-                      注文がありません
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                        <div className="text-sm text-muted-foreground">
+                          {format(new Date(order.created_at), 'HH:mm')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">{order.user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {order.request_time || '時間指定なし'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {order.order_items?.map((item: OrderItem) => (
+                        <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">{item.menu.title}</span>
+                            <span className="text-sm text-muted-foreground">× {item.qty}</span>
+                          </div>
+                          <div className="font-semibold">
+                            ¥{item.menu.price * item.qty}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        合計金額
+                      </div>
+                      <div className="text-lg font-bold">
+                        ¥{order.total_price}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  注文がありません
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
