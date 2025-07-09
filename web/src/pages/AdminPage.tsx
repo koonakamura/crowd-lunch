@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
 import { Badge } from '../components/ui/badge'
 import { useAuth } from '../lib/auth'
-import { ArrowLeft, Plus, Trash2, Upload, Camera } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 
@@ -26,7 +26,6 @@ export default function AdminPage() {
     { name: '', price: 0, stock: 0 }
   ])
   const [menuImage, setMenuImage] = useState<string>('')
-  const [isUploading, setIsUploading] = useState(false)
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -46,10 +45,6 @@ export default function AdminPage() {
     mutationFn: (file: File) => apiClient.uploadImage(file),
     onSuccess: (data) => {
       setMenuImage(data.file_url)
-      setIsUploading(false)
-    },
-    onError: () => {
-      setIsUploading(false)
     }
   })
 
@@ -109,7 +104,6 @@ export default function AdminPage() {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setIsUploading(true)
       uploadImageMutation.mutate(file)
     }
   }
@@ -160,8 +154,9 @@ export default function AdminPage() {
             <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h1 className="text-xl font-bold font-lato">
-              CROWD LUNCH Order sheet
+            <h1 className="text-xl font-lato">
+              <span className="font-bold">CROWD LUNCH</span>
+              <span className="font-light"> Order sheet</span>
             </h1>
           </div>
           <span className="text-sm text-muted-foreground">
@@ -192,34 +187,23 @@ export default function AdminPage() {
               <CardTitle>メニュー構成</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Image Upload */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">画像登録</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  {menuImage ? (
-                    <div className="relative">
-                      <img src={menuImage} alt="Menu" className="w-full h-32 object-cover rounded" />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="absolute top-2 right-2"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="h-8 w-8 mx-auto text-gray-400" />
-                      <Button
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
-                      >
-                        {isUploading ? '画像をアップロード中...' : '画像を選択'}
-                      </Button>
-                    </div>
-                  )}
+              <div className="flex gap-6">
+                {/* Image Upload - Circular */}
+                <div className="flex flex-col items-center">
+                  <label className="text-sm font-medium mb-2">画像登録</label>
+                  <div 
+                    className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {menuImage ? (
+                      <img src={menuImage} alt="Menu" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <div className="text-center">
+                        <div className="text-xs text-gray-500">画像を</div>
+                        <div className="text-xs text-gray-500">選択</div>
+                      </div>
+                    )}
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -228,56 +212,73 @@ export default function AdminPage() {
                     onChange={handleImageUpload}
                   />
                 </div>
-              </div>
 
-              {/* Menu Items */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">メニュー情報</label>
-                {menuItems.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <Input
-                      placeholder="メニュー名"
-                      value={item.name}
-                      onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="金額"
-                      value={item.price}
-                      onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
-                      className="w-20"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="数量"
-                      value={item.stock}
-                      onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
-                      className="w-20"
-                    />
-                    {index >= 3 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => removeMenuItem(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                {/* Menu Items Table */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-4 gap-2 mb-2 text-sm font-medium">
+                    <div>メニュー情報</div>
+                    <div className="text-center">金額</div>
+                    <div className="text-center">数量</div>
+                    <div></div>
                   </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addMenuItem}
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  メニュー追加
-                </Button>
+                  
+                  {menuItems.map((item, index) => (
+                    <div key={index} className="grid grid-cols-4 gap-2 mb-2 items-center">
+                      <Input
+                        placeholder="メニュー名"
+                        value={item.name}
+                        onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
+                        className="text-sm"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.price}
+                        onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.stock}
+                        onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center"
+                      />
+                      <div className="flex gap-1 justify-center">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {index >= 3 && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeMenuItem(index)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addMenuItem}
+                    className="w-full mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    メニュー追加
+                  </Button>
+                </div>
               </div>
 
-              <Button onClick={saveMenu} className="w-full">
+              <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
                 保存
               </Button>
             </CardContent>
