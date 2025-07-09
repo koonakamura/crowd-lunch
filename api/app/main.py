@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List
@@ -22,6 +23,8 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class ConnectionManager:
     def __init__(self):
@@ -171,6 +174,19 @@ async def get_today_orders(
     orders = crud.get_today_orders(db, today)
     return orders
 
+@app.get("/admin/orders", response_model=List[schemas.Order])
+async def get_orders_by_date(
+    date_filter: date = None,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    target_date = date_filter or date.today()
+    orders = crud.get_today_orders(db, target_date)
+    return orders
+
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])
 async def get_menus(
     date_filter: date = None,
@@ -269,6 +285,31 @@ async def delete_menu_item(
         raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
     
     return {"message": "メニューアイテムが削除されました"}
+
+@app.post("/admin/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    import os
+    import uuid
+    
+    upload_dir = "static/uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    return {"file_url": f"/static/uploads/{unique_filename}"}
 
 @app.websocket("/ws/orders")
 async def websocket_endpoint(websocket: WebSocket):

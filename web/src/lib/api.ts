@@ -148,6 +148,75 @@ class ApiClient {
   async getTodayOrders(): Promise<Order[]> {
     return this.request('/admin/orders/today');
   }
+
+  async getMenus(dateFilter?: string): Promise<any[]> {
+    const params = dateFilter ? `?date_filter=${dateFilter}` : '';
+    return this.request(`/admin/menus${params}`);
+  }
+
+  async createMenu(menu: { date: string; title: string; photo_url?: string }): Promise<any> {
+    return this.request('/admin/menus', {
+      method: 'POST',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async updateMenu(menuId: number, menu: { title?: string; photo_url?: string }): Promise<any> {
+    return this.request(`/admin/menus/${menuId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async deleteMenu(menuId: number): Promise<void> {
+    return this.request(`/admin/menus/${menuId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async createMenuItem(menuId: number, item: { name: string; price: number; stock: number }): Promise<any> {
+    return this.request(`/admin/menus/${menuId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async updateMenuItem(itemId: number, item: { name?: string; price?: number; stock?: number }): Promise<any> {
+    return this.request(`/admin/menu-items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async deleteMenuItem(itemId: number): Promise<void> {
+    return this.request(`/admin/menu-items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadImage(file: File): Promise<{ file_url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/admin/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getOrdersByDate(date: string): Promise<Order[]> {
+    return this.request(`/admin/orders?date_filter=${date}`);
+  }
 }
 
 export const apiClient = new ApiClient();
