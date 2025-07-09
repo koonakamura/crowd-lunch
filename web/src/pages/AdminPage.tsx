@@ -6,7 +6,6 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table'
-import { Badge } from '../components/ui/badge'
 import { useAuth } from '../lib/auth'
 import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -29,11 +28,6 @@ export default function AdminPage() {
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
-  const { data: menus } = useQuery({
-    queryKey: ['menus', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getMenus(formatDateForApi(selectedDate)),
-    enabled: user?.email === 'admin@example.com',
-  })
 
   const { data: orders } = useQuery({
     queryKey: ['orders', formatDateForApi(selectedDate)],
@@ -138,28 +132,20 @@ export default function AdminPage() {
     }
   }
 
-  const currentMenu = menus?.[0]
-  const totalOrdered = currentMenu?.items?.reduce((sum: number, item: any) => 
-    sum + (item.stock - (orders?.reduce((itemSum: number, order: any) => 
-      itemSum + (order.order_items?.filter((oi: any) => oi.menu_id === item.id)
-        .reduce((qty: number, oi: any) => qty + oi.qty, 0) || 0), 0) || 0)), 0) || 0
-  const totalStock = currentMenu?.items?.reduce((sum: number, item: any) => sum + item.stock, 0) || 0
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-white border-b border-border p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h1 className="text-xl font-lato">
-              <span className="font-bold">CROWD LUNCH</span>
-              <span className="font-light"> Order sheet</span>
-            </h1>
-          </div>
-          <span className="text-sm text-muted-foreground">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-xl font-lato">
+            <span className="font-bold">CROWD LUNCH</span>
+            <span className="font-light"> Order sheet</span>
+          </h1>
+          <span className="text-sm text-muted-foreground ml-4">
             {getTodayFormatted()}
           </span>
         </div>
@@ -180,136 +166,108 @@ export default function AdminPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Menu Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle>メニュー構成</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-6">
-                {/* Image Upload - Circular */}
-                <div className="flex flex-col items-center">
-                  <label className="text-sm font-medium mb-2">画像登録</label>
-                  <div 
-                    className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {menuImage ? (
-                      <img src={menuImage} alt="Menu" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      <div className="text-center">
-                        <div className="text-xs text-gray-500">画像を</div>
-                        <div className="text-xs text-gray-500">選択</div>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
+        {/* Menu Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle>メニュー構成</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-6">
+              {/* Image Upload - Circular */}
+              <div className="flex flex-col items-center">
+                <label className="text-sm font-medium mb-2">画像登録</label>
+                <div 
+                  className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {menuImage ? (
+                    <img src={menuImage} alt="Menu" className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500">画像を</div>
+                      <div className="text-xs text-gray-500">選択</div>
+                    </div>
+                  )}
                 </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
 
-                {/* Menu Items Table */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-4 gap-2 mb-2 text-sm font-medium">
-                    <div>メニュー情報</div>
-                    <div className="text-center">金額</div>
-                    <div className="text-center">数量</div>
-                    <div></div>
-                  </div>
-                  
-                  {menuItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-4 gap-2 mb-2 items-center">
-                      <Input
-                        placeholder="メニュー名"
-                        value={item.name}
-                        onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
-                        className="text-sm"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={item.price}
-                        onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
-                        className="text-sm text-center"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        value={item.stock}
-                        onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
-                        className="text-sm text-center"
-                      />
-                      <div className="flex gap-1 justify-center">
+              {/* Menu Items Table */}
+              <div className="flex-1">
+                <div className="grid grid-cols-4 gap-2 mb-2 text-sm font-medium">
+                  <div>メニュー情報</div>
+                  <div className="text-center">金額</div>
+                  <div className="text-center">数量</div>
+                  <div></div>
+                </div>
+                
+                {menuItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-2 mb-2 items-center">
+                    <Input
+                      placeholder="メニュー名"
+                      value={item.name}
+                      onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
+                      className="text-sm"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={item.price}
+                      onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
+                      className="text-sm text-center"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={item.stock}
+                      onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
+                      className="text-sm text-center"
+                    />
+                    <div className="flex gap-1 justify-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {index >= 3 && (
                         <Button
                           size="sm"
                           variant="ghost"
+                          onClick={() => removeMenuItem(index)}
                           className="h-8 w-8 p-0"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                        {index >= 3 && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeMenuItem(index)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addMenuItem}
-                    className="w-full mt-2"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    メニュー追加
-                  </Button>
-                </div>
-              </div>
-
-              <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
-                保存
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Order Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>数量: {totalOrdered} / {totalStock}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {currentMenu?.items?.map((item: any) => {
-                const orderedQty = orders?.reduce((sum: number, order: any) => 
-                  sum + (order.order_items?.filter((oi: any) => oi.menu_id === item.id)
-                    .reduce((qty: number, oi: any) => qty + oi.qty, 0) || 0), 0) || 0
-                
-                return (
-                  <div key={item.id} className="flex justify-between items-center py-2 border-b">
-                    <span>・{item.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span>{item.price}円</span>
-                      <Badge variant="outline">
-                        {orderedQty}/{item.stock}
-                      </Badge>
+                      )}
                     </div>
                   </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        </div>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addMenuItem}
+                  className="w-full mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  メニュー追加
+                </Button>
+              </div>
+            </div>
+
+            <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
+              保存
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Order Table */}
         <Card>
