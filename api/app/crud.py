@@ -140,9 +140,9 @@ def create_sample_menus(db: Session):
 def get_menus(db: Session, date_filter: date = None):
     """Get menus with optional date filter"""
     if date_filter:
-        menus = db.query(models.Menu).filter(models.Menu.date == date_filter).all()
+        menus = db.query(models.Menu).filter(models.Menu.date == date_filter).order_by(models.Menu.id.desc()).all()
     else:
-        menus = db.query(models.Menu).all()
+        menus = db.query(models.Menu).order_by(models.Menu.id.desc()).all()
     
     result = []
     for menu in menus:
