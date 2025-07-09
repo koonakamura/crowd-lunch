@@ -63,7 +63,7 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
         request_time=order.request_time,
-        total_price=total_price,
+        total_price=int(total_price),
         status=models.OrderStatus.new
     )
     db.add(db_order)
@@ -321,7 +321,7 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
         request_time=order.request_time,
-        total_price=total_price,
+        total_price=int(total_price),
         status=models.OrderStatus.new
     )
     db.add(db_order)
