@@ -98,6 +98,30 @@ async def create_order(
     
     return db_order
 
+@app.post("/orders/guest", response_model=schemas.Order)
+async def create_guest_order(
+    order: schemas.OrderCreateWithName,
+    db: Session = Depends(get_db)
+):
+    import os
+    if os.getenv("TESTING") != "true":
+        now = datetime.now()
+        if now.hour >= 12:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="注文受付時間を過ぎています"
+            )
+    
+    db_order = crud.create_guest_order(db, order)
+    
+    await manager.broadcast(json.dumps({
+        "type": "order_created",
+        "order_id": db_order.id,
+        "customer_name": order.customer_name
+    }))
+    
+    return db_order
+
 @app.get("/orders/{order_id}", response_model=schemas.Order)
 async def get_order(
     order_id: int,

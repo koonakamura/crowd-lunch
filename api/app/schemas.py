@@ -60,6 +60,13 @@ class OrderBase(BaseModel):
 class OrderCreate(OrderBase):
     items: List[OrderItemCreate]
 
+class OrderCreateWithName(BaseModel):
+    serve_date: date
+    delivery_type: DeliveryType
+    request_time: Optional[time] = None
+    customer_name: str
+    items: List[OrderItemCreate]
+
 class Order(OrderBase):
     id: int
     user_id: int

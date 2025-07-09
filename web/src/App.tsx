@@ -1,13 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/auth'
-import LoginPage from './pages/LoginPage'
+// import LoginPage from './pages/LoginPage' // No longer needed
 import HomePage from './pages/HomePage'
 import OrderPage from './pages/OrderPage'
 import ConfirmPage from './pages/ConfirmPage'
 import AdminPage from './pages/AdminPage'
 
 function App() {
-  const { user, isLoading } = useAuth()
+  const { isLoading } = useAuth()
 
   if (isLoading) {
     return (
@@ -17,9 +17,9 @@ function App() {
     )
   }
 
-  if (!user) {
-    return <LoginPage />
-  }
+  // if (!user) {
+  //   return <LoginPage />
+  // }
 
   return (
     <div className="min-h-screen bg-background">

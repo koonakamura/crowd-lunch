@@ -23,6 +23,7 @@ export default function OrderPage() {
   const [orderItems, setOrderItems] = useState(selectedItems)
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'desk'>('pickup')
   const [requestTime, setRequestTime] = useState('12:30')
+  const [customerName, setCustomerName] = useState('')
 
   const { data: weeklyMenus } = useQuery({
     queryKey: ['weeklyMenus'],
@@ -34,8 +35,9 @@ export default function OrderPage() {
       serve_date: string;
       delivery_type: "pickup" | "desk";
       request_time?: string;
+      customer_name: string;
       items: Array<{ menu_id: number; qty: number }>;
-    }) => apiClient.createOrder(orderData),
+    }) => apiClient.createGuestOrder(orderData),
     onSuccess: (order) => {
       navigate(`/order/confirm/${order.id}`)
     },
@@ -74,10 +76,16 @@ export default function OrderPage() {
   }
 
   const handleSubmitOrder = () => {
+    if (!customerName.trim()) {
+      alert('お名前を入力してください')
+      return
+    }
+
     const orderData = {
       serve_date: format(new Date(), 'yyyy-MM-dd'),
       delivery_type: deliveryType as "pickup" | "desk",
       request_time: deliveryType === 'desk' ? requestTime : undefined,
+      customer_name: customerName.trim(),
       items: orderItems.map(item => ({
         menu_id: item.menuId,
         qty: item.qty
@@ -189,10 +197,31 @@ export default function OrderPage() {
           </CardContent>
         </Card>
 
+        {/* Customer Name */}
+        <Card>
+          <CardHeader>
+            <CardTitle>注文者情報</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <Label htmlFor="customerName">お名前</Label>
+              <Input
+                id="customerName"
+                type="text"
+                placeholder="お名前を入力してください"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+                className="mt-1"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Submit Button */}
         <Button 
           onClick={handleSubmitOrder}
-          disabled={createOrderMutation.isPending || orderItems.length === 0}
+          disabled={createOrderMutation.isPending || orderItems.length === 0 || !customerName.trim()}
           className="w-full bg-primary hover:bg-primary/90"
         >
           {createOrderMutation.isPending ? '注文中...' : '注文を確定する'}

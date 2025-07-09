@@ -111,6 +111,29 @@ class ApiClient {
     });
   }
 
+  async createGuestOrder(order: {
+    serve_date: string;
+    delivery_type: 'pickup' | 'desk';
+    request_time?: string;
+    customer_name: string;
+    items: OrderItem[];
+  }): Promise<Order> {
+    const response = await fetch(`${API_BASE_URL}/orders/guest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(order),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || `HTTP ${response.status}`);
+    }
+    
+    return response.json();
+  }
+
   async getOrder(orderId: number): Promise<Order> {
     return this.request(`/orders/${orderId}`);
   }
