@@ -153,12 +153,12 @@ export default function AdminPage() {
 
       <div className="p-4 space-y-6">
         {/* Date Selection */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2 pb-2">
           {weekdayDates.map((dateInfo, index) => (
             <Button
               key={index}
               variant={selectedDate.toDateString() === dateInfo.date.toDateString() ? "default" : "outline"}
-              className="flex-shrink-0 rounded-3xl"
+              className="rounded-3xl"
               onClick={() => setSelectedDate(dateInfo.date)}
             >
               {dateInfo.formatted}({dateInfo.dayName})
@@ -200,54 +200,55 @@ export default function AdminPage() {
 
               {/* Menu Items Table */}
               <div className="flex-1">
-                <div className="grid grid-cols-4 gap-2 mb-2 text-sm font-medium">
-                  <div>メニュー情報</div>
-                  <div className="text-center">金額</div>
-                  <div className="text-center">数量</div>
-                  <div></div>
+                <div className="flex gap-2 mb-2 text-sm font-medium">
+                  <div className="flex-1">メニュー情報</div>
+                  <div className="w-20 text-center">金額</div>
+                  <div className="w-20 text-center">数量</div>
+                  <div className="w-8"></div>
+                  <div className="w-8"></div>
                 </div>
                 
                 {menuItems.map((item, index) => (
-                  <div key={index} className="grid grid-cols-4 gap-2 mb-2 items-center">
+                  <div key={index} className="flex gap-2 mb-2 items-center">
                     <Input
                       placeholder="メニュー名"
                       value={item.name}
                       onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
-                      className="text-sm"
+                      className="text-sm flex-1"
                     />
                     <Input
                       type="number"
                       placeholder="0"
                       value={item.price}
                       onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
-                      className="text-sm text-center"
+                      className="text-sm text-center w-20"
                     />
                     <Input
                       type="number"
                       placeholder="0"
                       value={item.stock}
                       onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
-                      className="text-sm text-center"
+                      className="text-sm text-center w-20"
                     />
-                    <div className="flex gap-1 justify-center">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    {index >= 3 ? (
                       <Button
                         size="sm"
                         variant="ghost"
+                        onClick={() => removeMenuItem(index)}
                         className="h-8 w-8 p-0"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                      {index >= 3 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeMenuItem(index)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="w-8"></div>
+                    )}
                   </div>
                 ))}
                 
