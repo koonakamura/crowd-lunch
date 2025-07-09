@@ -19,7 +19,7 @@ export default function HomePage() {
   const [department, setDepartment] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
-  const [showThankYou, setShowThankYou] = useState(false)
+  const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { isLoading } = useQuery({
@@ -123,7 +123,7 @@ export default function HomePage() {
       })
 
       setShowOrderModal(false)
-      setShowThankYou(true)
+      setShowThankYouModal(true)
       setCart({})
       setSelectedDay(null)
       setDepartment('')
@@ -132,7 +132,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Order submission failed:', error)
       setShowOrderModal(false)
-      setShowThankYou(true)
+      setShowThankYouModal(true)
       setCart({})
       setSelectedDay(null)
       setDepartment('')
@@ -200,24 +200,6 @@ export default function HomePage() {
     )
   }
 
-  if (showThankYou) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">注文を承りました。</h2>
-          <p className="text-gray-600 mb-2">ご指定の時間にお座席にお届けします。</p>
-          <p className="text-gray-600 mb-2">支払いはタッチ決済になりますのでご用意をお願いします。</p>
-          <p className="text-gray-600 mb-6">それでは時間まで楽しみにお待ちください。</p>
-          <Button 
-            onClick={() => setShowThankYou(false)}
-            className="bg-primary hover:bg-primary/90"
-          >
-            戻る
-          </Button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen">
@@ -261,25 +243,23 @@ export default function HomePage() {
                 </p>
               </div>
               
-              <div className="relative z-10 w-full max-w-2xl">
-                <div className="flex flex-col gap-3 mb-8">
+              <div className="relative z-10 w-full max-w-xl">
+                <div className="flex flex-col gap-2 mb-8">
                   {dayMenus.map((menu) => (
                     <button
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.remaining_qty || 0) <= 0}
-                      className={`p-6 rounded-lg text-white font-semibold transition-colors w-full ${
+                      className={`p-4 rounded-2xl text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
                           : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <div className="text-left">
-                          <h3 className="text-xl mb-1">{menu.title}</h3>
-                          <p className="text-lg font-bold">{menu.price}円</p>
-                        </div>
-                        <p className="text-sm">({menu.remaining_qty})</p>
+                        <span className="text-lg">{menu.title}</span>
+                        <span className="text-lg font-bold">{menu.price}円</span>
+                        <span className="text-sm">({menu.remaining_qty})</span>
                       </div>
                     </button>
                   ))}
@@ -302,7 +282,7 @@ export default function HomePage() {
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
-        <DialogContent className="bg-black border-primary border-2 text-white max-w-md">
+        <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-white text-xl">注文確認</DialogTitle>
           </DialogHeader>
@@ -330,7 +310,7 @@ export default function HomePage() {
                 <Input
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white"
+                  className="bg-white border-gray-300 text-black"
                   placeholder="部署名を入力"
                 />
               </div>
@@ -340,7 +320,7 @@ export default function HomePage() {
                 <Input
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  className="bg-gray-800 border-gray-600 text-white"
+                  className="bg-white border-gray-300 text-black"
                   placeholder="お名前を入力"
                 />
               </div>
@@ -348,10 +328,10 @@ export default function HomePage() {
               <div>
                 <label className="block text-sm font-medium mb-1">希望お届け時間</label>
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                  <SelectTrigger className="bg-white border-gray-300 text-black">
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
+                  <SelectContent className="bg-white border-gray-300">
                     <SelectItem value="12:00～12:15">12:00～12:15</SelectItem>
                     <SelectItem value="12:15～12:30">12:15～12:30</SelectItem>
                     <SelectItem value="12:30～12:45">12:30～12:45</SelectItem>
@@ -370,6 +350,29 @@ export default function HomePage() {
               className="w-full bg-primary hover:bg-primary/90 text-white"
             >
               {isSubmitting ? '注文中...' : '注文確定'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showThankYouModal} onOpenChange={setShowThankYouModal}>
+        <DialogContent className="bg-white border-primary border-2 text-black max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-black text-xl text-center">注文を承りました。</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 text-center">
+            <p className="text-gray-700">ご指定の時間にお座席にお届けします。</p>
+            <p className="text-gray-700">支払いはタッチ決済になりますのでご用意をお願いします。</p>
+            <p className="text-gray-700">それでは時間まで楽しみにお待ちください。</p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setShowThankYouModal(false)}
+              className="w-full bg-primary hover:bg-primary/90 text-white"
+            >
+              戻る
             </Button>
           </DialogFooter>
         </DialogContent>
