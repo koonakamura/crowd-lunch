@@ -11,7 +11,7 @@ export default {
   		},
   		colors: {
   			primary: {
-  				DEFAULT: '#FF5C5C', // Red accent color from XD
+  				DEFAULT: '#FF8C00', // Orange accent color for new design
   				foreground: '#FFFFFF'
   			},
   			secondary: {
@@ -48,6 +48,9 @@ export default {
   		},
   		fontFamily: {
   			sans: ['Inter', 'system-ui', 'sans-serif'],
+  			lato: ['Lato', 'sans-serif'],
+  			baskerville: ['Libre Baskerville', 'Baskerville', 'serif'],
+  			crimson: ['Crimson Text', 'serif'],
   		},
   		keyframes: {
   			'accordion-down': {

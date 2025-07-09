@@ -170,7 +170,7 @@ export default function ConfirmPage() {
             {order.order_items.map((item) => (
               <div key={item.id} className="flex justify-between">
                 <div>
-                  <span className="font-semibold">{item.menu.title}</span>
+                  <span className="font-semibold">{item.menu_item_name || item.menu.title}</span>
                   <span className="text-muted-foreground ml-2">× {item.qty}</span>
                 </div>
                 <span className="font-semibold">¥{item.menu.price * item.qty}</span>
