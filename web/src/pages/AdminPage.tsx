@@ -80,7 +80,7 @@ export default function AdminPage() {
         }
       }
       
-      queryClient.invalidateQueries({ queryKey: ['menus'] })
+      queryClient.invalidateQueries({ queryKey: ['menus', formatDateForApi(selectedDate)] })
       setSavedMenuItems(validItems)
       setIsEditMode(false)
     }
