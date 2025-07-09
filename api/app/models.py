@@ -63,6 +63,7 @@ class OrderItem(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     menu_id = Column(Integer, ForeignKey("menus.id"), nullable=False)
     qty = Column(Integer, nullable=False)
+    menu_item_name = Column(String, nullable=True)
     
     order = relationship("OrderSQLAlchemy", back_populates="order_items")
     menu = relationship("MenuSQLAlchemy", back_populates="order_items")

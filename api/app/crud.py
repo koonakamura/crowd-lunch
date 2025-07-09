@@ -71,10 +71,20 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     db.refresh(db_order)
     
     for item in order.items:
+        menu_item_name = None
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item.menu_id).first()
+        if menu_item:
+            menu_item_name = menu_item.name
+        else:
+            menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
+            if menu:
+                menu_item_name = menu.title
+        
         db_item = models.OrderItem(
             order_id=db_order.id,
             menu_id=item.menu_id,
-            qty=item.qty
+            qty=item.qty,
+            menu_item_name=menu_item_name
         )
         db.add(db_item)
     
@@ -319,10 +329,20 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
     db.refresh(db_order)
     
     for item in order.items:
+        menu_item_name = None
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item.menu_id).first()
+        if menu_item:
+            menu_item_name = menu_item.name
+        else:
+            menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
+            if menu:
+                menu_item_name = menu.title
+        
         db_item = models.OrderItem(
             order_id=db_order.id,
             menu_id=item.menu_id,
-            qty=item.qty
+            qty=item.qty,
+            menu_item_name=menu_item_name
         )
         db.add(db_item)
     
