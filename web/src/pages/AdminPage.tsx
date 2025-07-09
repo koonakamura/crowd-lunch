@@ -131,17 +131,22 @@ export default function AdminPage() {
   }
 
   useEffect(() => {
+    console.log('existingMenus data:', existingMenus)
     if (existingMenus && existingMenus.length > 0) {
       const menu = existingMenus[0]
+      console.log('menu structure:', menu)
       setMenuImage(menu.photo_url || '')
       if (menu.menu_items && menu.menu_items.length > 0) {
+        console.log('Found menu items:', menu.menu_items)
         setSavedMenuItems(menu.menu_items)
         setIsEditMode(false)
       } else {
+        console.log('No menu items found, entering edit mode')
         setSavedMenuItems([])
         setIsEditMode(true)
       }
     } else {
+      console.log('No existing menus found')
       setSavedMenuItems([])
       setIsEditMode(true)
       setMenuImage('')
