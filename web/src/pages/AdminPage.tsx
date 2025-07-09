@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { apiClient } from '../lib/api'
@@ -25,6 +25,8 @@ export default function AdminPage() {
     { name: '', price: 0, stock: 0 }
   ])
   const [menuImage, setMenuImage] = useState<string>('')
+  const [isEditMode, setIsEditMode] = useState(true)
+  const [savedMenuItems, setSavedMenuItems] = useState<any[]>([])
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -32,6 +34,12 @@ export default function AdminPage() {
   const { data: orders } = useQuery({
     queryKey: ['orders', formatDateForApi(selectedDate)],
     queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
+    enabled: user?.email === 'admin@example.com',
+  })
+
+  const { data: existingMenus } = useQuery({
+    queryKey: ['menus', formatDateForApi(selectedDate)],
+    queryFn: () => apiClient.getMenus(formatDateForApi(selectedDate)),
     enabled: user?.email === 'admin@example.com',
   })
 
@@ -44,9 +52,27 @@ export default function AdminPage() {
 
   const createMenuMutation = useMutation({
     mutationFn: (menu: any) => apiClient.createMenu(menu),
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      const menuId = data.id
+      const validItems = menuItems.filter(item => item.name.trim() !== '')
+      
+      if (validItems.length > 0) {
+        try {
+          await Promise.all(validItems.map(item => 
+            apiClient.createMenuItem(menuId, {
+              name: item.name,
+              price: item.price,
+              stock: item.stock
+            })
+          ))
+        } catch (error) {
+          console.error('Failed to create menu items:', error)
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['menus'] })
-      resetMenuForm()
+      setSavedMenuItems(validItems)
+      setIsEditMode(false)
     }
   })
 
@@ -93,7 +119,34 @@ export default function AdminPage() {
       { name: '', price: 0, stock: 0 }
     ])
     setMenuImage('')
+    setIsEditMode(true)
+    setSavedMenuItems([])
   }
+
+  const enterEditMode = () => {
+    setIsEditMode(true)
+    if (savedMenuItems.length > 0) {
+      setMenuItems([...savedMenuItems])
+    }
+  }
+
+  useEffect(() => {
+    if (existingMenus && existingMenus.length > 0) {
+      const menu = existingMenus[0]
+      setMenuImage(menu.photo_url || '')
+      if (menu.menu_items && menu.menu_items.length > 0) {
+        setSavedMenuItems(menu.menu_items)
+        setIsEditMode(false)
+      } else {
+        setSavedMenuItems([])
+        setIsEditMode(true)
+      }
+    } else {
+      setSavedMenuItems([])
+      setIsEditMode(true)
+      setMenuImage('')
+    }
+  }, [existingMenus])
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -159,7 +212,9 @@ export default function AdminPage() {
               key={index}
               variant={selectedDate.toDateString() === dateInfo.date.toDateString() ? "default" : "outline"}
               className="rounded-3xl"
-              onClick={() => setSelectedDate(dateInfo.date)}
+              onClick={() => {
+                setSelectedDate(dateInfo.date)
+              }}
             >
               {dateInfo.formatted}({dateInfo.dayName})
             </Button>
@@ -208,65 +263,95 @@ export default function AdminPage() {
                   <div className="w-8"></div>
                 </div>
                 
-                {menuItems.map((item, index) => (
-                  <div key={index} className="flex gap-2 mb-2 items-center">
-                    <Input
-                      placeholder="メニュー名"
-                      value={item.name}
-                      onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
-                      className="text-sm flex-1"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={item.price}
-                      onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
-                      className="text-sm text-center w-20"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={item.stock}
-                      onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
-                      className="text-sm text-center w-20"
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    {index >= 3 ? (
+                {isEditMode ? (
+                  menuItems.map((item, index) => (
+                    <div key={index} className="flex gap-2 mb-2 items-center">
+                      <Input
+                        placeholder="メニュー名"
+                        value={item.name}
+                        onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
+                        className="text-sm flex-1"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.price}
+                        onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center w-20"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.stock}
+                        onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center w-20"
+                      />
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => removeMenuItem(index)}
+                        onClick={enterEditMode}
                         className="h-8 w-8 p-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
-                    ) : (
+                      {index >= 3 ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeMenuItem(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <div className="w-8"></div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  savedMenuItems.map((item, index) => (
+                    <div key={index} className="flex gap-2 mb-2 items-center">
+                      <div className="text-sm flex-1 p-2 bg-gray-50 rounded border">
+                        {item.name}
+                      </div>
+                      <div className="text-sm text-center w-20 p-2 bg-gray-50 rounded border">
+                        {item.price}
+                      </div>
+                      <div className="text-sm text-center w-20 p-2 bg-gray-50 rounded border">
+                        {item.stock}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={enterEditMode}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <div className="w-8"></div>
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))
+                )}
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addMenuItem}
-                  className="w-full mt-2"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  メニュー追加
-                </Button>
+                {isEditMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addMenuItem}
+                    className="w-full mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    メニュー追加
+                  </Button>
+                )}
               </div>
             </div>
 
-            <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
-              保存
-            </Button>
+            {isEditMode && (
+              <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
+                保存
+              </Button>
+            )}
           </CardContent>
         </Card>
 
