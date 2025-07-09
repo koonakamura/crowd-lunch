@@ -48,6 +48,7 @@ export default {
   		},
   		fontFamily: {
   			sans: ['Inter', 'system-ui', 'sans-serif'],
+  			lato: ['Lato', 'sans-serif'],
   		},
   		keyframes: {
   			'accordion-down': {

@@ -148,7 +148,7 @@ export default function HomePage() {
         onClick={handleLandingClick}
       >
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-black tracking-wider">
+          <h1 className="text-6xl font-bold text-black tracking-wider font-lato">
             CROWD LUNCH
           </h1>
           <p className="text-gray-600 mt-4 text-lg">
@@ -163,7 +163,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <header className="absolute top-0 left-0 right-0 z-10 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-white">CROWD LUNCH</h1>
+          <h1 className="text-xl font-bold text-white font-lato">CROWD LUNCH</h1>
           <div className="flex items-center gap-2">
             <span className="text-sm text-white">{user?.name}</span>
             <Button variant="ghost" size="sm" onClick={logout} className="text-white hover:bg-white/20">
