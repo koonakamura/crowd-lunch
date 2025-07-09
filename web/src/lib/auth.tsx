@@ -18,7 +18,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('auth_token');
     if (token) {
       apiClient.setToken(token);
-      setIsLoading(false);
+      apiClient.getTodayOrders().then(() => {
+        setUser({ id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() });
+        setIsLoading(false);
+      }).catch(() => {
+        apiClient.clearToken();
+        setIsLoading(false);
+      });
     } else {
       setIsLoading(false);
     }
