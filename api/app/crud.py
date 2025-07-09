@@ -138,11 +138,21 @@ def create_sample_menus(db: Session):
     db.commit()
 
 def get_menus(db: Session, date_filter: date = None):
-    """Get menus with optional date filter"""
+    """Get menus with optional date filter - returns only the most recent menu per date"""
     if date_filter:
-        menus = db.query(models.Menu).filter(models.Menu.date == date_filter).order_by(models.Menu.id.desc()).all()
+        menu = db.query(models.Menu).filter(models.Menu.date == date_filter).order_by(models.Menu.id.desc()).first()
+        menus = [menu] if menu else []
     else:
-        menus = db.query(models.Menu).order_by(models.Menu.id.desc()).all()
+        from sqlalchemy import func
+        subquery = db.query(
+            models.Menu.date,
+            func.max(models.Menu.id).label('max_id')
+        ).group_by(models.Menu.date).subquery()
+        
+        menus = db.query(models.Menu).join(
+            subquery,
+            and_(models.Menu.date == subquery.c.date, models.Menu.id == subquery.c.max_id)
+        ).order_by(models.Menu.date.desc()).all()
     
     result = []
     for menu in menus:
