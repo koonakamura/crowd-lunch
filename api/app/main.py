@@ -62,17 +62,19 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
     
-    crud.create_sample_menus(db)
+    weekly_data = crud.get_weekly_menus_from_admin(db, monday, friday)
     
-    weekly_data = []
-    current_date = monday
-    while current_date <= friday:
-        menus = crud.get_weekly_menus(db, current_date, current_date)
-        weekly_data.append({
-            "date": current_date,
-            "menus": menus
-        })
-        current_date += timedelta(days=1)
+    if not any(day_data["menus"] for day_data in weekly_data):
+        crud.create_sample_menus(db)
+        weekly_data = []
+        current_date = monday
+        while current_date <= friday:
+            menus = crud.get_weekly_menus(db, current_date, current_date)
+            weekly_data.append({
+                "date": current_date,
+                "menus": menus
+            })
+            current_date += timedelta(days=1)
     
     return weekly_data
 

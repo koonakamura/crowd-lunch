@@ -50,9 +50,13 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
 def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     total_price = 0
     for item in order.items:
-        menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
-        if menu:
-            total_price += menu.price * item.qty
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item.menu_id).first()
+        if menu_item:
+            total_price += menu_item.price * item.qty
+        else:
+            menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
+            if menu:
+                total_price += menu.price * item.qty
     
     db_order = models.OrderSQLAlchemy(
         user_id=user_id,
@@ -232,13 +236,53 @@ def delete_menu_item(db: Session, item_id: int):
     db.commit()
     return True
 
+def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
+    """Get weekly menus from admin Menu/MenuItem tables in frontend-compatible format"""
+    from datetime import timedelta
+    
+    menus = db.query(models.Menu).filter(
+        and_(models.Menu.date >= start_date, models.Menu.date <= end_date)
+    ).all()
+    
+    weekly_data = []
+    current_date = start_date
+    while current_date <= end_date:
+        day_menus = []
+        for menu in menus:
+            if menu.date == current_date:
+                menu_items = db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu.id).all()
+                for item in menu_items:
+                    remaining_qty = item.stock
+                    day_menus.append({
+                        'id': item.id,
+                        'serve_date': current_date,
+                        'title': item.name,
+                        'price': int(item.price),
+                        'max_qty': item.stock,
+                        'img_url': menu.photo_url,
+                        'remaining_qty': max(0, remaining_qty),
+                        'created_at': datetime.utcnow()
+                    })
+        
+        weekly_data.append({
+            "date": current_date,
+            "menus": day_menus
+        })
+        current_date += timedelta(days=1)
+    
+    return weekly_data
+
 def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
     """Create an order without user authentication using customer name"""
     total_price = 0
     for item in order.items:
-        menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
-        if menu:
-            total_price += menu.price * item.qty
+        menu_item = db.query(models.MenuItem).filter(models.MenuItem.id == item.menu_id).first()
+        if menu_item:
+            total_price += menu_item.price * item.qty
+        else:
+            menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
+            if menu:
+                total_price += menu.price * item.qty
     
     guest_user = get_or_create_user(db, f"guest_{order.customer_name}@temp.com", order.customer_name)
     

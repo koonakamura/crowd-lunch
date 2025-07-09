@@ -203,7 +203,7 @@ export default function AdminPage() {
                 <div className="flex gap-2 mb-2 text-sm font-medium">
                   <div className="flex-1">メニュー情報</div>
                   <div className="w-20 text-center">金額</div>
-                  <div className="w-20 text-center">数量</div>
+                  <div className="w-20 text-center">販売数</div>
                   <div className="w-8"></div>
                   <div className="w-8"></div>
                 </div>

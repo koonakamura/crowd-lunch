@@ -22,7 +22,7 @@ export default function HomePage() {
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const { isLoading } = useQuery({
+  const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
   })
@@ -35,40 +35,25 @@ export default function HomePage() {
     new Date('2025-07-11')  // Friday 7/11
   ]
 
-  const getBackgroundImage = (dayIndex: number) => {
-    const images = [
-      '/images/monday.jpeg', // Placeholder for Monday
-      '/images/tuesday.jpeg',
+  const getBackgroundImage = (dayIndex: number, dayMenus: any[]) => {
+    const adminImage = dayMenus?.[0]?.img_url
+    if (adminImage && adminImage.startsWith('/static/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'https://app-toquofbw.fly.dev'}${adminImage}`
+    }
+    
+    const defaultImages = [
+      '/images/monday.jpeg',
+      '/images/tuesday.jpeg', 
       '/images/wednesday.jpeg',
       '/images/thursday.jpeg',
       '/images/friday.jpeg'
     ]
-    return images[dayIndex] || '/images/monday.jpeg'
+    return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const WEEKLY_MENU_DATA = {
-    '7/7': [
-      { id: 1, title: 'マグロサーモン丼', price: 1000, remaining_qty: 20 },
-      { id: 2, title: 'ネギトロ丼', price: 1000, remaining_qty: 20 },
-      { id: 3, title: '特選ちらし丼', price: 1000, remaining_qty: 20 }
-    ],
-    '7/8': [
-      { id: 4, title: 'からあげ丼', price: 900, remaining_qty: 20 },
-      { id: 5, title: '肉たっぷり麻婆豆腐丼', price: 900, remaining_qty: 20 },
-      { id: 6, title: 'スタミナ丼', price: 900, remaining_qty: 20 },
-      { id: 7, title: '大盛り', price: 100, remaining_qty: 20 }
-    ],
-    '7/9': [
-      { id: 8, title: 'カレーライス', price: 800, remaining_qty: 40 },
-      { id: 9, title: '大盛り', price: 100, remaining_qty: 40 },
-      { id: 10, title: '南蛮漬け', price: 100, remaining_qty: 40 }
-    ],
-    '7/10': [
-      { id: 11, title: 'ゲンキカレー', price: 1000, remaining_qty: 40 }
-    ],
-    '7/11': [
-      { id: 12, title: '鴨出汁カレーと焼き野菜', price: 900, remaining_qty: 40 }
-    ]
+  const getMenusForDay = (dayIndex: number) => {
+    if (!weeklyMenus || !weeklyMenus[dayIndex]) return []
+    return weeklyMenus[dayIndex].menus || []
   }
 
 
@@ -93,7 +78,8 @@ export default function HomePage() {
   }
 
   const getSelectedMenus = () => {
-    const allMenus = Object.values(WEEKLY_MENU_DATA).flat()
+    if (!weeklyMenus) return []
+    const allMenus = weeklyMenus.flatMap(day => day.menus || [])
     return Object.entries(cart).map(([menuId, qty]) => {
       const menu = allMenus.find(m => m.id === parseInt(menuId))
       return { menu, qty }
@@ -217,9 +203,8 @@ export default function HomePage() {
 
       <div className="pt-16">
         {weekDays.map((day, index) => {
-          const dayKey = ['7/7', '7/8', '7/9', '7/10', '7/11'][index]
-          const dayMenus = WEEKLY_MENU_DATA[dayKey as keyof typeof WEEKLY_MENU_DATA] || []
-          
+          const dayKey = format(day, 'M/d')
+          const dayMenus = getMenusForDay(index)
           const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
           
           return (
@@ -227,7 +212,7 @@ export default function HomePage() {
               key={format(day, 'yyyy-MM-dd')}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
-                backgroundImage: `url(${getBackgroundImage(index)})`,
+                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
