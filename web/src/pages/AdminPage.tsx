@@ -58,13 +58,23 @@ export default function AdminPage() {
       
       if (validItems.length > 0) {
         try {
-          await Promise.all(validItems.map(item => 
-            apiClient.createMenuItem(menuId, {
-              name: item.name,
-              price: item.price,
-              stock: item.stock
-            })
-          ))
+          console.log('Creating menu items for menuId:', menuId, 'items:', validItems)
+          const results = await Promise.all(validItems.map(async (item, index) => {
+            console.log(`Creating menu item ${index + 1}:`, item)
+            try {
+              const result = await apiClient.createMenuItem(menuId, {
+                name: item.name,
+                price: item.price,
+                stock: item.stock
+              })
+              console.log(`Menu item ${index + 1} created successfully:`, result)
+              return result
+            } catch (itemError) {
+              console.error(`Failed to create menu item ${index + 1}:`, itemError)
+              throw itemError
+            }
+          }))
+          console.log('All menu items created successfully:', results)
         } catch (error) {
           console.error('Failed to create menu items:', error)
         }
