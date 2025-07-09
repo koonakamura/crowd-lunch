@@ -38,6 +38,7 @@ export interface MenuItemResponse {
 export interface OrderItem {
   menu_id: number;
   qty: number;
+  menu_item_name?: string;
 }
 
 export interface Order {
