@@ -250,16 +250,18 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.remaining_qty || 0) <= 0}
-                      className={`p-4 rounded-2xl text-white font-semibold transition-colors w-full ${
+                      className={`p-4 rounded-3xl text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
                           : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
                       }`}
                     >
                       <div className="flex justify-between items-center">
-                        <span className="text-lg">{menu.title}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{menu.title}</span>
+                          <span className="text-sm">({menu.remaining_qty})</span>
+                        </div>
                         <span className="text-lg font-bold">{menu.price}円</span>
-                        <span className="text-sm">({menu.remaining_qty})</span>
                       </div>
                     </button>
                   ))}
@@ -269,7 +271,7 @@ export default function HomePage() {
                   <div className="text-center">
                     <Button 
                       onClick={handleProceedToOrder}
-                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-full"
+                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
                     >
                       注文
                     </Button>
@@ -282,7 +284,7 @@ export default function HomePage() {
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
-        <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-2xl">
+        <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-white text-xl">注文確認</DialogTitle>
           </DialogHeader>
@@ -356,15 +358,15 @@ export default function HomePage() {
       </Dialog>
 
       <Dialog open={showThankYouModal} onOpenChange={setShowThankYouModal}>
-        <DialogContent className="bg-white border-primary border-2 text-black max-w-md rounded-2xl">
+        <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-black text-xl text-center">注文を承りました。</DialogTitle>
+            <DialogTitle className="text-white text-xl text-center">注文を承りました。</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 text-center">
-            <p className="text-gray-700">ご指定の時間にお座席にお届けします。</p>
-            <p className="text-gray-700">支払いはタッチ決済になりますのでご用意をお願いします。</p>
-            <p className="text-gray-700">それでは時間まで楽しみにお待ちください。</p>
+            <p className="text-white">ご指定の時間にお座席にお届けします。</p>
+            <p className="text-white">支払いはタッチ決済になりますのでご用意をお願いします。</p>
+            <p className="text-white">それでは時間まで楽しみにお待ちください。</p>
           </div>
 
           <DialogFooter>
