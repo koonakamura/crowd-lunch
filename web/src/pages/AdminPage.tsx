@@ -136,9 +136,9 @@ export default function AdminPage() {
       const menu = existingMenus[0]
       console.log('menu structure:', menu)
       setMenuImage(menu.photo_url || '')
-      if (menu.menu_items && menu.menu_items.length > 0) {
-        console.log('Found menu items:', menu.menu_items)
-        setSavedMenuItems(menu.menu_items)
+      if (menu.items && menu.items.length > 0) {
+        console.log('Found menu items:', menu.items)
+        setSavedMenuItems(menu.items)
         setIsEditMode(false)
       } else {
         console.log('No menu items found, entering edit mode')
