@@ -19,6 +19,22 @@ export interface Menu {
   remaining_qty?: number;
 }
 
+export interface MenuResponse {
+  id: number;
+  date: string;
+  title: string;
+  photo_url?: string;
+  items: MenuItemResponse[];
+}
+
+export interface MenuItemResponse {
+  id: number;
+  menu_id: number;
+  name: string;
+  price: number;
+  stock: number;
+}
+
 export interface OrderItem {
   menu_id: number;
   qty: number;
@@ -149,19 +165,19 @@ class ApiClient {
     return this.request('/admin/orders/today');
   }
 
-  async getMenus(dateFilter?: string): Promise<any[]> {
+  async getMenus(dateFilter?: string): Promise<MenuResponse[]> {
     const params = dateFilter ? `?date_filter=${dateFilter}` : '';
     return this.request(`/admin/menus${params}`);
   }
 
-  async createMenu(menu: { date: string; title: string; photo_url?: string }): Promise<any> {
+  async createMenu(menu: { date: string; title: string; photo_url?: string }): Promise<MenuResponse> {
     return this.request('/admin/menus', {
       method: 'POST',
       body: JSON.stringify(menu),
     });
   }
 
-  async updateMenu(menuId: number, menu: { title?: string; photo_url?: string }): Promise<any> {
+  async updateMenu(menuId: number, menu: { title?: string; photo_url?: string }): Promise<MenuResponse> {
     return this.request(`/admin/menus/${menuId}`, {
       method: 'PATCH',
       body: JSON.stringify(menu),
@@ -174,14 +190,14 @@ class ApiClient {
     });
   }
 
-  async createMenuItem(menuId: number, item: { name: string; price: number; stock: number }): Promise<any> {
+  async createMenuItem(menuId: number, item: { name: string; price: number; stock: number }): Promise<MenuItemResponse> {
     return this.request(`/admin/menus/${menuId}/items`, {
       method: 'POST',
       body: JSON.stringify(item),
     });
   }
 
-  async updateMenuItem(itemId: number, item: { name?: string; price?: number; stock?: number }): Promise<any> {
+  async updateMenuItem(itemId: number, item: { name?: string; price?: number; stock?: number }): Promise<MenuItemResponse> {
     return this.request(`/admin/menu-items/${itemId}`, {
       method: 'PATCH',
       body: JSON.stringify(item),

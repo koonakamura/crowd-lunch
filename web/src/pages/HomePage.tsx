@@ -35,7 +35,7 @@ export default function HomePage() {
     new Date('2025-07-11')  // Friday 7/11
   ]
 
-  const getBackgroundImage = (dayIndex: number, dayMenus: any[]) => {
+  const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
     if (adminImage && adminImage.startsWith('/static/uploads/')) {
       return `${import.meta.env.VITE_API_URL || 'https://app-toquofbw.fly.dev'}${adminImage}`

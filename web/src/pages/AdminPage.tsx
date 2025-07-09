@@ -11,6 +11,45 @@ import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 
+interface MenuItemData {
+  name: string
+  price: number
+  stock: number
+}
+
+interface MenuResponse {
+  id: number
+  date: string
+  title: string
+  photo_url?: string
+  items: MenuItemResponse[]
+}
+
+interface MenuItemResponse {
+  id: number
+  menu_id: number
+  name: string
+  price: number
+  stock: number
+}
+
+interface Order {
+  id: number
+  user_id: number
+  total_price: number
+  status: string
+  created_at: string
+  request_time?: string
+  user: { name: string }
+  order_items: OrderItem[]
+}
+
+interface OrderItem {
+  id: number
+  menu: { title: string; price: number }
+  qty: number
+}
+
 export default function AdminPage() {
   const navigate = useNavigate()
   const { user, login } = useAuth()
@@ -18,26 +57,26 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [selectedMenu, setSelectedMenu] = useState<any>(null)
-  const [menuItems, setMenuItems] = useState([
+  const [selectedMenu, setSelectedMenu] = useState<MenuResponse | null>(null)
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>([
     { name: '', price: 0, stock: 0 },
     { name: '', price: 0, stock: 0 },
     { name: '', price: 0, stock: 0 }
   ])
   const [menuImage, setMenuImage] = useState<string>('')
   const [isEditMode, setIsEditMode] = useState(true)
-  const [savedMenuItems, setSavedMenuItems] = useState<any[]>([])
+  const [savedMenuItems, setSavedMenuItems] = useState<MenuItemResponse[]>([])
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
 
-  const { data: orders } = useQuery({
+  const { data: orders } = useQuery<Order[]>({
     queryKey: ['orders', formatDateForApi(selectedDate)],
     queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
     enabled: user?.email === 'admin@example.com',
   })
 
-  const { data: existingMenus } = useQuery({
+  const { data: existingMenus } = useQuery<MenuResponse[]>({
     queryKey: ['menus', formatDateForApi(selectedDate)],
     queryFn: () => apiClient.getMenus(formatDateForApi(selectedDate)),
     enabled: user?.email === 'admin@example.com',
@@ -51,7 +90,7 @@ export default function AdminPage() {
   })
 
   const createMenuMutation = useMutation({
-    mutationFn: (menu: any) => apiClient.createMenu(menu),
+    mutationFn: (menu: { date: string; title: string; photo_url?: string }) => apiClient.createMenu(menu),
     onSuccess: async (data) => {
       const menuId = data.id
       const validItems = menuItems.filter(item => item.name.trim() !== '')
@@ -81,45 +120,19 @@ export default function AdminPage() {
       }
       
       queryClient.invalidateQueries({ queryKey: ['menus', formatDateForApi(selectedDate)] })
-      setSavedMenuItems(validItems)
+      setSavedMenuItems(validItems as MenuItemResponse[])
       setIsEditMode(false)
     }
   })
 
   const updateMenuMutation = useMutation({
-    mutationFn: ({ menuId, menu }: { menuId: number; menu: any }) => 
+    mutationFn: ({ menuId, menu }: { menuId: number; menu: { title?: string; photo_url?: string } }) => 
       apiClient.updateMenu(menuId, menu),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus'] })
       resetMenuForm()
     }
   })
-
-
-  if (user?.email !== 'admin@example.com') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-lg mb-4">管理者権限が必要です</p>
-          <div className="space-y-2">
-            <Button 
-              onClick={async () => {
-                try {
-                  await login('admin@example.com');
-                } catch (error) {
-                  console.error('Admin login failed:', error);
-                }
-              }}
-              className="w-full"
-            >
-              管理者としてログイン
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   const resetMenuForm = () => {
     setSelectedMenu(null)
@@ -136,7 +149,11 @@ export default function AdminPage() {
   const enterEditMode = () => {
     setIsEditMode(true)
     if (savedMenuItems.length > 0) {
-      setMenuItems([...savedMenuItems])
+      setMenuItems(savedMenuItems.map(item => ({
+        name: item.name,
+        price: item.price,
+        stock: item.stock
+      })))
     }
   }
 
@@ -163,6 +180,31 @@ export default function AdminPage() {
     }
   }, [existingMenus])
 
+  if (user?.email !== 'admin@example.com') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-lg mb-4">管理者権限が必要です</p>
+          <div className="space-y-2">
+            <Button 
+              onClick={async () => {
+                try {
+                  await login('admin@example.com');
+                } catch (error) {
+                  console.error('Admin login failed:', error);
+                }
+              }}
+              className="w-full"
+            >
+              管理者としてログイン
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -180,7 +222,7 @@ export default function AdminPage() {
     }
   }
 
-  const updateMenuItem = (index: number, field: string, value: any) => {
+  const updateMenuItem = (index: number, field: string, value: string | number) => {
     const updated = [...menuItems]
     updated[index] = { ...updated[index], [field]: value }
     setMenuItems(updated)
@@ -388,8 +430,8 @@ export default function AdminPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders?.map((order: any) => (
-                  order.order_items?.map((item: any) => (
+                {orders?.map((order: Order) => (
+                  order.order_items?.map((item: OrderItem) => (
                     <TableRow key={`${order.id}-${item.id}`}>
                       <TableCell>{order.id}</TableCell>
                       <TableCell>{format(new Date(order.created_at), 'HH:mm')}</TableCell>
