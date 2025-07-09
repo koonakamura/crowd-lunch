@@ -3,158 +3,192 @@ import { useQuery } from '@tanstack/react-query'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { apiClient } from '../lib/api'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
-import { Card, CardContent } from '../components/ui/card'
-import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
-import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, User } from 'lucide-react'
+import { ShoppingCart, User, Plus, Minus } from 'lucide-react'
 import { useAuth } from '../lib/auth'
+import { useNavigate } from 'react-router-dom'
 
 export default function HomePage() {
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const [selectedItems, setSelectedItems] = useState<Array<{ menuId: number; qty: number }>>([])
+  const navigate = useNavigate()
+  const [cart, setCart] = useState<Record<number, number>>({})
 
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
   })
 
-  const getWeekDays = () => {
-    const today = new Date()
-    const monday = startOfWeek(today, { weekStartsOn: 1 })
-    return Array.from({ length: 5 }, (_, i) => addDays(monday, i))
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+  const weekDays = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
+
+  const getBackgroundClass = (dayIndex: number) => {
+    const backgrounds = [
+      'bg-sushi',
+      'bg-fried', 
+      'bg-curry',
+      'bg-ramen',
+      'bg-bento'
+    ]
+    return backgrounds[dayIndex] || 'bg-gray-500'
   }
 
-  const weekDays = getWeekDays()
+  const getSampleMenusForDay = (dayIndex: number) => {
+    const sampleMenus = [
+      [
+        { id: 1, title: 'マグロサーモン丼', price: 1000, remaining_qty: 40 },
+        { id: 2, title: 'ネギトロ丼', price: 1000, remaining_qty: 40 },
+        { id: 3, title: '特選ちらし丼', price: 1000, remaining_qty: 40 }
+      ],
+      [
+        { id: 4, title: 'からあげ丼', price: 900, remaining_qty: 40 },
+        { id: 5, title: '鶏とごぼうの混ぜご飯', price: 900, remaining_qty: 40 },
+        { id: 6, title: 'スタミナ丼', price: 900, remaining_qty: 40 },
+        { id: 7, title: '大盛り', price: 100, remaining_qty: 40 }
+      ],
+      [
+        { id: 8, title: 'カレーライス', price: 800, remaining_qty: 40 },
+        { id: 9, title: '大盛り', price: 100, remaining_qty: 40 },
+        { id: 10, title: '唐揚げ弁当', price: 100, remaining_qty: 40 }
+      ],
+      [
+        { id: 11, title: '醤油ラーメン+半野菜', price: 900, remaining_qty: 40 }
+      ],
+      [
+        { id: 12, title: 'ブランチ', price: 1000, remaining_qty: 40 }
+      ]
+    ]
+    return sampleMenus[dayIndex] || []
+  }
 
-  const handleAddToCart = (menuId: number) => {
-    setSelectedItems(prev => {
-      const existing = prev.find(item => item.menuId === menuId)
-      if (existing) {
-        return prev.map(item => 
-          item.menuId === menuId 
-            ? { ...item, qty: item.qty + 1 }
-            : item
-        )
+  const addToCart = (menuId: number) => {
+    setCart(prev => ({
+      ...prev,
+      [menuId]: (prev[menuId] || 0) + 1
+    }))
+  }
+
+  const removeFromCart = (menuId: number) => {
+    setCart(prev => {
+      const newCart = { ...prev }
+      if (newCart[menuId] > 1) {
+        newCart[menuId]--
+      } else {
+        delete newCart[menuId]
       }
-      return [...prev, { menuId, qty: 1 }]
+      return newCart
     })
   }
 
   const getTotalItems = () => {
-    return selectedItems.reduce((total, item) => total + item.qty, 0)
+    return Object.values(cart).reduce((sum, qty) => sum + qty, 0)
   }
 
   const handleProceedToOrder = () => {
-    if (selectedItems.length > 0) {
-      navigate('/order', { state: { selectedItems } })
-    }
+    const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
+      menu_id: parseInt(menuId),
+      qty
+    }))
+    
+    navigate('/order', { 
+      state: { 
+        orderItems,
+        selectedDate: format(new Date(), 'yyyy-MM-dd')
+      } 
+    })
   }
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">メニューを読み込み中...</div>
+        <div className="text-lg">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-white border-b border-border p-4">
+    <div className="min-h-screen">
+      <header className="absolute top-0 left-0 right-0 z-10 p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">Crowd Lunch</h1>
+          <h1 className="text-xl font-bold text-white">CROWD LUNCH</h1>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{user?.name}</span>
-            <Button variant="ghost" size="sm" onClick={logout}>
+            <span className="text-sm text-white">{user?.name}</span>
+            <Button variant="ghost" size="sm" onClick={logout} className="text-white hover:bg-white/20">
               <User className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Weekly Tabs */}
-      <div className="p-4">
-        <Tabs defaultValue={format(weekDays[0], 'yyyy-MM-dd')} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            {weekDays.map((day) => (
-              <TabsTrigger 
-                key={format(day, 'yyyy-MM-dd')} 
-                value={format(day, 'yyyy-MM-dd')}
-                className="text-xs"
-              >
-                {format(day, 'M/d', { locale: ja })}
-                <br />
-                {format(day, 'E', { locale: ja })}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {weekDays.map((day) => {
-            const dayMenus = weeklyMenus?.find(
-              w => w.date === format(day, 'yyyy-MM-dd')
-            )?.menus || []
-
-            return (
-              <TabsContent key={format(day, 'yyyy-MM-dd')} value={format(day, 'yyyy-MM-dd')}>
-                <div className="space-y-4">
-                  {dayMenus.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      この日のメニューはありません
+      {weekDays.map((day, index) => {
+        const dayMenus = weeklyMenus?.find(
+          w => w.date === format(day, 'yyyy-MM-dd')
+        )?.menus || getSampleMenusForDay(index)
+        
+        return (
+          <section 
+            key={format(day, 'yyyy-MM-dd')}
+            className={`min-h-screen relative flex flex-col justify-center items-center p-8 ${getBackgroundClass(index)}`}
+          >
+            <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+            
+            <div className="relative z-10 text-center mb-8">
+              <h2 className="text-4xl font-bold text-white">
+                {format(day, 'M/d')}
+              </h2>
+              <p className="text-lg text-white">
+                ({format(day, 'E', { locale: ja }).toUpperCase()})
+              </p>
+            </div>
+            
+            <div className="relative z-10 space-y-4 w-full max-w-md">
+              {dayMenus.map((menu) => (
+                <div 
+                  key={menu.id} 
+                  className="bg-black bg-opacity-60 rounded-lg p-4 text-white"
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{menu.title} ({menu.remaining_qty || 40})</h3>
                     </div>
-                  ) : (
-                    dayMenus.map((menu) => (
-                      <Card key={menu.id} className="overflow-hidden">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                              {menu.img_url ? (
-                                <img 
-                                  src={menu.img_url} 
-                                  alt={menu.title}
-                                  className="w-full h-full object-cover rounded-lg"
-                                />
-                              ) : (
-                                <div className="text-xs text-muted-foreground">画像</div>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold">{menu.title}</h3>
-                              <p className="text-lg font-bold text-primary">¥{menu.price}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge 
-                                  variant={menu.remaining_qty && menu.remaining_qty > 0 ? "default" : "destructive"}
-                                  className={menu.remaining_qty && menu.remaining_qty > 0 ? "bg-green-500" : "bg-primary"}
-                                >
-                                  残り{menu.remaining_qty || 0}個
-                                </Badge>
-                              </div>
-                            </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-bold">{menu.price}円</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {cart[menu.id] > 0 && (
+                          <>
                             <Button
-                              onClick={() => handleAddToCart(menu.id)}
-                              disabled={!menu.remaining_qty || menu.remaining_qty <= 0}
+                              variant="outline"
                               size="sm"
+                              onClick={() => removeFromCart(menu.id)}
+                              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
                             >
-                              追加
+                              <Minus className="h-4 w-4" />
                             </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
+                            <span className="w-8 text-center text-white">{cart[menu.id]}</span>
+                          </>
+                        )}
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => addToCart(menu.id)}
+                          disabled={(menu.remaining_qty || 0) <= 0}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </TabsContent>
-            )
-          })}
-        </Tabs>
-      </div>
+              ))}
+            </div>
+          </section>
+        )
+      })}
 
-      {/* Cart Button */}
       {getTotalItems() > 0 && (
-        <div className="fixed bottom-4 right-4">
+        <div className="fixed bottom-4 right-4 z-20">
           <Button 
             onClick={handleProceedToOrder}
             className="bg-primary hover:bg-primary/90 rounded-full p-4 shadow-lg"
