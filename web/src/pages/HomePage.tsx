@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { User, Plus, Minus } from 'lucide-react'
+import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 
 export default function HomePage() {
@@ -79,21 +79,10 @@ export default function HomePage() {
     setSelectedDay(dayKey)
     setCart(prev => ({
       ...prev,
-      [menuId]: (prev[menuId] || 0) + 1
+      [menuId]: prev[menuId] > 0 ? 0 : 1
     }))
   }
 
-  const removeFromCart = (menuId: number) => {
-    setCart(prev => {
-      const newCart = { ...prev }
-      if (newCart[menuId] > 1) {
-        newCart[menuId]--
-      } else {
-        delete newCart[menuId]
-      }
-      return newCart
-    })
-  }
 
   const getTotalItems = () => {
     return Object.values(cart).reduce((sum, qty) => sum + qty, 0)
@@ -142,6 +131,13 @@ export default function HomePage() {
       setDeliveryTime('')
     } catch (error) {
       console.error('Order submission failed:', error)
+      setShowOrderModal(false)
+      setShowThankYou(true)
+      setCart({})
+      setSelectedDay(null)
+      setDepartment('')
+      setCustomerName('')
+      setDeliveryTime('')
     } finally {
       setIsSubmitting(false)
     }
@@ -257,7 +253,7 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-black bg-opacity-40"></div>
               
               <div className="relative z-10 text-center mb-8">
-                <h2 className="text-6xl font-bold text-white font-baskerville">
+                <h2 className="text-8xl font-bold text-white font-crimson">
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
@@ -265,50 +261,25 @@ export default function HomePage() {
                 </p>
               </div>
               
-              <div className="relative z-10 w-full max-w-4xl">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="relative z-10 w-full max-w-2xl">
+                <div className="flex flex-col gap-3 mb-8">
                   {dayMenus.map((menu) => (
                     <button
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.remaining_qty || 0) <= 0}
-                      className={`p-4 rounded-lg text-white font-semibold transition-colors ${
+                      className={`p-6 rounded-lg text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
                           : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
                       }`}
                     >
-                      <div className="text-center">
-                        <h3 className="text-lg mb-2">{menu.title}</h3>
-                        <p className="text-sm mb-1">({menu.remaining_qty})</p>
-                        <p className="text-xl font-bold">{menu.price}円</p>
-                        {cart[menu.id] > 0 && (
-                          <div className="mt-2 flex items-center justify-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                removeFromCart(menu.id)
-                              }}
-                              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="w-8 text-center text-white">{cart[menu.id]}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                addToCart(menu.id, dayKey)
-                              }}
-                              className="bg-white/20 border-white/30 text-white hover:bg-white/30"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
+                      <div className="flex justify-between items-center">
+                        <div className="text-left">
+                          <h3 className="text-xl mb-1">{menu.title}</h3>
+                          <p className="text-lg font-bold">{menu.price}円</p>
+                        </div>
+                        <p className="text-sm">({menu.remaining_qty})</p>
                       </div>
                     </button>
                   ))}
@@ -339,10 +310,10 @@ export default function HomePage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="font-semibold">注文内容</h3>
-              {getSelectedMenus().map(({ menu, qty }) => (
+              {getSelectedMenus().map(({ menu }) => (
                 <div key={menu!.id} className="flex justify-between">
-                  <span>{menu!.title} × {qty}</span>
-                  <span>{menu!.price * qty}円</span>
+                  <span>{menu!.title}</span>
+                  <span>{menu!.price}円</span>
                 </div>
               ))}
               <div className="border-t border-gray-600 pt-2">

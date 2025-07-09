@@ -50,6 +50,7 @@ export default {
   			sans: ['Inter', 'system-ui', 'sans-serif'],
   			lato: ['Lato', 'sans-serif'],
   			baskerville: ['Libre Baskerville', 'Baskerville', 'serif'],
+  			crimson: ['Crimson Text', 'serif'],
   		},
   		keyframes: {
   			'accordion-down': {
