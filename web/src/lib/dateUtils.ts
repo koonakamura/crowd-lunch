@@ -6,12 +6,12 @@ export function generateWeekdayDates(startDate: Date, count: number): Array<{ da
   
   while (dates.length < count) {
     if (!isWeekend(currentDate)) {
-      const dayNamesJa = ['日', '月', '火', '水', '木', '金', '土'];
+      const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       
       dates.push({
         date: new Date(currentDate),
         formatted: format(currentDate, 'M/d'),
-        dayName: dayNamesJa[currentDate.getDay()]
+        dayName: dayNamesEn[currentDate.getDay()]
       });
     }
     currentDate = addDays(currentDate, 1);
