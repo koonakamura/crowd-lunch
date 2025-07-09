@@ -48,6 +48,7 @@ class OrderItemCreate(OrderItemBase):
 class OrderItem(OrderItemBase):
     id: int
     menu: Menu
+    menu_item_name: Optional[str] = None
     
     class Config:
         from_attributes = True

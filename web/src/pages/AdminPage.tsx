@@ -442,7 +442,7 @@ export default function AdminPage() {
                       {order.order_items?.map((item: OrderItem) => (
                         <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                           <div className="flex items-center gap-3">
-                            <span className="font-medium">{item.menu.title}</span>
+                            <span className="font-medium">{item.menu_item_name || item.menu.title}</span>
                             <span className="text-sm text-muted-foreground">× {item.qty}</span>
                           </div>
                           <div className="font-semibold">

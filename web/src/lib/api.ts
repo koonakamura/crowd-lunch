@@ -55,6 +55,7 @@ export interface Order {
     menu_id: number;
     qty: number;
     menu: Menu;
+    menu_item_name?: string;
   }>;
 }
 
