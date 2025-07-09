@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, login } = useAuth()
   const queryClient = useQueryClient()
 
   const { data: orders, isLoading } = useQuery({
@@ -32,9 +32,23 @@ export default function AdminPage() {
   if (user?.email !== 'admin@example.com') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <p className="text-lg mb-4">管理者権限が必要です</p>
-          <Button onClick={() => navigate('/')}>ホームに戻る</Button>
+          <div className="space-y-2">
+            <Button 
+              onClick={async () => {
+                try {
+                  await login('admin@example.com');
+                } catch (error) {
+                  console.error('Admin login failed:', error);
+                }
+              }}
+              className="w-full"
+            >
+              管理者としてログイン
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
+          </div>
         </div>
       </div>
     )
