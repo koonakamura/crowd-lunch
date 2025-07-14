@@ -118,7 +118,7 @@ export default function AdminPage() {
         }
       }
       
-      queryClient.invalidateQueries({ queryKey: ['menus', formatDateForApi(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
       setSavedMenuItems(validItems as MenuItemResponse[])
       setIsEditMode(false)
