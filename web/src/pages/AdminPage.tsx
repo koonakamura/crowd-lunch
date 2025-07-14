@@ -52,7 +52,7 @@ interface OrderItem {
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { user, login } = useAuth()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -180,30 +180,6 @@ export default function AdminPage() {
     }
   }, [existingMenus])
 
-  if (user?.email !== 'admin@example.com') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-lg mb-4">管理者権限が必要です</p>
-          <div className="space-y-2">
-            <Button 
-              onClick={async () => {
-                try {
-                  await login('admin@example.com');
-                } catch (error) {
-                  console.error('Admin login failed:', error);
-                }
-              }}
-              className="w-full"
-            >
-              管理者としてログイン
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
