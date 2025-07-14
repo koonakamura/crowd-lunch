@@ -277,26 +277,27 @@ def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
     while current_date <= end_date:
         day_menus = []
         
-        latest_menu_item = db.query(models.MenuItem).join(
-            models.Menu, models.MenuItem.menu_id == models.Menu.id
-        ).filter(
+        latest_menu = db.query(models.Menu).filter(
             models.Menu.date == current_date
-        ).order_by(models.MenuItem.id.desc()).first()
+        ).order_by(models.Menu.id.desc()).first()
         
-        if latest_menu_item:
-            menu = db.query(models.Menu).filter(models.Menu.id == latest_menu_item.menu_id).first()
+        if latest_menu:
+            latest_menu_item = db.query(models.MenuItem).filter(
+                models.MenuItem.menu_id == latest_menu.id
+            ).order_by(models.MenuItem.id.desc()).first()
             
-            remaining_qty = latest_menu_item.stock
-            day_menus.append({
-                'id': latest_menu_item.id,
-                'serve_date': current_date,
-                'title': latest_menu_item.name,
-                'price': int(latest_menu_item.price),
-                'max_qty': latest_menu_item.stock,
-                'img_url': menu.photo_url if menu else '',
-                'remaining_qty': max(0, remaining_qty),
-                'created_at': datetime.utcnow()
-            })
+            if latest_menu_item:
+                remaining_qty = latest_menu_item.stock
+                day_menus.append({
+                    'id': latest_menu_item.id,
+                    'serve_date': current_date,
+                    'title': latest_menu_item.name,
+                    'price': int(latest_menu_item.price),
+                    'max_qty': latest_menu_item.stock,
+                    'img_url': latest_menu.photo_url,
+                    'remaining_qty': max(0, remaining_qty),
+                    'created_at': datetime.utcnow()
+                })
         
         weekly_data.append({
             "date": current_date,
