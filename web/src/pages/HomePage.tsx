@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { apiClient } from '../lib/api'
+
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'https://app-toquofbw.fly.dev';
 import { Button } from '../components/ui/button'
 import { ShoppingCart, User, Plus, Minus } from 'lucide-react'
 import { useAuth } from '../lib/auth'
@@ -178,10 +180,19 @@ export default function HomePage() {
           w => w.date === format(day, 'yyyy-MM-dd')
         )?.menus || getSampleMenusForDay(index)
         
+        const dayImage = dayMenus.find(menu => menu.img_url)?.img_url
+        
         return (
           <section 
             key={format(day, 'yyyy-MM-dd')}
-            className={`min-h-screen relative flex flex-col justify-center items-center p-8 ${getBackgroundClass(index)}`}
+            className={`min-h-screen relative flex flex-col justify-center items-center p-8 ${
+              dayImage ? '' : getBackgroundClass(index)
+            }`}
+            style={dayImage ? {
+              backgroundImage: `url(${API_BASE_URL}${dayImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            } : {}}
           >
             <div className="absolute inset-0 bg-black bg-opacity-40"></div>
             

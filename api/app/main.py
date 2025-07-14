@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List
 import json
+import os
 
 from .database import get_db, engine, create_db_and_tables
 from .models import Base
@@ -22,6 +24,9 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 class ConnectionManager:
     def __init__(self):
@@ -269,6 +274,38 @@ async def delete_menu_item(
         raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
     
     return {"message": "メニューアイテムが削除されました"}
+
+@app.post("/admin/menus/{menu_id}/upload-image")
+async def upload_menu_image(
+    menu_id: int,
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="画像ファイルのみアップロード可能です")
+    
+    file_extension = file.filename.split('.')[-1] if file.filename and '.' in file.filename else 'jpg'
+    filename = f"menu_{menu_id}.{file_extension}"
+    file_path = f"uploads/{filename}"
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ファイルの保存に失敗しました: {str(e)}")
+    
+    menu_update = schemas.MenuUpdate(photo_url=f"/uploads/{filename}")
+    updated_menu = crud.update_menu(db, menu_id, menu_update)
+    
+    if not updated_menu:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    return {"message": "画像がアップロードされました", "photo_url": f"/uploads/{filename}"}
 
 @app.websocket("/ws/orders")
 async def websocket_endpoint(websocket: WebSocket):

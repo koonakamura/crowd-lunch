@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-toquofbw.fly.dev';
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'https://app-toquofbw.fly.dev';
 
 export interface User {
   id: number;
@@ -45,6 +45,22 @@ export interface Order {
 export interface WeeklyMenuResponse {
   date: string;
   menus: Menu[];
+}
+
+export interface MenuResponse {
+  id: number;
+  date: string;
+  title: string;
+  photo_url?: string;
+  items: MenuItemResponse[];
+}
+
+export interface MenuItemResponse {
+  id: number;
+  menu_id: number;
+  name: string;
+  price: number;
+  stock: number;
 }
 
 class ApiClient {
@@ -147,6 +163,50 @@ class ApiClient {
 
   async getTodayOrders(): Promise<Order[]> {
     return this.request('/admin/orders/today');
+  }
+
+  async getMenus(dateFilter?: string): Promise<MenuResponse[]> {
+    const params = dateFilter ? `?date_filter=${dateFilter}` : '';
+    return this.request(`/admin/menus${params}`);
+  }
+
+  async createMenu(menu: { date: string; title: string; photo_url?: string }): Promise<MenuResponse> {
+    return this.request('/admin/menus', {
+      method: 'POST',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async updateMenu(menuId: number, menu: { title?: string; photo_url?: string }): Promise<MenuResponse> {
+    return this.request(`/admin/menus/${menuId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async uploadMenuImage(menuId: number, file: File): Promise<{ message: string; photo_url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${API_BASE_URL}/admin/menus/${menuId}/upload-image`;
+    const headers: HeadersInit = {};
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 }
 

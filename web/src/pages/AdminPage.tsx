@@ -1,18 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
+import { ja } from 'date-fns/locale'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
+import { Input } from '../components/ui/input'
 import { useAuth } from '../lib/auth'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+
+const API_BASE_URL = ((import.meta as any).env?.VITE_API_URL as string) || 'https://app-toquofbw.fly.dev';
 
 export default function AdminPage() {
   const navigate = useNavigate()
   const { user, login } = useAuth()
   const queryClient = useQueryClient()
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadingMenuId, setUploadingMenuId] = useState<number | null>(null)
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ['todayOrders'],
@@ -21,11 +28,27 @@ export default function AdminPage() {
     enabled: user?.email === 'admin@example.com',
   })
 
+  const { data: menus, isLoading: menusLoading } = useQuery({
+    queryKey: ['menus'],
+    queryFn: () => apiClient.getMenus(),
+    enabled: user?.email === 'admin@example.com',
+  })
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
       apiClient.updateOrderStatus(orderId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todayOrders'] })
+    },
+  })
+
+  const uploadImageMutation = useMutation({
+    mutationFn: ({ menuId, file }: { menuId: number; file: File }) =>
+      apiClient.uploadMenuImage(menuId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
+      setSelectedFile(null)
+      setUploadingMenuId(null)
     },
   })
 
@@ -92,6 +115,20 @@ export default function AdminPage() {
     updateStatusMutation.mutate({ orderId, status: newStatus })
   }
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, menuId: number) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setUploadingMenuId(menuId)
+    }
+  }
+
+  const handleImageUpload = (menuId: number) => {
+    if (selectedFile) {
+      uploadImageMutation.mutate({ menuId, file: selectedFile })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -155,6 +192,93 @@ export default function AdminPage() {
       </header>
 
       <div className="p-4 space-y-6">
+        {/* Menu Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle>画像登録</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {menusLoading ? (
+              <p className="text-center text-muted-foreground py-4">
+                メニューデータを読み込み中...
+              </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 10 }, (_, i) => {
+                    const date = format(addDays(new Date(), i), 'yyyy-MM-dd')
+                    const dateMenus = menus?.filter(menu => menu.date === date) || []
+                    
+                    return (
+                      <div key={date} className="border rounded-lg p-4">
+                        <h3 className="font-semibold mb-2">
+                          {format(new Date(date), 'M/d')} ({format(new Date(date), 'E', { locale: ja })})
+                        </h3>
+                        
+                        {dateMenus.length > 0 ? (
+                          dateMenus.map(menu => (
+                            <div key={menu.id} className="space-y-2">
+                              <p className="text-sm">{menu.title}</p>
+                              
+                              {menu.photo_url ? (
+                                <div className="relative">
+                                  <img 
+                                    src={`${API_BASE_URL}${menu.photo_url}`}
+                                    alt={menu.title}
+                                    className="w-full h-32 object-cover rounded"
+                                  />
+                                  <div className="absolute top-2 right-2">
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => setUploadingMenuId(menu.id)}
+                                    >
+                                      変更
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded flex items-center justify-center">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setUploadingMenuId(menu.id)}
+                                  >
+                                    画像を選択
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              {uploadingMenuId === menu.id && (
+                                <div className="space-y-2">
+                                  <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileSelect(e, menu.id)}
+                                  />
+                                  {selectedFile && (
+                                    <Button
+                                      onClick={() => handleImageUpload(menu.id)}
+                                      disabled={uploadImageMutation.isPending}
+                                    >
+                                      {uploadImageMutation.isPending ? 'アップロード中...' : 'アップロード'}
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground">メニューがありません</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Menu Summary */}
         <Card>
           <CardHeader>
