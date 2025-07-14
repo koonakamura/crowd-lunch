@@ -57,7 +57,6 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [selectedMenu, setSelectedMenu] = useState<MenuResponse | null>(null)
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([
     { name: '', price: 0, stock: 0 },
     { name: '', price: 0, stock: 0 },
@@ -137,7 +136,6 @@ export default function AdminPage() {
   })
 
   const resetMenuForm = () => {
-    setSelectedMenu(null)
     setMenuItems([
       { name: '', price: 0, stock: 0 },
       { name: '', price: 0, stock: 0 },
@@ -237,8 +235,10 @@ export default function AdminPage() {
       photo_url: menuImage
     }
 
-    if (selectedMenu) {
-      updateMenuMutation.mutate({ menuId: selectedMenu.id, menu: menuData })
+    const existingMenu = existingMenus && existingMenus.length > 0 ? existingMenus[0] : null
+
+    if (existingMenu) {
+      updateMenuMutation.mutate({ menuId: existingMenu.id, menu: menuData })
     } else {
       createMenuMutation.mutate(menuData)
     }
