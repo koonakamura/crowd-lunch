@@ -177,6 +177,8 @@ export default function AdminPage() {
     saveMenusMutation.mutate()
   }
 
+  console.log("🔍 backgroundPreview state:", backgroundPreview);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
