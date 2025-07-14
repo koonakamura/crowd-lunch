@@ -223,7 +223,7 @@ export default function AdminPage() {
             <div className="flex gap-6">
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
-                <label htmlFor="bg-upload">
+                <div className="relative">
                   <div 
                     className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
                     style={{ pointerEvents: 'auto' }}
@@ -236,16 +236,16 @@ export default function AdminPage() {
                         <div className="text-sm">選択</div>
                       </div>
                     )}
+                    <input
+                      id="bg-upload"
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => uploadBackground(e.target.files?.[0] || null)}
+                    />
                   </div>
-                </label>
-                <input
-                  id="bg-upload"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => uploadBackground(e.target.files?.[0] || null)}
-                />
+                </div>
               </div>
 
               {/* Menu Rows */}
