@@ -21,7 +21,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiClient.getTodayOrders().then(() => {
         setUser({ id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() });
         setIsLoading(false);
-      }).catch(() => {
+      }).catch((error) => {
+        console.error('Token validation failed:', error);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
         apiClient.clearToken();
         setIsLoading(false);
       });
