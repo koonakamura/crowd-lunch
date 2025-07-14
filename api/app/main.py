@@ -236,8 +236,16 @@ async def create_menu(
     if current_user.email != "admin@example.com":
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
-    db_menu = crud.create_menu(db, menu)
-    return db_menu
+    try:
+        db_menu = crud.create_menu(db, menu)
+        return db_menu
+    except Exception as e:
+        if "UNIQUE constraint failed" in str(e) or "duplicate key" in str(e):
+            raise HTTPException(
+                status_code=409, 
+                detail=f"同じ日付とタイトルのメニューが既に存在します: {menu.date} - {menu.title}"
+            )
+        raise HTTPException(status_code=500, detail="メニューの作成に失敗しました")
 
 @app.patch("/admin/menus/{menu_id}", response_model=schemas.MenuResponse)
 async def update_menu(

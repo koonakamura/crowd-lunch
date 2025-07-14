@@ -80,13 +80,6 @@ export default function AdminPage() {
     enabled: user?.email === 'admin@example.com',
   })
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
-      apiClient.updateOrderStatus(orderId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders', formatDateForApi(selectedDate)] })
-    },
-  })
 
   const uploadImageMutation = useMutation({
     mutationFn: (file: File) => apiClient.uploadImage(file),
