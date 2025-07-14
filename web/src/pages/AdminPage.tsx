@@ -223,32 +223,27 @@ export default function AdminPage() {
             <div className="flex gap-6">
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
-                <div className="relative">
-                  <div 
-                    className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
-                    style={{ pointerEvents: 'auto' }}
-                  >
+                {/* ラベルタグでプレビューと input をまとめてクリック可能に */}
+                <label htmlFor="bg-upload" className="relative w-32 h-32 flex items-center justify-center cursor-pointer">
+                  <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
                     {imagePreview ? (
                       <img src={imagePreview} alt="Menu background" className="w-full h-full object-cover rounded-full" />
                     ) : (
-                      <div className="text-center text-gray-500">
-                        <div className="text-sm">画像を</div>
-                        <div className="text-sm">選択</div>
-                      </div>
+                      <div className="text-center text-gray-500">画像を選択</div>
                     )}
-                    <input
-                      id="bg-upload"
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={e => {
-                        console.log("📁 file input changed:", e.target.files);
-                        uploadBackground(e.target.files![0]);
-                      }}
-                    />
                   </div>
-                </div>
+                  <input
+                    id="bg-upload"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    onChange={e => {
+                      console.log("📁 file input changed:", e.target.files);
+                      uploadBackground(e.target.files![0]);
+                    }}
+                  />
+                </label>
               </div>
 
               {/* Menu Rows */}
