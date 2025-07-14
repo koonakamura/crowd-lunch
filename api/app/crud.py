@@ -281,14 +281,15 @@ def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
         for menu in menus:
             if menu.date == current_date:
                 menu_items = db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu.id).all()
-                for item in menu_items:
-                    remaining_qty = item.stock
+                if menu_items:
+                    first_item = menu_items[0]
+                    remaining_qty = first_item.stock
                     day_menus.append({
-                        'id': item.id,
+                        'id': first_item.id,
                         'serve_date': current_date,
-                        'title': item.name,
-                        'price': int(item.price),
-                        'max_qty': item.stock,
+                        'title': first_item.name,
+                        'price': int(first_item.price),
+                        'max_qty': first_item.stock,
                         'img_url': menu.photo_url,
                         'remaining_qty': max(0, remaining_qty),
                         'created_at': datetime.utcnow()
