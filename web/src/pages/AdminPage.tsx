@@ -57,6 +57,7 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedMenu, setSelectedMenu] = useState<MenuResponse | null>(null)
   const [menuItems, setMenuItems] = useState<MenuItemData[]>([
     { name: '', price: 0, stock: 0 },
     { name: '', price: 0, stock: 0 },
@@ -67,6 +68,7 @@ export default function AdminPage() {
   const [savedMenuItems, setSavedMenuItems] = useState<MenuItemResponse[]>([])
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
+
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: ['orders', formatDateForApi(selectedDate)],
@@ -123,8 +125,26 @@ export default function AdminPage() {
     }
   })
 
+  const updateMenuMutation = useMutation({
+    mutationFn: ({ menuId, menu }: { menuId: number; menu: { title?: string; photo_url?: string } }) => 
+      apiClient.updateMenu(menuId, menu),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
+      resetMenuForm()
+    }
+  })
 
-
+  const resetMenuForm = () => {
+    setSelectedMenu(null)
+    setMenuItems([
+      { name: '', price: 0, stock: 0 },
+      { name: '', price: 0, stock: 0 },
+      { name: '', price: 0, stock: 0 }
+    ])
+    setMenuImage('')
+    setIsEditMode(true)
+    setSavedMenuItems([])
+  }
 
   const enterEditMode = () => {
     setIsEditMode(true)
@@ -160,6 +180,31 @@ export default function AdminPage() {
     }
   }, [existingMenus])
 
+  if (user?.email !== 'admin@example.com') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-lg mb-4">管理者権限が必要です</p>
+          <div className="space-y-2">
+            <Button 
+              onClick={async () => {
+                try {
+                  await login('admin@example.com');
+                } catch (error) {
+                  console.error('Admin login failed:', error);
+                }
+              }}
+              className="w-full"
+            >
+              管理者としてログイン
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
@@ -190,26 +235,13 @@ export default function AdminPage() {
       photo_url: menuImage
     }
 
-    createMenuMutation.mutate(menuData)
+    if (selectedMenu) {
+      updateMenuMutation.mutate({ menuId: selectedMenu.id, menu: menuData })
+    } else {
+      createMenuMutation.mutate(menuData)
+    }
   }
 
-  if (!user || user.email !== 'admin@example.com') {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>管理者ログイン</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={() => login('admin@example.com')} className="w-full bg-black text-white hover:bg-gray-800">
-              管理者としてログイン
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-background">
