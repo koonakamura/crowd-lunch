@@ -271,44 +271,32 @@ def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
     from datetime import timedelta
     from sqlalchemy import func
     
-    # Get only the most recent menu per date
-    subquery = db.query(
-        models.Menu.date,
-        func.max(models.Menu.id).label('max_id')
-    ).filter(
-        and_(models.Menu.date >= start_date, models.Menu.date <= end_date)
-    ).group_by(models.Menu.date).subquery()
-    
-    menus = db.query(models.Menu).join(
-        subquery,
-        and_(models.Menu.date == subquery.c.date, models.Menu.id == subquery.c.max_id)
-    ).all()
-    
     weekly_data = []
     current_date = start_date
+    
     while current_date <= end_date:
         day_menus = []
-        menu_for_date = None
-        for menu in menus:
-            if menu.date == current_date:
-                menu_for_date = menu
-                break
         
-        if menu_for_date:
-            menu_items = db.query(models.MenuItem).filter(models.MenuItem.menu_id == menu_for_date.id).all()
-            if menu_items:
-                first_item = menu_items[0]
-                remaining_qty = first_item.stock
-                day_menus.append({
-                    'id': first_item.id,
-                    'serve_date': current_date,
-                    'title': first_item.name,
-                    'price': int(first_item.price),
-                    'max_qty': first_item.stock,
-                    'img_url': menu_for_date.photo_url,
-                    'remaining_qty': max(0, remaining_qty),
-                    'created_at': datetime.utcnow()
-                })
+        latest_menu_item = db.query(models.MenuItem).join(
+            models.Menu, models.MenuItem.menu_id == models.Menu.id
+        ).filter(
+            models.Menu.date == current_date
+        ).order_by(models.MenuItem.id.desc()).first()
+        
+        if latest_menu_item:
+            menu = db.query(models.Menu).filter(models.Menu.id == latest_menu_item.menu_id).first()
+            
+            remaining_qty = latest_menu_item.stock
+            day_menus.append({
+                'id': latest_menu_item.id,
+                'serve_date': current_date,
+                'title': latest_menu_item.name,
+                'price': int(latest_menu_item.price),
+                'max_qty': latest_menu_item.stock,
+                'img_url': menu.photo_url if menu else '',
+                'remaining_qty': max(0, remaining_qty),
+                'created_at': datetime.utcnow()
+            })
         
         weekly_data.append({
             "date": current_date,
