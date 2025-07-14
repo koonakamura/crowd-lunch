@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input'
 import { useAuth } from '../lib/auth'
 import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi } from '../lib/dateUtils'
+import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 
 interface MenuItemData {
   name: string
@@ -124,6 +124,8 @@ export default function AdminPage() {
   })
 
 
+
+
   const enterEditMode = () => {
     setIsEditMode(true)
     if (savedMenuItems.length > 0) {
@@ -170,38 +172,39 @@ export default function AdminPage() {
   }
 
   const removeMenuItem = (index: number) => {
-    if (menuItems.length > 1) {
+    if (menuItems.length > 3) {
       setMenuItems(menuItems.filter((_, i) => i !== index))
     }
   }
 
-  const updateMenuItem = (index: number, field: keyof MenuItemData, value: string | number) => {
-    const updatedItems = [...menuItems]
-    updatedItems[index] = { ...updatedItems[index], [field]: value }
-    setMenuItems(updatedItems)
+  const updateMenuItem = (index: number, field: string, value: string | number) => {
+    const updated = [...menuItems]
+    updated[index] = { ...updated[index], [field]: value }
+    setMenuItems(updated)
   }
 
-  const saveMenu = async () => {
+  const saveMenu = () => {
     const menuData = {
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      title: `${format(selectedDate, 'M/d')}のメニュー`,
+      date: formatDateForApi(selectedDate),
+      title: `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}のメニュー`,
       photo_url: menuImage
     }
-    
+
     createMenuMutation.mutate(menuData)
   }
 
   if (!user || user.email !== 'admin@example.com') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>管理者ログイン</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => login('admin@example.com')} className="w-full">
+          <CardContent className="space-y-4">
+            <Button onClick={() => login('admin@example.com')} className="w-full bg-black text-white hover:bg-gray-800">
               管理者としてログイン
             </Button>
+            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
           </CardContent>
         </Card>
       </div>
@@ -209,208 +212,233 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Button
-                variant="ghost"
-                onClick={() => navigate('/')}
-                className="mr-4"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">CROWD LUNCH Order sheet</h1>
-            </div>
-            <div className="text-sm text-gray-600">
-              {format(selectedDate, 'yyyy/M/d')}
-            </div>
-          </div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="bg-white border-b border-border p-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-xl font-lato">
+            <span className="font-bold">CROWD LUNCH</span>
+            <span className="font-light"> Order sheet</span>
+          </h1>
+          <span className="text-sm text-muted-foreground ml-4">
+            {getTodayFormatted()}
+          </span>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <div className="flex flex-wrap gap-2">
-            {weekdayDates.map((dateInfo) => (
-              <Button
-                key={dateInfo.date.toISOString()}
-                variant={format(selectedDate, 'yyyy-MM-dd') === format(dateInfo.date, 'yyyy-MM-dd') ? 'default' : 'outline'}
-                onClick={() => setSelectedDate(dateInfo.date)}
-                className="rounded-full px-4 py-2"
-              >
-                {dateInfo.formatted}
-              </Button>
-            ))}
-          </div>
+      <div className="p-4 space-y-6">
+        {/* Date Selection */}
+        <div className="flex flex-wrap gap-2 pb-2">
+          {weekdayDates.map((dateInfo, index) => (
+            <Button
+              key={index}
+              variant={selectedDate.toDateString() === dateInfo.date.toDateString() ? "default" : "outline"}
+              className="rounded-3xl"
+              onClick={() => {
+                setSelectedDate(dateInfo.date)
+              }}
+            >
+              {dateInfo.formatted}({dateInfo.dayName})
+            </Button>
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>注文一覧</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {orders && orders.length > 0 ? (
-                  <div className="space-y-4">
-                    {orders.map((order) => (
-                      <div key={order.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="font-semibold">{order.user.name}</p>
-                            <p className="text-sm text-gray-600">
-                              {format(new Date(order.created_at), 'HH:mm')}
-                            </p>
-                            {order.request_time && (
-                              <p className="text-sm text-gray-600">
-                                希望時間: {order.request_time}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold">¥{order.total_price}</p>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          {order.order_items.map((item) => (
-                            <div key={item.id} className="flex justify-between text-sm">
-                              <span>
-                                {item.menu_item_name || item.menu.title} × {item.qty}
-                              </span>
-                              <span>¥{item.menu.price * item.qty}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">注文がありません</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>メニュー管理</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium mb-2">メニュー画像</label>
-                  <div className="space-y-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      画像をアップロード
-                    </Button>
-                    {menuImage && (
-                      <div className="mt-2">
-                        <img
-                          src={menuImage.startsWith('/static/uploads/') 
-                            ? `${import.meta.env.VITE_API_URL || 'https://app-toquofbw.fly.dev'}${menuImage}`
-                            : menuImage
-                          }
-                          alt="Menu"
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
-                  </div>
+        {/* Menu Management */}
+        <Card>
+          <CardHeader>
+            <CardTitle>メニュー構成</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-6">
+              {/* Image Upload - Circular */}
+              <div className="flex flex-col items-center">
+                <label className="text-sm font-medium mb-2">画像登録</label>
+                <div 
+                  className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {menuImage ? (
+                    <img src={menuImage} alt="Menu" className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500">画像を</div>
+                      <div className="text-xs text-gray-500">選択</div>
+                    </div>
+                  )}
                 </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <label className="block text-sm font-medium">メニュー項目</label>
-                    {isEditMode && (
-                      <Button onClick={addMenuItem} size="sm" variant="outline">
-                        <Plus className="h-4 w-4 mr-1" />
-                        項目追加
+              {/* Menu Items Table */}
+              <div className="flex-1">
+                <div className="flex gap-2 mb-2 text-sm font-medium">
+                  <div className="flex-1">メニュー情報</div>
+                  <div className="w-20 text-center">金額</div>
+                  <div className="w-20 text-center">販売数</div>
+                  <div className="w-8"></div>
+                  <div className="w-8"></div>
+                </div>
+                
+                {isEditMode ? (
+                  menuItems.map((item, index) => (
+                    <div key={index} className="flex gap-2 mb-2 items-center">
+                      <Input
+                        placeholder="メニュー名"
+                        value={item.name}
+                        onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
+                        className="text-sm flex-1"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.price}
+                        onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center w-20"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={item.stock}
+                        onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
+                        className="text-sm text-center w-20"
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={enterEditMode}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
                       </Button>
-                    )}
-                  </div>
-
-                  {isEditMode ? (
-                    <div className="space-y-3">
-                      {menuItems.map((item, index) => (
-                        <div key={index} className="flex gap-2 items-center">
-                          <Input
-                            placeholder="メニュー名"
-                            value={item.name}
-                            onChange={(e) => updateMenuItem(index, 'name', e.target.value)}
-                            className="flex-1"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="価格"
-                            value={item.price || ''}
-                            onChange={(e) => updateMenuItem(index, 'price', parseInt(e.target.value) || 0)}
-                            className="w-24"
-                          />
-                          <Input
-                            type="number"
-                            placeholder="在庫"
-                            value={item.stock || ''}
-                            onChange={(e) => updateMenuItem(index, 'stock', parseInt(e.target.value) || 0)}
-                            className="w-24"
-                          />
-                          {menuItems.length > 1 && (
-                            <Button
-                              onClick={() => removeMenuItem(index)}
-                              size="sm"
-                              variant="outline"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                      {index >= 3 ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeMenuItem(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <div className="w-8"></div>
+                      )}
                     </div>
-                  ) : (
+                  ))
+                ) : (
+                  savedMenuItems.map((item, index) => (
+                    <div key={index} className="flex gap-2 mb-2 items-center">
+                      <div className="text-sm flex-1 p-2 bg-gray-50 rounded border">
+                        {item.name}
+                      </div>
+                      <div className="text-sm text-center w-20 p-2 bg-gray-50 rounded border">
+                        {item.price}
+                      </div>
+                      <div className="text-sm text-center w-20 p-2 bg-gray-50 rounded border">
+                        {item.stock}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={enterEditMode}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <div className="w-8"></div>
+                    </div>
+                  ))
+                )}
+                
+                {isEditMode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addMenuItem}
+                    className="w-full mt-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    メニュー追加
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isEditMode && (
+              <Button onClick={saveMenu} className="w-full bg-black text-white hover:bg-gray-800">
+                保存
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>注文一覧</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {orders?.length ? (
+                orders.map((order: Order) => (
+                  <div key={order.id} className="border rounded-lg p-4 bg-white shadow-sm">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-4">
+                        <div className="text-lg font-semibold">
+                          注文ID: #{order.id.toString().padStart(3, '0')}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {format(new Date(order.created_at), 'HH:mm')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">{order.user.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {order.request_time || '時間指定なし'}
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div className="space-y-2">
-                      {savedMenuItems.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-medium">{item.name}</span>
+                      {order.order_items?.map((item: OrderItem) => (
+                        <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">{item.menu_item_name || item.menu.title}</span>
+                            <span className="text-sm text-muted-foreground">× {item.qty}</span>
                           </div>
-                          <div className="text-right">
-                            <div className="text-sm text-gray-600">¥{item.price}</div>
-                            <div className="text-sm text-gray-600">在庫: {item.stock}</div>
+                          <div className="font-semibold">
+                            ¥{item.menu.price * item.qty}
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
+                    
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        合計金額
+                      </div>
+                      <div className="text-lg font-bold">
+                        ¥{order.total_price}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  注文がありません
                 </div>
-
-                <div className="flex gap-2">
-                  {isEditMode ? (
-                    <Button onClick={saveMenu} className="flex-1">
-                      保存
-                    </Button>
-                  ) : (
-                    <Button onClick={enterEditMode} variant="outline" className="flex-1">
-                      <Edit className="h-4 w-4 mr-2" />
-                      編集
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
