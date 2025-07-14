@@ -41,7 +41,7 @@ export default function AdminPage() {
     { title: '', price: 0, max_qty: 0 }
   ])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>('')
+  const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -82,7 +82,7 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       setSelectedImage(null)
-      setImagePreview('')
+      setBackgroundPreview(null)
       setMenuRows([
         { title: '', price: 0, max_qty: 0 },
         { title: '', price: 0, max_qty: 0 },
@@ -112,7 +112,7 @@ export default function AdminPage() {
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
         const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://app-toquofbw.fly.dev'
-        setImagePreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
+        setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
         )
@@ -123,7 +123,7 @@ export default function AdminPage() {
         { title: '', price: 0, max_qty: 0 },
         { title: '', price: 0, max_qty: 0 }
       ])
-      setImagePreview('')
+      setBackgroundPreview(null)
     }
   }, [sqlAlchemyMenus, menuRows])
 
@@ -157,7 +157,7 @@ export default function AdminPage() {
       setSelectedImage(file)
       const reader = new FileReader()
       reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
+        setBackgroundPreview(e.target?.result as string)
       }
       reader.readAsDataURL(file)
     }
@@ -224,14 +224,18 @@ export default function AdminPage() {
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
                 {/* ラベルタグでプレビューと input をまとめてクリック可能に */}
-                <label htmlFor="bg-upload" className="relative w-32 h-32 flex items-center justify-center cursor-pointer">
-                  <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
-                    {imagePreview ? (
-                      <img src={imagePreview} alt="Menu background" className="w-full h-full object-cover rounded-full" />
-                    ) : (
-                      <div className="text-center text-gray-500">画像を選択</div>
-                    )}
-                  </div>
+                <label htmlFor="bg-upload" className="relative w-32 h-32 cursor-pointer">
+                  {backgroundPreview ? (
+                    <img
+                      src={backgroundPreview}
+                      alt="Preview"
+                      className="absolute inset-0 w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
+                      <span className="text-gray-500">画像を選択</span>
+                    </div>
+                  )}
                   <input
                     id="bg-upload"
                     ref={fileInputRef}
@@ -239,8 +243,11 @@ export default function AdminPage() {
                     accept="image/*"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     onChange={e => {
+                      const file = e.target.files![0];
                       console.log("📁 file input changed:", e.target.files);
-                      uploadBackground(e.target.files![0]);
+                      
+                      setBackgroundPreview(URL.createObjectURL(file));
+                      uploadBackground(file);
                     }}
                   />
                 </label>
