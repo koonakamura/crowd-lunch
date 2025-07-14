@@ -129,7 +129,7 @@ export default function AdminPage() {
     mutationFn: ({ menuId, menu }: { menuId: number; menu: { title?: string; photo_url?: string } }) => 
       apiClient.updateMenu(menuId, menu),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus', formatDateForApi(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['menus'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
       resetMenuForm()
     }
