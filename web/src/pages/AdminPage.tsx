@@ -120,6 +120,7 @@ export default function AdminPage() {
       
       queryClient.invalidateQueries({ queryKey: ['menus'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.refetchQueries({ queryKey: ['weeklyMenus'] })
       setSavedMenuItems(validItems as MenuItemResponse[])
       setIsEditMode(false)
     }
@@ -131,6 +132,7 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.refetchQueries({ queryKey: ['weeklyMenus'] })
       resetMenuForm()
     }
   })
