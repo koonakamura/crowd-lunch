@@ -68,7 +68,6 @@ export default function AdminPage() {
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
-
   const { data: orders } = useQuery<Order[]>({
     queryKey: ['orders', formatDateForApi(selectedDate)],
     queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
@@ -79,6 +78,14 @@ export default function AdminPage() {
     queryKey: ['menus', formatDateForApi(selectedDate)],
     queryFn: () => apiClient.getMenus(formatDateForApi(selectedDate)),
     enabled: user?.email === 'admin@example.com',
+  })
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
+      apiClient.updateOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders', formatDateForApi(selectedDate)] })
+    },
   })
 
   const uploadImageMutation = useMutation({
