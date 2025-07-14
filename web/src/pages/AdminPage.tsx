@@ -246,7 +246,7 @@ export default function AdminPage() {
                     onChange={e => {
                       const file = e.target.files![0];
                       const previewUrl = URL.createObjectURL(file);
-                      console.log("🔍 backgroundPreview state:", previewUrl);
+                      console.log("🔍 previewUrl:", previewUrl);
                       setBackgroundPreview(previewUrl);
                       uploadBackground(file);
                     }}
