@@ -25,7 +25,25 @@ export default function HomePage() {
 
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
-    queryFn: () => apiClient.getWeeklyMenus(),
+    queryFn: async () => {
+      const data = await apiClient.getWeeklyMenus()
+      return data.map(dayData => ({
+        ...dayData,
+        menus: dayData.menus.reduce((acc: any[], menu: any) => {
+          const existingIndex = acc.findIndex(existing => 
+            existing.title === menu.title && existing.serve_date === menu.serve_date
+          )
+          if (existingIndex === -1) {
+            acc.push(menu)
+          } else {
+            if (menu.id > acc[existingIndex].id) {
+              acc[existingIndex] = menu
+            }
+          }
+          return acc
+        }, [])
+      }))
+    },
     refetchInterval: 30000,
   })
 
