@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date, datetime, time
 import enum
 
-from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -69,6 +69,8 @@ class OrderItem(Base):
     menu = relationship("MenuSQLAlchemy", back_populates="order_items")
 
 class Menu(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint('date', 'title', name='uq_menu_date_title'),)
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     date: date
     title: str
