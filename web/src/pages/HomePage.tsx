@@ -39,26 +39,26 @@ export default function HomePage() {
   const getSampleMenusForDay = (dayIndex: number) => {
     const sampleMenus = [
       [
-        { id: 1, title: 'マグロサーモン丼', price: 1000, remaining_qty: 40 },
-        { id: 2, title: 'ネギトロ丼', price: 1000, remaining_qty: 40 },
-        { id: 3, title: '特選ちらし丼', price: 1000, remaining_qty: 40 }
+        { id: 1, title: 'マグロサーモン丼', price: 1000, remaining_qty: 40, img_url: undefined },
+        { id: 2, title: 'ネギトロ丼', price: 1000, remaining_qty: 40, img_url: undefined },
+        { id: 3, title: '特選ちらし丼', price: 1000, remaining_qty: 40, img_url: undefined }
       ],
       [
-        { id: 4, title: 'からあげ丼', price: 900, remaining_qty: 40 },
-        { id: 5, title: '鶏とごぼうの混ぜご飯', price: 900, remaining_qty: 40 },
-        { id: 6, title: 'スタミナ丼', price: 900, remaining_qty: 40 },
-        { id: 7, title: '大盛り', price: 100, remaining_qty: 40 }
+        { id: 4, title: 'からあげ丼', price: 900, remaining_qty: 40, img_url: undefined },
+        { id: 5, title: '鶏とごぼうの混ぜご飯', price: 900, remaining_qty: 40, img_url: undefined },
+        { id: 6, title: 'スタミナ丼', price: 900, remaining_qty: 40, img_url: undefined },
+        { id: 7, title: '大盛り', price: 100, remaining_qty: 40, img_url: undefined }
       ],
       [
-        { id: 8, title: 'カレーライス', price: 800, remaining_qty: 40 },
-        { id: 9, title: '大盛り', price: 100, remaining_qty: 40 },
-        { id: 10, title: '唐揚げ弁当', price: 100, remaining_qty: 40 }
+        { id: 8, title: 'カレーライス', price: 800, remaining_qty: 40, img_url: undefined },
+        { id: 9, title: '大盛り', price: 100, remaining_qty: 40, img_url: undefined },
+        { id: 10, title: '唐揚げ弁当', price: 100, remaining_qty: 40, img_url: undefined }
       ],
       [
-        { id: 11, title: '醤油ラーメン+半野菜', price: 900, remaining_qty: 40 }
+        { id: 11, title: '醤油ラーメン+半野菜', price: 900, remaining_qty: 40, img_url: undefined }
       ],
       [
-        { id: 12, title: 'ブランチ', price: 1000, remaining_qty: 40 }
+        { id: 12, title: 'ブランチ', price: 1000, remaining_qty: 40, img_url: undefined }
       ]
     ]
     return sampleMenus[dayIndex] || []
