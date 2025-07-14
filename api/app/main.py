@@ -59,21 +59,32 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
 @app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
     today = date.today()
-    monday = today - timedelta(days=today.weekday())
-    friday = monday + timedelta(days=4)
     
-    weekly_data = crud.get_weekly_menus_from_admin(db, monday, friday)
+    current_date = today
+    end_date = today
+    weekdays_count = 0
+    
+    while weekdays_count < 5:
+        if current_date.weekday() < 5:
+            weekdays_count += 1
+            if weekdays_count == 5:
+                end_date = current_date
+                break
+        current_date += timedelta(days=1)
+    
+    weekly_data = crud.get_weekly_menus_from_admin(db, today, end_date)
     
     if not any(day_data["menus"] for day_data in weekly_data):
         crud.create_sample_menus(db)
         weekly_data = []
-        current_date = monday
-        while current_date <= friday:
-            menus = crud.get_weekly_menus(db, current_date, current_date)
-            weekly_data.append({
-                "date": current_date,
-                "menus": menus
-            })
+        current_date = today
+        while current_date <= end_date:
+            if current_date.weekday() < 5:
+                menus = crud.get_weekly_menus(db, current_date, current_date)
+                weekly_data.append({
+                    "date": current_date,
+                    "menus": menus
+                })
             current_date += timedelta(days=1)
     
     return weekly_data

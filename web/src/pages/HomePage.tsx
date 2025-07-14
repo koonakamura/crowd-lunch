@@ -8,6 +8,7 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
+import { generateWeekdayDates } from '../lib/dateUtils'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -25,15 +26,10 @@ export default function HomePage() {
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
+    refetchInterval: 30000,
   })
 
-  const weekDays = [
-    new Date('2025-07-07'), // Monday 7/7
-    new Date('2025-07-08'), // Tuesday 7/8
-    new Date('2025-07-09'), // Wednesday 7/9
-    new Date('2025-07-10'), // Thursday 7/10
-    new Date('2025-07-11')  // Friday 7/11
-  ]
+  const weekDays = generateWeekdayDates(new Date(), 5).map(dateInfo => dateInfo.date)
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
