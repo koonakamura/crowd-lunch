@@ -267,3 +267,53 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
     db.commit()
     db.refresh(db_order)
     return db_order
+
+def get_menus_sqlalchemy(db: Session, date_filter: date = None):
+    """Get MenuSQLAlchemy menus with optional date filter"""
+    if date_filter:
+        return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == date_filter).all()
+    else:
+        return db.query(models.MenuSQLAlchemy).all()
+
+def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
+    """Create a new MenuSQLAlchemy menu"""
+    db_menu = models.MenuSQLAlchemy(
+        serve_date=menu.serve_date,
+        title=menu.title,
+        price=menu.price,
+        max_qty=menu.max_qty,
+        img_url=menu.img_url
+    )
+    db.add(db_menu)
+    db.commit()
+    db.refresh(db_menu)
+    return db_menu
+
+def update_menu_sqlalchemy(db: Session, menu_id: int, menu_update: schemas.MenuSQLAlchemyUpdate):
+    """Update an existing MenuSQLAlchemy menu"""
+    menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
+    if not menu:
+        return None
+    
+    if menu_update.title is not None:
+        menu.title = menu_update.title
+    if menu_update.price is not None:
+        menu.price = menu_update.price
+    if menu_update.max_qty is not None:
+        menu.max_qty = menu_update.max_qty
+    if menu_update.img_url is not None:
+        menu.img_url = menu_update.img_url
+    
+    db.commit()
+    db.refresh(menu)
+    return menu
+
+def delete_menu_sqlalchemy(db: Session, menu_id: int):
+    """Delete a MenuSQLAlchemy menu"""
+    menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
+    if not menu:
+        return False
+    
+    db.delete(menu)
+    db.commit()
+    return True

@@ -1,9 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List
 import json
+import os
+import uuid
+from pathlib import Path
 
 from .database import get_db, engine, create_db_and_tables
 from .models import Base
@@ -22,6 +26,11 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 class ConnectionManager:
     def __init__(self):
@@ -270,6 +279,90 @@ async def delete_menu_item(
         raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
     
     return {"message": "メニューアイテムが削除されました"}
+
+@app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
+async def get_menus_by_date(
+    date: date = None,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    menus = crud.get_menus_sqlalchemy(db, date)
+    return menus
+
+@app.post("/menus", response_model=schemas.MenuSQLAlchemyResponse)
+async def create_menu_by_date(
+    menu: schemas.MenuSQLAlchemyCreate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_menu = crud.create_menu_sqlalchemy(db, menu)
+    return db_menu
+
+@app.put("/menus/{menu_id}", response_model=schemas.MenuSQLAlchemyResponse)
+async def update_menu_by_date(
+    menu_id: int,
+    menu_update: schemas.MenuSQLAlchemyUpdate,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
+    if not db_menu:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    return db_menu
+
+@app.delete("/menus/{menu_id}")
+async def delete_menu_by_date(
+    menu_id: int,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    success = crud.delete_menu_sqlalchemy(db, menu_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    return {"message": "メニューが削除されました"}
+
+@app.post("/menus/background")
+async def upload_background_image(
+    date: date,
+    file: UploadFile = File(...),
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="画像ファイルのみアップロード可能です")
+    
+    file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    unique_filename = f"{date}_{uuid.uuid4().hex}.{file_extension}"
+    file_path = UPLOAD_DIR / unique_filename
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    img_url = f"/uploads/{unique_filename}"
+    
+    return {
+        "message": "背景画像がアップロードされました",
+        "img_url": img_url,
+        "date": date
+    }
 
 @app.websocket("/ws/orders")
 async def websocket_endpoint(websocket: WebSocket):
