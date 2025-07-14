@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from app.main import app
 from app.database import get_db, Base
-from app.models import User, MenuSQLAlchemy as Menu, OrderSQLAlchemy as Order, OrderItem
+from app.models import User, MenuSQLAlchemy, OrderSQLAlchemy as Order, OrderItem
 from datetime import date, time
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -47,15 +47,15 @@ def test_user(client):
 @pytest.fixture
 def test_menu(client):
     db = TestingSessionLocal()
-    existing_menu = db.query(Menu).filter(
-        Menu.serve_date == date.today(),
-        Menu.title == "Test Menu"
+    existing_menu = db.query(MenuSQLAlchemy).filter(
+        MenuSQLAlchemy.serve_date == date.today(),
+        MenuSQLAlchemy.title == "Test Menu"
     ).first()
     if existing_menu:
         db.close()
         return existing_menu
     
-    menu = Menu(
+    menu = MenuSQLAlchemy(
         serve_date=date.today(),
         title="Test Menu",
         price=500,
@@ -168,7 +168,7 @@ def test_crud_operations(client, test_user, test_menu):
     assert user is not None
     assert user.name == "test"
     
-    menu = db.query(Menu).filter(Menu.title == "Test Menu").first()
+    menu = db.query(MenuSQLAlchemy).filter(MenuSQLAlchemy.title == "Test Menu").first()
     assert menu is not None
     assert menu.price == 500
     
@@ -248,6 +248,61 @@ def test_invalid_status_update(client, test_user, test_menu):
     )
     assert response.status_code in [400, 422]
 
+def test_duplicate_menu_creation_upsert(client):
+    """Test that creating duplicate menu updates existing one"""
+    login_response = client.post("/auth/login", json={"email": "admin@example.com"})
+    token = login_response.json()["access_token"]
+    
+    menu_data = {
+        "date": str(date.today()),
+        "title": "Test Duplicate Menu",
+        "photo_url": "/test1.jpg"
+    }
+    
+    response1 = client.post(
+        "/admin/menus",
+        json=menu_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response1.status_code == 200
+    menu1_id = response1.json()["id"]
+    
+    menu_data["photo_url"] = "/test2.jpg"
+    response2 = client.post(
+        "/admin/menus",
+        json=menu_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response2.status_code == 200
+    menu2_id = response2.json()["id"]
+    
+    assert menu1_id == menu2_id
+    assert response2.json()["photo_url"] == "/test2.jpg"
+
+def test_menu_unique_constraint_database_level(client):
+    """Test that database constraint prevents duplicates"""
+    from app.database import SessionLocal
+    from app.models import Menu
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    import uuid
+    
+    db = SessionLocal()
+    try:
+        unique_title = f"Constraint Test {uuid.uuid4().hex[:8]}"
+        menu1 = Menu(date=date.today(), title=unique_title, photo_url="/test1.jpg")
+        menu2 = Menu(date=date.today(), title=unique_title, photo_url="/test2.jpg")
+        
+        db.add(menu1)
+        db.commit()
+        
+        db.add(menu2)
+        with pytest.raises(IntegrityError, match="UNIQUE constraint failed"):
+            db.commit()
+    finally:
+        db.rollback()
+        db.close()
+
 def test_database_session_handling(client):
     from app.database import get_db
     db_gen = get_db()
@@ -292,7 +347,7 @@ def test_crud_edge_cases(client, test_user, test_menu):
     user = get_user_by_email(db, "test@example.com")
     assert user is not None
     
-    menu = db.query(Menu).filter(Menu.id == test_menu.id).first()
+    menu = db.query(MenuSQLAlchemy).filter(MenuSQLAlchemy.id == test_menu.id).first()
     assert menu is not None
     
     new_user_data = UserCreate(name="New User", email="crud_test_user@example.com", seat_id="B2")

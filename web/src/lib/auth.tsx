@@ -16,12 +16,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (token && storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        if (userData.email === 'admin@example.com') {
+          apiClient.setToken(token);
+          setUser(userData);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to parse stored user data:', error);
+      }
+    }
+    
     if (token) {
       apiClient.setToken(token);
       apiClient.getTodayOrders().then(() => {
-        setUser({ id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() });
+        const adminUser = { id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() };
+        setUser(adminUser);
+        localStorage.setItem('user', JSON.stringify(adminUser));
         setIsLoading(false);
-      }).catch(() => {
+      }).catch((error) => {
+        console.error('Token validation failed:', error);
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
         apiClient.clearToken();
         setIsLoading(false);
       });

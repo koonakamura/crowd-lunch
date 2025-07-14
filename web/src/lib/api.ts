@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-toquofbw.fly.dev';
+const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-jwkjmqmw.fly.dev';
 
 export interface User {
   id: number;
@@ -19,9 +19,26 @@ export interface Menu {
   remaining_qty?: number;
 }
 
+export interface MenuResponse {
+  id: number;
+  date: string;
+  title: string;
+  photo_url?: string;
+  items: MenuItemResponse[];
+}
+
+export interface MenuItemResponse {
+  id: number;
+  menu_id: number;
+  name: string;
+  price: number;
+  stock: number;
+}
+
 export interface OrderItem {
   menu_id: number;
   qty: number;
+  menu_item_name?: string;
 }
 
 export interface Order {
@@ -39,6 +56,7 @@ export interface Order {
     menu_id: number;
     qty: number;
     menu: Menu;
+    menu_item_name?: string;
   }>;
 }
 
@@ -148,6 +166,75 @@ class ApiClient {
   async getTodayOrders(dateFilter?: string): Promise<Order[]> {
     const params = dateFilter ? `?date_filter=${dateFilter}` : '';
     return this.request(`/admin/orders/today${params}`);
+  }
+
+  async getMenus(dateFilter?: string): Promise<MenuResponse[]> {
+    const params = dateFilter ? `?date_filter=${dateFilter}` : '';
+    return this.request(`/admin/menus${params}`);
+  }
+
+  async createMenu(menu: { date: string; title: string; photo_url?: string }): Promise<MenuResponse> {
+    return this.request('/admin/menus', {
+      method: 'POST',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async updateMenu(menuId: number, menu: { title?: string; photo_url?: string }): Promise<MenuResponse> {
+    return this.request(`/admin/menus/${menuId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async deleteMenu(menuId: number): Promise<void> {
+    return this.request(`/admin/menus/${menuId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async createMenuItem(menuId: number, item: { name: string; price: number; stock: number }): Promise<MenuItemResponse> {
+    return this.request(`/admin/menus/${menuId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async updateMenuItem(itemId: number, item: { name?: string; price?: number; stock?: number }): Promise<MenuItemResponse> {
+    return this.request(`/admin/menu-items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(item),
+    });
+  }
+
+  async deleteMenuItem(itemId: number): Promise<void> {
+    return this.request(`/admin/menu-items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadImage(file: File): Promise<{ file_url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/admin/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getOrdersByDate(date: string): Promise<Order[]> {
+    return this.request(`/admin/orders?date_filter=${date}`);
   }
 }
 
