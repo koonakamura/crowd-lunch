@@ -90,7 +90,9 @@ def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
     return order
 
 def get_today_orders(db: Session, serve_date: date):
-    return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.serve_date == serve_date).all()
+    return db.query(models.OrderSQLAlchemy).filter(
+        models.OrderSQLAlchemy.serve_date == serve_date
+    ).order_by(models.OrderSQLAlchemy.created_at.desc()).all()
 
 def create_sample_menus(db: Session):
     """Create sample menu data for testing"""
