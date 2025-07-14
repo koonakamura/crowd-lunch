@@ -242,7 +242,10 @@ export default function AdminPage() {
                       type="file"
                       accept="image/*"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={(e) => uploadBackground(e.target.files?.[0] || null)}
+                      onChange={e => {
+                        console.log("📁 file input changed:", e.target.files);
+                        uploadBackground(e.target.files![0]);
+                      }}
                     />
                   </div>
                 </div>
