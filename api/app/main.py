@@ -161,14 +161,15 @@ async def update_order_status(
 
 @app.get("/admin/orders/today", response_model=List[schemas.Order])
 async def get_today_orders(
+    date_filter: date = None,
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.email != "admin@example.com":
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
-    today = date.today()
-    orders = crud.get_today_orders(db, today)
+    target_date = date_filter or date.today()
+    orders = crud.get_today_orders(db, target_date)
     return orders
 
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])

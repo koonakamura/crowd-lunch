@@ -145,8 +145,9 @@ class ApiClient {
     });
   }
 
-  async getTodayOrders(): Promise<Order[]> {
-    return this.request('/admin/orders/today');
+  async getTodayOrders(dateFilter?: string): Promise<Order[]> {
+    const params = dateFilter ? `?date_filter=${dateFilter}` : '';
+    return this.request(`/admin/orders/today${params}`);
   }
 }
 
