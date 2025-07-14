@@ -1,25 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { useState } from 'react'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { Badge } from '../components/ui/badge'
-import { Input } from '../components/ui/input'
 import { useAuth } from '../lib/auth'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const { user, login } = useAuth()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'))
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ['todayOrders', selectedDate],
-    queryFn: () => apiClient.getTodayOrders(selectedDate),
+    queryKey: ['todayOrders'],
+    queryFn: () => apiClient.getTodayOrders(),
     refetchInterval: 5000,
     enabled: user?.email === 'admin@example.com',
   })
@@ -28,30 +25,16 @@ export default function AdminPage() {
     mutationFn: ({ orderId, status }: { orderId: number; status: string }) =>
       apiClient.updateOrderStatus(orderId, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['todayOrders', selectedDate] })
+      queryClient.invalidateQueries({ queryKey: ['todayOrders'] })
     },
   })
 
   if (user?.email !== 'admin@example.com') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
+        <div className="text-center">
           <p className="text-lg mb-4">管理者権限が必要です</p>
-          <div className="space-y-2">
-            <Button 
-              onClick={async () => {
-                try {
-                  await login('admin@example.com');
-                } catch (error) {
-                  console.error('Admin login failed:', error);
-                }
-              }}
-              className="w-full"
-            >
-              管理者としてログイン
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/')}>ホームに戻る</Button>
-          </div>
+          <Button onClick={() => navigate('/')}>ホームに戻る</Button>
         </div>
       </div>
     )
@@ -151,21 +134,9 @@ export default function AdminPage() {
             CROWD LUNCH<br />
             ADMIN
           </h1>
-          <div className="flex items-center gap-2 ml-auto">
-            <label htmlFor="date-filter" className="text-sm font-medium">
-              日付:
-            </label>
-            <Input
-              id="date-filter"
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-40"
-            />
-            <span className="text-sm text-muted-foreground">
-              {format(new Date(selectedDate), 'yyyy年M月d日')}
-            </span>
-          </div>
+          <span className="text-sm text-muted-foreground">
+            {format(new Date(), 'yyyy年M月d日')}
+          </span>
         </div>
       </header>
 

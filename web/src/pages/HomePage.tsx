@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -12,8 +12,6 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [cart, setCart] = useState<Record<number, number>>({})
-  const [showLanding, setShowLanding] = useState(true)
-  const [fadeOut, setFadeOut] = useState(false)
 
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
@@ -99,62 +97,10 @@ export default function HomePage() {
     })
   }
 
-  const handleLandingClick = () => {
-    setFadeOut(true)
-    setTimeout(() => {
-      setShowLanding(false)
-    }, 500)
-  }
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (showLanding && window.scrollY > 50) {
-        handleLandingClick()
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (showLanding && (e.key === ' ' || e.key === 'Enter')) {
-        e.preventDefault()
-        handleLandingClick()
-      }
-    }
-
-    if (showLanding) {
-      window.addEventListener('scroll', handleScroll)
-      window.addEventListener('keydown', handleKeyDown)
-    }
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [showLanding])
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
-      </div>
-    )
-  }
-
-  if (showLanding) {
-    return (
-      <div 
-        className={`min-h-screen bg-gray-50 flex items-center justify-center cursor-pointer transition-opacity duration-500 ${
-          fadeOut ? 'opacity-0' : 'opacity-100'
-        }`}
-        onClick={handleLandingClick}
-      >
-        <div className="text-center">
-          <h1 className="text-6xl font-bold text-black tracking-wider">
-            CROWD LUNCH
-          </h1>
-          <p className="text-gray-600 mt-4 text-lg">
-            クリックまたはスクロールして開始
-          </p>
-        </div>
       </div>
     )
   }
