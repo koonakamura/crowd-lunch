@@ -191,7 +191,18 @@ def get_menus(db: Session, date_filter: date = None):
     return result
 
 def create_menu(db: Session, menu: schemas.MenuCreate):
-    """Create a new menu"""
+    """Create a new menu or update existing one with same date and title"""
+    existing_menu = db.query(models.Menu).filter(
+        and_(models.Menu.date == menu.date, models.Menu.title == menu.title)
+    ).first()
+    
+    if existing_menu:
+        if menu.photo_url is not None:
+            existing_menu.photo_url = menu.photo_url
+        db.commit()
+        db.refresh(existing_menu)
+        return existing_menu
+    
     db_menu = models.Menu(
         date=menu.date,
         title=menu.title,

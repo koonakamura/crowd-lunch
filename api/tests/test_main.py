@@ -248,6 +248,61 @@ def test_invalid_status_update(client, test_user, test_menu):
     )
     assert response.status_code in [400, 422]
 
+def test_duplicate_menu_creation_upsert(client):
+    """Test that creating duplicate menu updates existing one"""
+    login_response = client.post("/auth/login", json={"email": "admin@example.com"})
+    token = login_response.json()["access_token"]
+    
+    menu_data = {
+        "date": str(date.today()),
+        "title": "Test Duplicate Menu",
+        "photo_url": "/test1.jpg"
+    }
+    
+    response1 = client.post(
+        "/admin/menus",
+        json=menu_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response1.status_code == 200
+    menu1_id = response1.json()["id"]
+    
+    menu_data["photo_url"] = "/test2.jpg"
+    response2 = client.post(
+        "/admin/menus",
+        json=menu_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response2.status_code == 200
+    menu2_id = response2.json()["id"]
+    
+    assert menu1_id == menu2_id
+    assert response2.json()["photo_url"] == "/test2.jpg"
+
+def test_menu_unique_constraint_database_level(client):
+    """Test that database constraint prevents duplicates"""
+    from app.database import SessionLocal
+    from app.models import Menu
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    import uuid
+    
+    db = SessionLocal()
+    try:
+        unique_title = f"Constraint Test {uuid.uuid4().hex[:8]}"
+        menu1 = Menu(date=date.today(), title=unique_title, photo_url="/test1.jpg")
+        menu2 = Menu(date=date.today(), title=unique_title, photo_url="/test2.jpg")
+        
+        db.add(menu1)
+        db.commit()
+        
+        db.add(menu2)
+        with pytest.raises(IntegrityError, match="UNIQUE constraint failed"):
+            db.commit()
+    finally:
+        db.rollback()
+        db.close()
+
 def test_database_session_handling(client):
     from app.database import get_db
     db_gen = get_db()
