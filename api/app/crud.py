@@ -269,9 +269,18 @@ def delete_menu_item(db: Session, item_id: int):
 def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
     """Get weekly menus from admin Menu/MenuItem tables in frontend-compatible format"""
     from datetime import timedelta
+    from sqlalchemy import func
     
-    menus = db.query(models.Menu).filter(
+    subquery = db.query(
+        models.Menu.date,
+        func.max(models.Menu.id).label('max_id')
+    ).filter(
         and_(models.Menu.date >= start_date, models.Menu.date <= end_date)
+    ).group_by(models.Menu.date).subquery()
+    
+    menus = db.query(models.Menu).join(
+        subquery,
+        and_(models.Menu.date == subquery.c.date, models.Menu.id == subquery.c.max_id)
     ).all()
     
     weekly_data = []
@@ -294,6 +303,7 @@ def get_weekly_menus_from_admin(db: Session, start_date: date, end_date: date):
                         'remaining_qty': max(0, remaining_qty),
                         'created_at': datetime.utcnow()
                     })
+                break  # Only process one menu per date
         
         weekly_data.append({
             "date": current_date,
