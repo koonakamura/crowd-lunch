@@ -111,8 +111,9 @@ export default function AdminPage() {
       
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
+        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://app-toquofbw.fly.dev'
         setImagePreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
-          ? `${(import.meta as any).env?.VITE_API_URL || 'https://app-toquofbw.fly.dev'}${firstMenuWithImage.img_url}`
+          ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
         )
       }
@@ -124,7 +125,7 @@ export default function AdminPage() {
       ])
       setImagePreview('')
     }
-  }, [sqlAlchemyMenus])
+  }, [sqlAlchemyMenus, menuRows])
 
   if (user?.email !== 'admin@example.com') {
     return (
