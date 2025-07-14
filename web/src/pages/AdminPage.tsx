@@ -247,6 +247,7 @@ export default function AdminPage() {
                     onChange={e => {
                       const file = e.target.files![0];
                       console.log("📁 file input changed:", e.target.files);
+                      setBackgroundPreview(URL.createObjectURL(file));
                       uploadBackground(file);
                     }}
                   />
