@@ -38,7 +38,9 @@ jobs:
       working-directory: ./api
       env:
         TESTING: "true"
-      run: poetry run pytest
+      run: |
+        poetry run alembic upgrade head
+        poetry run pytest
     
     - name: Run frontend linting
       working-directory: ./web
