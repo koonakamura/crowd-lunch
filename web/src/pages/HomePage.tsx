@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
+import { Menu } from '../lib/api'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -29,7 +30,7 @@ export default function HomePage() {
       const data = await apiClient.getWeeklyMenus()
       return data.map(dayData => ({
         ...dayData,
-        menus: dayData.menus.reduce((acc: any[], menu: any) => {
+        menus: dayData.menus.reduce((acc: Menu[], menu: Menu) => {
           const existingIndex = acc.findIndex(existing => 
             existing.title === menu.title && existing.serve_date === menu.serve_date
           )
@@ -52,7 +53,7 @@ export default function HomePage() {
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
     if (adminImage && adminImage.startsWith('/static/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'https://app-toquofbw.fly.dev'}${adminImage}`
+      return `${import.meta.env.VITE_API_URL || 'https://app-jwkjmqmw.fly.dev'}${adminImage}`
     }
     
     const defaultImages = [

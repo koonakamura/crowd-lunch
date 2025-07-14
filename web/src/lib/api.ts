@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-toquofbw.fly.dev';
+const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://app-jwkjmqmw.fly.dev';
 
 export interface User {
   id: number;
