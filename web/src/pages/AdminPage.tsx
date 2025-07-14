@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { apiClient, type MenuSQLAlchemy } from '../lib/api'
@@ -152,8 +152,7 @@ export default function AdminPage() {
     )
   }
 
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const uploadBackground = (file: File | null) => {
     if (file) {
       setSelectedImage(file)
       const reader = new FileReader()
@@ -224,30 +223,33 @@ export default function AdminPage() {
             <div className="flex gap-6">
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
-                <div 
-                  className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Menu background" className="w-full h-full object-cover rounded-full" />
-                  ) : (
-                    <div className="text-center text-gray-500">
-                      <div className="text-sm">画像を</div>
-                      <div className="text-sm">選択</div>
-                    </div>
-                  )}
-                </div>
+                <label htmlFor="bg-upload">
+                  <div 
+                    className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center cursor-pointer hover:border-gray-400 transition-colors overflow-hidden"
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Menu background" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <div className="text-center text-gray-500">
+                        <div className="text-sm">画像を</div>
+                        <div className="text-sm">選択</div>
+                      </div>
+                    )}
+                  </div>
+                </label>
                 <input
+                  id="bg-upload"
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleImageSelect}
+                  onChange={(e) => uploadBackground(e.target.files?.[0] || null)}
                 />
               </div>
 
               {/* Menu Rows */}
-              <div className="flex-1">
+              <div className="flex-1" style={{ pointerEvents: 'auto' }}>
                 <div className="space-y-3">
                   {menuRows.map((row, index) => (
                     <div key={index} className="flex gap-3 items-center">
