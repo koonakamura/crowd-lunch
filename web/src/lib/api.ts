@@ -235,6 +235,72 @@ class ApiClient {
   async getOrdersByDate(date: string): Promise<Order[]> {
     return this.request(`/admin/orders?date_filter=${date}`);
   }
+
+  async getMenusSQLAlchemy(date?: string): Promise<MenuSQLAlchemy[]> {
+    const params = date ? `?date=${date}` : '';
+    return this.request(`/menus${params}`);
+  }
+
+  async createMenuSQLAlchemy(menu: {
+    serve_date: string;
+    title: string;
+    price: number;
+    max_qty: number;
+    img_url?: string;
+  }): Promise<MenuSQLAlchemy> {
+    return this.request('/menus', {
+      method: 'POST',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async updateMenuSQLAlchemy(menuId: number, menu: {
+    title?: string;
+    price?: number;
+    max_qty?: number;
+    img_url?: string;
+  }): Promise<MenuSQLAlchemy> {
+    return this.request(`/menus/${menuId}`, {
+      method: 'PUT',
+      body: JSON.stringify(menu),
+    });
+  }
+
+  async deleteMenuSQLAlchemy(menuId: number): Promise<void> {
+    return this.request(`/menus/${menuId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadBackgroundImage(date: string, file: File): Promise<{ img_url: string; message: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_BASE_URL}/menus/background?date=${date}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+}
+
+export interface MenuSQLAlchemy {
+  id: number;
+  serve_date: string;
+  title: string;
+  price: number;
+  max_qty: number;
+  img_url?: string;
+  created_at: string;
 }
 
 export const apiClient = new ApiClient();
