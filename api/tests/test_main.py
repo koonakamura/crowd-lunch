@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from app.main import app
 from app.database import get_db, Base
-from app.models import User, MenuSQLAlchemy as Menu, OrderSQLAlchemy as Order, OrderItem
+from app.models import User, MenuSQLAlchemy, OrderSQLAlchemy as Order, OrderItem
 from datetime import date, time
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -47,15 +47,15 @@ def test_user(client):
 @pytest.fixture
 def test_menu(client):
     db = TestingSessionLocal()
-    existing_menu = db.query(Menu).filter(
-        Menu.serve_date == date.today(),
-        Menu.title == "Test Menu"
+    existing_menu = db.query(MenuSQLAlchemy).filter(
+        MenuSQLAlchemy.serve_date == date.today(),
+        MenuSQLAlchemy.title == "Test Menu"
     ).first()
     if existing_menu:
         db.close()
         return existing_menu
     
-    menu = Menu(
+    menu = MenuSQLAlchemy(
         serve_date=date.today(),
         title="Test Menu",
         price=500,
@@ -168,7 +168,7 @@ def test_crud_operations(client, test_user, test_menu):
     assert user is not None
     assert user.name == "test"
     
-    menu = db.query(Menu).filter(Menu.title == "Test Menu").first()
+    menu = db.query(MenuSQLAlchemy).filter(MenuSQLAlchemy.title == "Test Menu").first()
     assert menu is not None
     assert menu.price == 500
     
@@ -347,7 +347,7 @@ def test_crud_edge_cases(client, test_user, test_menu):
     user = get_user_by_email(db, "test@example.com")
     assert user is not None
     
-    menu = db.query(Menu).filter(Menu.id == test_menu.id).first()
+    menu = db.query(MenuSQLAlchemy).filter(MenuSQLAlchemy.id == test_menu.id).first()
     assert menu is not None
     
     new_user_data = UserCreate(name="New User", email="crud_test_user@example.com", seat_id="B2")
