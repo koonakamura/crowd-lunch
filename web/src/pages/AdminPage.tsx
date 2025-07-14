@@ -177,7 +177,6 @@ export default function AdminPage() {
     saveMenusMutation.mutate()
   }
 
-  console.log("🔍 backgroundPreview state:", backgroundPreview);
 
   return (
     <div className="min-h-screen bg-background">
@@ -246,8 +245,9 @@ export default function AdminPage() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     onChange={e => {
                       const file = e.target.files![0];
-                      console.log("📁 file input changed:", e.target.files);
-                      setBackgroundPreview(URL.createObjectURL(file));
+                      const previewUrl = URL.createObjectURL(file);
+                      console.log("🔍 backgroundPreview state:", previewUrl);
+                      setBackgroundPreview(previewUrl);
                       uploadBackground(file);
                     }}
                   />
