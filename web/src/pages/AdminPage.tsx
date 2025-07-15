@@ -125,7 +125,7 @@ export default function AdminPage() {
       ])
       setBackgroundPreview(null)
     }
-  }, [sqlAlchemyMenus, menuRows])
+  }, [sqlAlchemyMenus])
 
   if (user?.email !== 'admin@example.com') {
     return (
