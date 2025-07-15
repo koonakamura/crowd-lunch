@@ -129,3 +129,26 @@ class WeeklyMenuResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     email: str
+
+class MenuSQLAlchemyBase(BaseModel):
+    serve_date: date
+    title: str
+    price: int
+    max_qty: int
+    img_url: Optional[str] = None
+
+class MenuSQLAlchemyCreate(MenuSQLAlchemyBase):
+    pass
+
+class MenuSQLAlchemyUpdate(BaseModel):
+    title: Optional[str] = None
+    price: Optional[int] = None
+    max_qty: Optional[int] = None
+    img_url: Optional[str] = None
+
+class MenuSQLAlchemyResponse(MenuSQLAlchemyBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
