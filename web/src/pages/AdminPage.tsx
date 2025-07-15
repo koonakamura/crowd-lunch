@@ -125,7 +125,7 @@ export default function AdminPage() {
       ])
       setBackgroundPreview(null)
     }
-  }, [sqlAlchemyMenus, menuRows])
+  }, [sqlAlchemyMenus])
 
   if (user?.email !== 'admin@example.com') {
     return (
@@ -152,16 +152,6 @@ export default function AdminPage() {
     )
   }
 
-  const uploadBackground = (file: File | null) => {
-    if (file) {
-      setSelectedImage(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setBackgroundPreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   const addMenuRow = () => {
     setMenuRows([...menuRows, { title: '', price: 0, max_qty: 0 }])
@@ -245,10 +235,12 @@ export default function AdminPage() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     onChange={e => {
                       const file = e.target.files![0];
-                      const previewUrl = URL.createObjectURL(file);
-                      console.log("🔍 previewUrl:", previewUrl);
-                      setBackgroundPreview(previewUrl);
-                      uploadBackground(file);
+                      if (file) {
+                        const previewUrl = URL.createObjectURL(file);
+                        console.log("🔍 previewUrl:", previewUrl);
+                        setBackgroundPreview(previewUrl);
+                        setSelectedImage(file);
+                      }
                     }}
                   />
                 </label>
