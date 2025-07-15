@@ -17,11 +17,6 @@ jobs:
       - name: Add flyctl to PATH
         run: echo "${HOME}/.fly/bin" >> $GITHUB_PATH
 
-      - name: Authenticate with Fly.io
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: flyctl --access-token $FLY_API_TOKEN auth login
-
       - name: Deploy
         working-directory: ./api
         env:
