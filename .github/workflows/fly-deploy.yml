@@ -12,16 +12,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install FlyCTL
-        run: |
-          curl -L https://fly.io/install.sh | sh
-          # flyctl のインストール先を PATH に追加
-          echo "${HOME}/.fly/bin" >> $GITHUB_PATH
+        run: curl -L https://fly.io/install.sh | sh
 
-      - name: Authenticate with Fly.io
+      - name: Add flyctl to PATH
+        run: echo "${HOME}/.fly/bin" >> $GITHUB_PATH
+
+      - name: Login to Fly.io
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: flyctl auth token $FLY_API_TOKEN
 
-      - name: Deploy API
+      - name: Deploy
         working-directory: ./api
         run: flyctl deploy --config fly.toml --remote-only
