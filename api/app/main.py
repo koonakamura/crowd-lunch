@@ -67,6 +67,24 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     today = date.today()
     monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
+    
+    menus = crud.get_weekly_menus(db, monday, friday)
+    
+    weekly_menus = {}
+    for menu in menus:
+        serve_date = menu['serve_date']
+        if serve_date not in weekly_menus:
+            weekly_menus[serve_date] = []
+        weekly_menus[serve_date].append(menu)
+    
+    result = []
+    for date_key, menu_list in weekly_menus.items():
+        result.append({
+            "date": date_key,
+            "menus": menu_list
+        })
+    
+    return result
 
 from fastapi import HTTPException, status
 from typing import List
@@ -83,14 +101,6 @@ async def get_menus_by_date(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
     return menus
 
-@app.post("/menus", response_model=schemas.MenuSQLAlchemyResponse, status_code=status.HTTP_201_CREATED)
-async def create_menu_by_date(
-    menu: schemas.MenuSQLAlchemyCreate,
-    current_user: schemas.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
-):
-    db_menu = crud.create_menu_sqlalchemy(db, menu)
-    return db_menu
 
 @app.post("/orders", response_model=schemas.Order)
 async def create_order(
