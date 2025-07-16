@@ -83,14 +83,6 @@ async def get_menus_by_date(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
     return menus
 
-@app.post("/menus", response_model=schemas.MenuSQLAlchemyResponse, status_code=status.HTTP_201_CREATED)
-async def create_menu_by_date(
-    menu: schemas.MenuSQLAlchemyCreate,
-    current_user: schemas.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
-):
-    db_menu = crud.create_menu_sqlalchemy(db, menu)
-    return db_menu
 
 @app.post("/orders", response_model=schemas.Order)
 async def create_order(
