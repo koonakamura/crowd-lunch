@@ -89,6 +89,8 @@ async def create_menu_by_date(
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
+    db_menu = crud.create_menu_sqlalchemy(db, menu)
+    return db_menu
 
 @app.post("/orders", response_model=schemas.Order)
 async def create_order(
