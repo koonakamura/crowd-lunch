@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi import HTTPException, status 
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List
@@ -64,13 +65,24 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
 
 @app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
-    today = date.today()
+    today  = date.today()
     monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
 
-from fastapi import HTTPException, status
-from typing import List
-from . import crud, schemas
+    # 任意：サンプルメニューを自動生成
+    crud.create_sample_menus(db)
+
+    weekly_data = []
+    current_date = monday
+    while current_date <= friday:
+        menus = crud.get_weekly_menus(db, current_date, current_date)
+        weekly_data.append({
+            "date": current_date,
+            "menus": menus
+        })
+        current_date += timedelta(days=1)
+
+    return weekly_data
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
