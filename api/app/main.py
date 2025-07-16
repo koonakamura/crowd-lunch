@@ -302,15 +302,16 @@ async def get_menus_by_date(
     menus = crud.get_menus_sqlalchemy(db, date)
     return menus
 
-@app.post("/menus", response_model=schemas.MenuSQLAlchemyResponse)
+@app.post("/menus",
+    response_model=schemas.MenuSQLAlchemyResponse,
+    status_code=status.HTTP_201_CREATED
+)
 async def create_menu_by_date(
     menu: schemas.MenuSQLAlchemyCreate,
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
-    
+    # メニューを DB に作成して返却
     db_menu = crud.create_menu_sqlalchemy(db, menu)
     return db_menu
 
