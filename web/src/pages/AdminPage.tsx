@@ -6,6 +6,13 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useAuth } from '../lib/auth'
+
+interface MenuRow {
+  id: number | null;
+  title: string;
+  price: number;
+  max_qty: number;
+}
 import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
@@ -35,7 +42,7 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [menuRows, setMenuRows] = useState([
+  const [menuRows, setMenuRows] = useState<MenuRow[]>([
     { id: null, title: '', price: 0, max_qty: 0 },
     { id: null, title: '', price: 0, max_qty: 0 },
     { id: null, title: '', price: 0, max_qty: 0 }
@@ -66,8 +73,8 @@ export default function AdminPage() {
         imgUrl = uploadResult.img_url
       }
 
-      const validRows = menuRows.filter((row: any) => row.title.trim() !== '')
-      const promises = validRows.map((row: any) => {
+      const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '')
+      const promises = validRows.map((row: MenuRow) => {
         if (row.id) {
           return apiClient.updateMenuSQLAlchemy(row.id, {
             title: row.title,
@@ -99,7 +106,7 @@ export default function AdminPage() {
         { id: null, title: '', price: 0, max_qty: 0 }
       ])
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Failed to save menus:', error)
     }
   })
@@ -112,20 +119,20 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Failed to delete menu:', error)
     }
   })
 
   const updateMenuMutation = useMutation({
-    mutationFn: async ({ menuId, menuData }: { menuId: number, menuData: any }) => {
+    mutationFn: async ({ menuId, menuData }: { menuId: number, menuData: Partial<MenuSQLAlchemy> }) => {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       console.error('Failed to update menu:', error)
     }
   })
@@ -133,8 +140,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (sqlAlchemyMenus && sqlAlchemyMenus.length > 0) {
-      const newRows = [...menuRows]
-      sqlAlchemyMenus.forEach((menu: any, index: number) => {
+      const newRows: MenuRow[] = [
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 }
+      ]
+      sqlAlchemyMenus.forEach((menu: MenuSQLAlchemy, index: number) => {
         if (index < newRows.length) {
           newRows[index] = {
             id: menu.id,
@@ -220,7 +231,7 @@ export default function AdminPage() {
     }
   }
 
-  const updateMenuRow = (index: number, field: keyof typeof menuRows[0], value: string | number) => {
+  const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number) => {
     const updated = [...menuRows]
     updated[index] = { ...updated[index], [field]: value }
     setMenuRows(updated)
