@@ -293,18 +293,6 @@ async def delete_menu_item(
     
     return {"message": "メニューアイテムが削除されました"}
 
-@app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
-async def get_menus_by_date(
-    date: date = None,
-    current_user: schemas.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
-):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
-    
-    menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
-
 @app.post("/menus",
     response_model=schemas.MenuSQLAlchemyResponse,
     status_code=status.HTTP_201_CREATED
