@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { useAuth } from '../lib/auth'
-import { ArrowLeft, Plus, Edit } from 'lucide-react'
+import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 
@@ -36,9 +36,9 @@ export default function AdminPage() {
   
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [menuRows, setMenuRows] = useState([
-    { title: '', price: 0, max_qty: 0 },
-    { title: '', price: 0, max_qty: 0 },
-    { title: '', price: 0, max_qty: 0 }
+    { id: null, title: '', price: 0, max_qty: 0 },
+    { id: null, title: '', price: 0, max_qty: 0 },
+    { id: null, title: '', price: 0, max_qty: 0 }
   ])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -66,31 +66,67 @@ export default function AdminPage() {
         imgUrl = uploadResult.img_url
       }
 
-      const validRows = menuRows.filter(row => row.title.trim() !== '')
-      const promises = validRows.map(row => 
-        apiClient.createMenuSQLAlchemy({
-          serve_date: formatDateForApi(selectedDate),
-          title: row.title,
-          price: row.price,
-          max_qty: row.max_qty,
-          img_url: imgUrl
-        })
-      )
+      const validRows = menuRows.filter((row: any) => row.title.trim() !== '')
+      const promises = validRows.map((row: any) => {
+        if (row.id) {
+          return apiClient.updateMenuSQLAlchemy(row.id, {
+            title: row.title,
+            price: row.price,
+            max_qty: row.max_qty,
+            img_url: imgUrl
+          })
+        } else {
+          return apiClient.createMenuSQLAlchemy({
+            serve_date: formatDateForApi(selectedDate),
+            title: row.title,
+            price: row.price,
+            max_qty: row.max_qty,
+            img_url: imgUrl
+          })
+        }
+      })
       
       return Promise.all(promises)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
+      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
       setSelectedImage(null)
       setBackgroundPreview(null)
       setMenuRows([
-        { title: '', price: 0, max_qty: 0 },
-        { title: '', price: 0, max_qty: 0 },
-        { title: '', price: 0, max_qty: 0 }
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 }
       ])
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Failed to save menus:', error)
+    }
+  })
+
+  const deleteMenuMutation = useMutation({
+    mutationFn: async (menuId: number) => {
+      return apiClient.deleteMenuSQLAlchemy(menuId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
+      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
+    },
+    onError: (error: any) => {
+      console.error('Failed to delete menu:', error)
+    }
+  })
+
+  const updateMenuMutation = useMutation({
+    mutationFn: async ({ menuId, menuData }: { menuId: number, menuData: any }) => {
+      return apiClient.updateMenuSQLAlchemy(menuId, menuData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
+      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
+    },
+    onError: (error: any) => {
+      console.error('Failed to update menu:', error)
     }
   })
 
@@ -98,9 +134,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (sqlAlchemyMenus && sqlAlchemyMenus.length > 0) {
       const newRows = [...menuRows]
-      sqlAlchemyMenus.forEach((menu, index) => {
+      sqlAlchemyMenus.forEach((menu: any, index: number) => {
         if (index < newRows.length) {
           newRows[index] = {
+            id: menu.id,
             title: menu.title,
             price: menu.price,
             max_qty: menu.max_qty
@@ -119,9 +156,9 @@ export default function AdminPage() {
       }
     } else {
       setMenuRows([
-        { title: '', price: 0, max_qty: 0 },
-        { title: '', price: 0, max_qty: 0 },
-        { title: '', price: 0, max_qty: 0 }
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 },
+        { id: null, title: '', price: 0, max_qty: 0 }
       ])
       setBackgroundPreview(null)
     }
@@ -154,7 +191,33 @@ export default function AdminPage() {
 
 
   const addMenuRow = () => {
-    setMenuRows([...menuRows, { title: '', price: 0, max_qty: 0 }])
+    setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0 }])
+  }
+
+  const handleDeleteMenu = (index: number) => {
+    const menu = menuRows[index]
+    if (menu.id) {
+      if (confirm(`「${menu.title}」を削除しますか？`)) {
+        deleteMenuMutation.mutate(menu.id)
+      }
+    } else {
+      const updated = menuRows.filter((_, i) => i !== index)
+      setMenuRows(updated)
+    }
+  }
+
+  const handleEditMenu = (index: number) => {
+    const menu = menuRows[index]
+    if (menu.id && menu.title.trim()) {
+      updateMenuMutation.mutate({
+        menuId: menu.id,
+        menuData: {
+          title: menu.title,
+          price: menu.price,
+          max_qty: menu.max_qty
+        }
+      })
+    }
   }
 
   const updateMenuRow = (index: number, field: keyof typeof menuRows[0], value: string | number) => {
@@ -275,8 +338,17 @@ export default function AdminPage() {
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0"
+                        onClick={() => handleEditMenu(index)}
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                        onClick={() => handleDeleteMenu(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
