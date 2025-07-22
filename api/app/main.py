@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import HTTPException, status 
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
 from typing import List
