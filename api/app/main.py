@@ -67,6 +67,24 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     today  = date.today()
     monday = today - timedelta(days=today.weekday())
     friday = monday + timedelta(days=4)
+    
+    menus = crud.get_weekly_menus(db, monday, friday)
+    
+    weekly_menus = {}
+    for menu in menus:
+        serve_date = menu['serve_date']
+        if serve_date not in weekly_menus:
+            weekly_menus[serve_date] = []
+        weekly_menus[serve_date].append(menu)
+    
+    result = []
+    for date_key, menu_list in weekly_menus.items():
+        result.append({
+            "date": date_key,
+            "menus": menu_list
+        })
+    
+    return result
 
     # 任意：サンプルメニューを自動生成
     crud.create_sample_menus(db)
