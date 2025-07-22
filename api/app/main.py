@@ -88,7 +88,7 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
 async def get_menus_by_date(
     date: date = None,
     current_user: schemas.User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
     if not menus:
