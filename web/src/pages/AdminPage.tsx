@@ -191,7 +191,7 @@ export default function AdminPage() {
               onClick={async () => {
                 try {
                   await login('admin@example.com');
-                } catch (error) {
+                } catch {
                 }
               }}
               className="w-full"
