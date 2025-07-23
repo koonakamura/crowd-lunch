@@ -29,13 +29,13 @@ fi
 echo "✅ Authentication successful"
 
 declare -a TEST_MENUS=(
-  '{"date":"2025-07-28","name":"月曜日テストメニュー","price":600,"max_qty":20}'
-  '{"date":"2025-07-29","name":"火曜日テストメニュー","price":650,"max_qty":25}'
-  '{"date":"2025-07-30","name":"水曜日テストメニュー","price":700,"max_qty":30}'
-  '{"date":"2025-07-31","name":"木曜日テストメニュー","price":750,"max_qty":15}'
-  '{"date":"2025-08-01","name":"金曜日テストメニュー","price":800,"max_qty":35}'
-  '{"date":"2025-08-02","name":"土曜日テストメニュー","price":550,"max_qty":10}'
-  '{"date":"2025-08-03","name":"日曜日テストメニュー","price":500,"max_qty":12}'
+  '{"serve_date":"2025-07-28","title":"月曜日テストメニュー","price":600,"max_qty":20}'
+  '{"serve_date":"2025-07-29","title":"火曜日テストメニュー","price":650,"max_qty":25}'
+  '{"serve_date":"2025-07-30","title":"水曜日テストメニュー","price":700,"max_qty":30}'
+  '{"serve_date":"2025-07-31","title":"木曜日テストメニュー","price":750,"max_qty":15}'
+  '{"serve_date":"2025-08-01","title":"金曜日テストメニュー","price":800,"max_qty":35}'
+  '{"serve_date":"2025-08-02","title":"土曜日テストメニュー","price":550,"max_qty":10}'
+  '{"serve_date":"2025-08-03","title":"日曜日テストメニュー","price":500,"max_qty":12}'
 )
 
 echo "📅 Creating test menus for the week..."
@@ -69,7 +69,7 @@ echo ""
 echo "🔍 Verifying created menus..."
 
 for menu_data in "${TEST_MENUS[@]}"; do
-  date=$(echo "$menu_data" | jq -r '.date')
+  date=$(echo "$menu_data" | jq -r '.serve_date')
   
   echo "  Checking menu for $date..."
   response=$(curl -s -H "Authorization: Bearer $ACCESS_TOKEN" \
