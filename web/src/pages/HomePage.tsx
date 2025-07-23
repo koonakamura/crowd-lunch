@@ -47,9 +47,13 @@ export default function HomePage() {
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const getMenusForDay = (dayIndex: number) => {
-    if (!weeklyMenus || !weeklyMenus[dayIndex]) return []
-    return weeklyMenus[dayIndex].menus || []
+  const getMenusForDate = (date: Date) => {
+    if (!weeklyMenus || weeklyMenus.length === 0) return []
+    
+    const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
+    const dateKey = format(date, 'yyyy-MM-dd')
+    const menus = menusByDate.get(dateKey) ?? []
+    return menus
   }
 
 
@@ -200,7 +204,7 @@ export default function HomePage() {
       <div className="pt-16">
         {weekDays.map((dayInfo, index) => {
           const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDay(index)
+          const dayMenus = getMenusForDate(dayInfo.date)
           
           return (
             <section 
