@@ -86,20 +86,6 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     
     return result
 
-    # 任意：サンプルメニューを自動生成
-    crud.create_sample_menus(db)
-
-    weekly_data = []
-    current_date = monday
-    while current_date <= friday:
-        menus = crud.get_weekly_menus(db, current_date, current_date)
-        weekly_data.append({
-            "date": current_date,
-            "menus": menus
-        })
-        current_date += timedelta(days=1)
-
-    return weekly_data
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
