@@ -5,6 +5,7 @@ import { apiClient, type MenuSQLAlchemy } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { useAuth } from '../lib/auth'
 
 interface MenuRow {
@@ -49,6 +50,9 @@ export default function AdminPage() {
   ])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [menuToDelete, setMenuToDelete] = useState<{ index: number; menu: MenuRow } | null>(null)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -207,14 +211,23 @@ export default function AdminPage() {
 
   const handleDeleteMenu = (index: number) => {
     const menu = menuRows[index]
+    setMenuToDelete({ index, menu })
+    setDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteMenu = () => {
+    if (!menuToDelete) return
+    
+    const { index, menu } = menuToDelete
     if (menu.id) {
-      if (confirm(`「${menu.title}」を削除しますか？`)) {
-        deleteMenuMutation.mutate(menu.id)
-      }
+      deleteMenuMutation.mutate(menu.id)
     } else {
       const updated = menuRows.filter((_, i) => i !== index)
       setMenuRows(updated)
     }
+    
+    setDeleteConfirmOpen(false)
+    setMenuToDelete(null)
   }
 
   const handleEditMenu = (index: number) => {
@@ -231,10 +244,51 @@ export default function AdminPage() {
     }
   }
 
+  const validateMenuRow = (field: 'price' | 'max_qty', value: string): string | null => {
+    const numValue = parseFloat(value)
+    
+    if (isNaN(numValue)) {
+      return field === 'price' ? '価格は数値で入力してください' : '数量は数値で入力してください'
+    }
+    
+    if (numValue < 0) {
+      return field === 'price' ? '価格は0以上で入力してください' : '数量は0以上で入力してください'
+    }
+    
+    if (!Number.isInteger(numValue)) {
+      return field === 'price' ? '価格は整数で入力してください' : '数量は整数で入力してください'
+    }
+    
+    if (field === 'price' && numValue > 10000) {
+      return '価格は10,000円以下で入力してください'
+    }
+    
+    if (field === 'max_qty' && numValue > 100) {
+      return '数量は100個以下で入力してください'
+    }
+    
+    return null
+  }
+
   const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number) => {
     const updated = [...menuRows]
     updated[index] = { ...updated[index], [field]: value }
     setMenuRows(updated)
+    
+    if (field === 'price' || field === 'max_qty') {
+      const error = validateMenuRow(field, value.toString())
+      const errorKey = `${index}-${field}`
+      
+      setValidationErrors(prev => {
+        const newErrors = { ...prev }
+        if (error) {
+          newErrors[errorKey] = error
+        } else {
+          delete newErrors[errorKey]
+        }
+        return newErrors
+      })
+    }
   }
 
   const handleSave = () => {
@@ -331,20 +385,30 @@ export default function AdminPage() {
                         onChange={(e) => updateMenuRow(index, 'title', e.target.value)}
                         className="flex-1"
                       />
-                      <Input
-                        type="number"
-                        placeholder="金額"
-                        value={row.price}
-                        onChange={(e) => updateMenuRow(index, 'price', parseInt(e.target.value) || 0)}
-                        className="w-24"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="数量"
-                        value={row.max_qty}
-                        onChange={(e) => updateMenuRow(index, 'max_qty', parseInt(e.target.value) || 0)}
-                        className="w-24"
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="金額"
+                          value={row.price}
+                          onChange={(e) => updateMenuRow(index, 'price', parseInt(e.target.value) || 0)}
+                          className={`w-24 ${validationErrors[`${index}-price`] ? 'border-red-500' : ''}`}
+                        />
+                        {validationErrors[`${index}-price`] && (
+                          <p className="text-sm text-red-500">{validationErrors[`${index}-price`]}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          type="number"
+                          placeholder="数量"
+                          value={row.max_qty}
+                          onChange={(e) => updateMenuRow(index, 'max_qty', parseInt(e.target.value) || 0)}
+                          className={`w-24 ${validationErrors[`${index}-max_qty`] ? 'border-red-500' : ''}`}
+                        />
+                        {validationErrors[`${index}-max_qty`] && (
+                          <p className="text-sm text-red-500">{validationErrors[`${index}-max_qty`]}</p>
+                        )}
+                      </div>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -381,7 +445,7 @@ export default function AdminPage() {
             {/* Save Button */}
             <Button 
               onClick={handleSave}
-              disabled={saveMenusMutation.isPending}
+              disabled={saveMenusMutation.isPending || Object.keys(validationErrors).length > 0}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
               {saveMenusMutation.isPending ? '保存中...' : '保存'}
@@ -444,6 +508,26 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>メニューを削除</DialogTitle>
+            <DialogDescription>
+              「{menuToDelete?.menu.title || ''}」を削除してもよろしいですか？
+              この操作は取り消せません。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              キャンセル
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteMenu}>
+              削除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
