@@ -71,29 +71,21 @@ export default function AdminPage() {
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
-      let imgUrl = ''
-      if (selectedImage) {
-        const uploadResult = await apiClient.uploadBackgroundImage(formatDateForApi(selectedDate), selectedImage)
-        imgUrl = uploadResult.img_url
-      }
-
       const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '')
       const promises = validRows.map((row: MenuRow) => {
         if (row.id) {
-          return apiClient.updateMenuSQLAlchemy(row.id, {
+          return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty,
-            img_url: imgUrl
-          })
+            max_qty: row.max_qty
+          }, selectedImage)
         } else {
-          return apiClient.createMenuSQLAlchemy({
+          return apiClient.createMenuSQLAlchemyWithImage({
             serve_date: formatDateForApi(selectedDate),
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty,
-            img_url: imgUrl
-          })
+            max_qty: row.max_qty
+          }, selectedImage)
         }
       })
       
