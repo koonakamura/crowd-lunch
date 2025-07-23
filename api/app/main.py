@@ -64,7 +64,9 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
 
 @app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
-    today  = date.today()
+    from datetime import timezone, timedelta as td
+    jst = timezone(td(hours=9))
+    today = datetime.now(jst).date()
     monday = today - timedelta(days=today.weekday())
     sunday = monday + timedelta(days=6)
     
