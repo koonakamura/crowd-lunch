@@ -119,7 +119,10 @@ export default function AdminPage() {
     mutationFn: async (menuId: number) => {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
-    onSuccess: () => {
+    onSuccess: (_, menuId) => {
+      setMenuRows(prevRows => prevRows.map(row => 
+        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0 } : row
+      ))
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
@@ -219,6 +222,7 @@ export default function AdminPage() {
     if (!menuToDelete) return
     
     const { index, menu } = menuToDelete
+    
     if (menu.id) {
       deleteMenuMutation.mutate(menu.id)
     } else {
