@@ -192,6 +192,7 @@ export default function AdminPage() {
                 try {
                   await login('admin@example.com');
                 } catch {
+                  // Login errors are handled silently
                 }
               }}
               className="w-full"
