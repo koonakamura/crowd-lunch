@@ -64,11 +64,13 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
 
 @app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
-    today  = date.today()
-    monday = today - timedelta(days=today.weekday())
-    friday = monday + timedelta(days=4)
+    from datetime import timezone, timedelta as td
+    jst = timezone(td(hours=9))
+    today = datetime.now(jst).date()
+    start_date = today
+    end_date = today + timedelta(days=6)
     
-    menus = crud.get_weekly_menus(db, monday, friday)
+    menus = crud.get_weekly_menus(db, start_date, end_date)
     
     weekly_menus = {}
     for menu in menus:
@@ -86,20 +88,6 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     
     return result
 
-    # 任意：サンプルメニューを自動生成
-    crud.create_sample_menus(db)
-
-    weekly_data = []
-    current_date = monday
-    while current_date <= friday:
-        menus = crud.get_weekly_menus(db, current_date, current_date)
-        weekly_data.append({
-            "date": current_date,
-            "menus": menus
-        })
-        current_date += timedelta(days=1)
-
-    return weekly_data
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(

@@ -29,7 +29,7 @@ export default function HomePage() {
     refetchInterval: 30000,
   })
 
-  const weekDays = generateWeekdayDates(new Date(), 5).map(dateInfo => dateInfo.date)
+  const weekDays = generateWeekdayDates(new Date(), 7).map(dateInfo => dateInfo.date)
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
@@ -201,7 +201,7 @@ export default function HomePage() {
         {weekDays.map((day, index) => {
           const dayKey = format(day, 'M/d')
           const dayMenus = getMenusForDay(index)
-          const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+          const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
           
           return (
             <section 

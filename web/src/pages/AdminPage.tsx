@@ -369,7 +369,6 @@ export default function AdminPage() {
                       const file = e.target.files![0];
                       if (file) {
                         const previewUrl = URL.createObjectURL(file);
-                        console.log("🔍 previewUrl:", previewUrl);
                         setBackgroundPreview(previewUrl);
                         setSelectedImage(file);
                       }
