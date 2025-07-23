@@ -127,8 +127,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
-    onError: (error: Error) => {
-      console.error('Failed to delete menu:', error)
+    onError: () => {
     }
   })
 
@@ -140,8 +139,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
-    onError: (error: Error) => {
-      console.error('Failed to update menu:', error)
+    onError: () => {
     }
   })
 
@@ -194,7 +192,6 @@ export default function AdminPage() {
                 try {
                   await login('admin@example.com');
                 } catch (error) {
-                  console.error('Admin login failed:', error);
                 }
               }}
               className="w-full"
