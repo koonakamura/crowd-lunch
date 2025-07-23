@@ -46,6 +46,8 @@ jobs:
     
     - name: Build frontend
       working-directory: ./web
+      env:
+        VITE_API_BASE_URL: https://crowd-lunch.fly.dev
       run: npm run build
 
   deploy:
@@ -67,7 +69,21 @@ jobs:
     
     - name: Build frontend
       working-directory: ./web
+      env:
+        VITE_API_BASE_URL: https://crowd-lunch.fly.dev
       run: npm run build
+    
+    - name: Verify Netlify secrets
+      run: |
+        if [ -z "${{ secrets.NETLIFY_AUTH_TOKEN }}" ]; then
+          echo "ERROR: NETLIFY_AUTH_TOKEN secret is not set"
+          exit 1
+        fi
+        if [ -z "${{ secrets.NETLIFY_SITE_ID }}" ]; then
+          echo "ERROR: NETLIFY_SITE_ID secret is not set"
+          exit 1
+        fi
+        echo "Netlify secrets are configured"
     
     - name: Deploy Frontend to Netlify
       uses: nwtgck/actions-netlify@v3.0
@@ -75,7 +91,11 @@ jobs:
         publish-dir: './web/dist'
         production-branch: main
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        deploy-message: "Deploy from GitHub Actions"
+        deploy-message: "Deploy from GitHub Actions - Build ${{ github.run_number }}"
+        enable-pull-request-comment: false
+        enable-commit-comment: false
+        overwrites-pull-request-comment: false
       env:
         NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
         NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      continue-on-error: false
