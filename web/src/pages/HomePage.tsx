@@ -29,7 +29,7 @@ export default function HomePage() {
     refetchInterval: 30000,
   })
 
-  const weekDays = generateWeekdayDates(new Date(), 7).map(dateInfo => dateInfo.date)
+  const weekDays = generateWeekdayDates(new Date(), 7)
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
@@ -198,14 +198,13 @@ export default function HomePage() {
       </header>
 
       <div className="pt-16">
-        {weekDays.map((day, index) => {
-          const dayKey = format(day, 'M/d')
+        {weekDays.map((dayInfo, index) => {
+          const dayKey = format(dayInfo.date, 'M/d')
           const dayMenus = getMenusForDay(index)
-          const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
           
           return (
             <section 
-              key={format(day, 'yyyy-MM-dd')}
+              key={format(dayInfo.date, 'yyyy-MM-dd')}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
                 backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
@@ -220,7 +219,7 @@ export default function HomePage() {
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
-                  ({dayNames[index]})
+                  ({dayInfo.dayName})
                 </p>
               </div>
               
