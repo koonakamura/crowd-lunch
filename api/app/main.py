@@ -67,10 +67,10 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     from datetime import timezone, timedelta as td
     jst = timezone(td(hours=9))
     today = datetime.now(jst).date()
-    monday = today - timedelta(days=today.weekday())
-    sunday = monday + timedelta(days=6)
+    start_date = today
+    end_date = today + timedelta(days=6)
     
-    menus = crud.get_weekly_menus(db, monday, sunday)
+    menus = crud.get_weekly_menus(db, start_date, end_date)
     
     weekly_menus = {}
     for menu in menus:
