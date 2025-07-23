@@ -159,7 +159,7 @@ export default function AdminPage() {
       
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
-        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://app-toquofbw.fly.dev'
+        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
         setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
