@@ -17,6 +17,7 @@ interface MenuRow {
 import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
+import { toast } from '../hooks/use-toast'
 
 interface Order {
   id: number
@@ -71,29 +72,21 @@ export default function AdminPage() {
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
-      let imgUrl = ''
-      if (selectedImage) {
-        const uploadResult = await apiClient.uploadBackgroundImage(formatDateForApi(selectedDate), selectedImage)
-        imgUrl = uploadResult.img_url
-      }
-
       const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '')
       const promises = validRows.map((row: MenuRow) => {
         if (row.id) {
-          return apiClient.updateMenuSQLAlchemy(row.id, {
+          return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty,
-            img_url: imgUrl
-          })
+            max_qty: row.max_qty
+          }, selectedImage)
         } else {
-          return apiClient.createMenuSQLAlchemy({
+          return apiClient.createMenuSQLAlchemyWithImage({
             serve_date: formatDateForApi(selectedDate),
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty,
-            img_url: imgUrl
-          })
+            max_qty: row.max_qty
+          }, selectedImage)
         }
       })
       
@@ -109,9 +102,17 @@ export default function AdminPage() {
         { id: null, title: '', price: 0, max_qty: 0 },
         { id: null, title: '', price: 0, max_qty: 0 }
       ])
+      toast({
+        title: "成功",
+        description: "メニューが正常に保存されました",
+      })
     },
     onError: (error: Error) => {
-      console.error('Failed to save menus:', error)
+      toast({
+        title: "エラー",
+        description: `保存に失敗しました: ${error.message}`,
+        variant: "destructive",
+      })
     }
   })
 

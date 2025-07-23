@@ -291,6 +291,80 @@ class ApiClient {
 
     return response.json();
   }
+
+  async createMenuSQLAlchemyWithImage(menu: {
+    serve_date: string;
+    title: string;
+    price: number;
+    max_qty: number;
+  }, image?: File | null): Promise<MenuSQLAlchemy> {
+    const formData = new FormData();
+    formData.append('serve_date', menu.serve_date);
+    formData.append('title', menu.title);
+    formData.append('price', menu.price.toString());
+    formData.append('max_qty', menu.max_qty.toString());
+    if (image) {
+      formData.append('image', image);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/menus`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async updateMenuSQLAlchemyWithImage(menuId: number, menu: {
+    title?: string;
+    price?: number;
+    max_qty?: number;
+  }, image?: File | null): Promise<MenuSQLAlchemy> {
+    const formData = new FormData();
+    if (menu.title !== undefined) formData.append('title', menu.title);
+    if (menu.price !== undefined) formData.append('price', menu.price.toString());
+    if (menu.max_qty !== undefined) formData.append('max_qty', menu.max_qty.toString());
+    if (image) {
+      formData.append('image', image);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/menus/${menuId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.detail || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
 }
 
 export interface MenuSQLAlchemy {

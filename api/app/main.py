@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -8,12 +10,21 @@ import json
 import os
 import uuid
 from pathlib import Path
+import logging
 
 from .database import get_db, engine, create_db_and_tables
 from .models import Base
-from . import crud, schemas, auth
+from . import crud, schemas, auth, models
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    logging.exception("Validation error occurred: %s", exc)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": "Validation error occurred"}
+    )
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
@@ -303,24 +314,91 @@ async def delete_menu_item(
     status_code=status.HTTP_201_CREATED
 )
 async def create_menu_by_date(
-    menu: schemas.MenuSQLAlchemyCreate,
+    serve_date: date = Form(...),
+    title: str = Form(...),
+    price: int = Form(...),
+    max_qty: int = Form(...),
+    image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
-    # メニューを DB に作成して返却
-    db_menu = crud.create_menu_sqlalchemy(db, menu)
+    img_url = None
+    if image:
+        allowed_types = {"image/jpeg", "image/png", "image/webp"}
+        if image.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="JPEG、PNG、WebP画像のみアップロード可能です")
+        
+        content = await image.read()
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="画像ファイルサイズは5MB以下にしてください")
+        
+        file_extension = image.filename.split(".")[-1] if "." in image.filename else "jpg"
+        unique_filename = f"{serve_date}_{uuid.uuid4().hex}.{file_extension}"
+        file_path = UPLOAD_DIR / unique_filename
+        
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        img_url = f"/uploads/{unique_filename}"
+    
+    menu_data = schemas.MenuSQLAlchemyCreate(
+        serve_date=serve_date,
+        title=title,
+        price=price,
+        max_qty=max_qty,
+        img_url=img_url
+    )
+    db_menu = crud.create_menu_sqlalchemy(db, menu_data)
     return db_menu
 
 @app.put("/menus/{menu_id}", response_model=schemas.MenuSQLAlchemyResponse)
 async def update_menu_by_date(
     menu_id: int,
-    menu_update: schemas.MenuSQLAlchemyUpdate,
+    title: str = Form(None),
+    price: int = Form(None),
+    max_qty: int = Form(None),
+    image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     if current_user.email != "admin@example.com":
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
+    current_menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
+    if not current_menu:
+        raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    img_url = None
+    if image:
+        allowed_types = {"image/jpeg", "image/png", "image/webp"}
+        if image.content_type not in allowed_types:
+            raise HTTPException(status_code=400, detail="JPEG、PNG、WebP画像のみアップロード可能です")
+        
+        content = await image.read()
+        if len(content) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="画像ファイルサイズは5MB以下にしてください")
+        
+        if current_menu.img_url:
+            old_filename = current_menu.img_url.replace("/uploads/", "")
+            old_path = UPLOAD_DIR / old_filename
+            if old_path.exists():
+                os.remove(old_path)
+        
+        file_extension = image.filename.split(".")[-1] if "." in image.filename else "jpg"
+        unique_filename = f"{current_menu.serve_date}_{uuid.uuid4().hex}.{file_extension}"
+        file_path = UPLOAD_DIR / unique_filename
+        
+        with open(file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        img_url = f"/uploads/{unique_filename}"
+    
+    menu_update = schemas.MenuSQLAlchemyUpdate(
+        title=title,
+        price=price,
+        max_qty=max_qty,
+        img_url=img_url
+    )
     db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
     if not db_menu:
         raise HTTPException(status_code=404, detail="メニューが見つかりません")
