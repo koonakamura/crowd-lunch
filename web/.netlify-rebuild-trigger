@@ -1,0 +1,4 @@
+Build trigger: Force Netlify rebuild after PR #29 merge
+Timestamp: 1753234321
+Reason: Netlify canceled build due to "no content change" detection
+This file forces rebuild to apply GitHub Actions workflow fixes
