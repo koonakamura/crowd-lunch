@@ -66,9 +66,9 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
 async def get_weekly_menus(db: Session = Depends(get_db)):
     today  = date.today()
     monday = today - timedelta(days=today.weekday())
-    friday = monday + timedelta(days=4)
+    sunday = monday + timedelta(days=6)
     
-    menus = crud.get_weekly_menus(db, monday, friday)
+    menus = crud.get_weekly_menus(db, monday, sunday)
     
     weekly_menus = {}
     for menu in menus:
