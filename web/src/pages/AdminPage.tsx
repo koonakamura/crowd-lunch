@@ -117,14 +117,19 @@ export default function AdminPage() {
 
   const deleteMenuMutation = useMutation({
     mutationFn: async (menuId: number) => {
+      console.log('🔍 DELETE DEBUG - Attempting to delete menu ID:', menuId)
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
-    onSuccess: () => {
+    onSuccess: (_, menuId) => {
+      console.log('🔍 DELETE DEBUG - Delete successful for menu ID:', menuId)
+      setMenuRows(prevRows => prevRows.map(row => 
+        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0 } : row
+      ))
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
     },
-    onError: (error: Error) => {
-      console.error('Failed to delete menu:', error)
+    onError: (error: Error, menuId) => {
+      console.error('🔍 DELETE DEBUG - Delete failed for menu ID:', menuId, error)
     }
   })
 
@@ -219,9 +224,15 @@ export default function AdminPage() {
     if (!menuToDelete) return
     
     const { index, menu } = menuToDelete
+    console.log('🔍 DELETE DEBUG - Menu to delete:', menu)
+    console.log('🔍 DELETE DEBUG - Menu ID:', menu.id)
+    console.log('🔍 DELETE DEBUG - Menu index:', index)
+    
     if (menu.id) {
+      console.log('🔍 DELETE DEBUG - Calling deleteMenuMutation with ID:', menu.id)
       deleteMenuMutation.mutate(menu.id)
     } else {
+      console.log('🔍 DELETE DEBUG - No menu ID, removing from local state only')
       const updated = menuRows.filter((_, i) => i !== index)
       setMenuRows(updated)
     }
