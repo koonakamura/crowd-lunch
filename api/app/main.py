@@ -152,6 +152,8 @@ async def create_guest_order(
     
     db_order = crud.create_guest_order(db, order)
     
+    db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
+    
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
@@ -208,6 +210,20 @@ async def get_today_orders(
     
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
+    return orders
+
+@app.get("/orders", response_model=List[schemas.Order])
+async def get_orders_by_date(
+    date: date,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    orders = crud.get_today_orders(db, date)
+    for order in orders:
+        order.order_id = crud.generate_order_id(db, order.serve_date)
     return orders
 
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])

@@ -67,6 +67,14 @@ class OrderCreateWithName(BaseModel):
     customer_name: str
     items: List[OrderItemCreate]
 
+class OrderCreateWithDepartmentName(BaseModel):
+    serve_date: date
+    delivery_type: DeliveryType
+    request_time: Optional[time] = None
+    department: str
+    name: str
+    items: List[OrderItemCreate]
+
 class Order(OrderBase):
     id: int
     user_id: int
@@ -75,6 +83,7 @@ class Order(OrderBase):
     created_at: datetime
     user: User
     order_items: List[OrderItem]
+    order_id: Optional[str] = None
     
     class Config:
         from_attributes = True

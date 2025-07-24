@@ -58,6 +58,7 @@ export interface Order {
     menu: Menu;
     menu_item_name?: string;
   }>;
+  order_id?: string;
 }
 
 export interface WeeklyMenuResponse {
@@ -233,7 +234,7 @@ class ApiClient {
   }
 
   async getOrdersByDate(date: string): Promise<Order[]> {
-    return this.request(`/admin/orders?date_filter=${date}`);
+    return this.request(`/orders?date=${date}`);
   }
 
   async getMenusSQLAlchemy(date?: string): Promise<MenuSQLAlchemy[]> {

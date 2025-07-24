@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
@@ -12,6 +12,7 @@ import { generateWeekdayDates } from '../lib/dateUtils'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
+  const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [showLanding, setShowLanding] = useState(true)
@@ -108,6 +109,9 @@ export default function HomePage() {
         items: orderItems
       })
 
+      queryClient.invalidateQueries(['orders', format(new Date(), 'yyyy-MM-dd')])
+      queryClient.invalidateQueries(['weeklyMenus'])
+
       setShowOrderModal(false)
       setShowThankYouModal(true)
       setCart({})
@@ -117,6 +121,8 @@ export default function HomePage() {
       setDeliveryTime('')
     } catch (error) {
       console.error('Order submission failed:', error)
+      queryClient.invalidateQueries(['orders', format(new Date(), 'yyyy-MM-dd')])
+      queryClient.invalidateQueries(['weeklyMenus'])
       setShowOrderModal(false)
       setShowThankYouModal(true)
       setCart({})

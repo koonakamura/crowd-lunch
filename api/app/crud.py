@@ -92,7 +92,7 @@ def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
 def get_today_orders(db: Session, serve_date: date):
     return db.query(models.OrderSQLAlchemy).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
-    ).order_by(models.OrderSQLAlchemy.created_at.desc()).all()
+    ).order_by(models.OrderSQLAlchemy.created_at.asc()).all()
 
 def create_sample_menus(db: Session):
     """Create sample menu data for testing"""
@@ -317,3 +317,13 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     db.delete(menu)
     db.commit()
     return True
+
+def generate_order_id(db: Session, serve_date: date) -> str:
+    """Generate order ID in #MMDD000 format"""
+    existing_count = db.query(models.OrderSQLAlchemy).filter(
+        models.OrderSQLAlchemy.serve_date == serve_date
+    ).count()
+    
+    month_day = serve_date.strftime("%m%d")
+    order_number = str(existing_count + 1).zfill(3)
+    return f"#{month_day}{order_number}"
