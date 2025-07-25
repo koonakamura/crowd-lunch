@@ -6,6 +6,9 @@ COPY package*.json ./
 
 RUN npm install
 
+# Install Playwright dependencies for CI
+RUN npx playwright install-deps
+
 COPY . .
 
 RUN npm run build

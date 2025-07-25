@@ -48,10 +48,13 @@ class OrderSQLAlchemy(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     serve_date = Column(Date, nullable=False)
     delivery_type = Column(Enum(DeliveryType), nullable=False)
-    request_time = Column(Time)
+    request_time = Column(String)
     total_price = Column(Integer, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.new)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    department = Column(String, nullable=True)
+    customer_name = Column(String, nullable=True)
+    order_id = Column(String, unique=True, nullable=False, index=True)
     
     user = relationship("User")
     order_items = relationship("OrderItem", back_populates="order")
@@ -66,23 +69,3 @@ class OrderItem(Base):
     
     order = relationship("OrderSQLAlchemy", back_populates="order_items")
     menu = relationship("MenuSQLAlchemy", back_populates="order_items")
-
-class Menu(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    date: date
-    title: str
-    photo_url: Optional[str] = None
-
-class MenuItem(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    menu_id: int = Field(foreign_key="menu.id")
-    name: str
-    price: float
-    stock: int
-
-class Order(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    menu_item_id: int = Field(foreign_key="menuitem.id")
-    qty: int
-    customer_name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)

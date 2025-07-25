@@ -111,7 +111,9 @@ async def get_menus_by_date(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
     return menus
 
-@app.post("/orders", response_model=schemas.Order)
+@app.post("/orders", response_model=schemas.Order, 
+         summary="Create Order (Requires Bearer Token)",
+         description="Create a new order. **Authentication required**: Include Bearer token in Authorization header.")
 async def create_order(
     order: schemas.OrderCreate,
     current_user: schemas.User = Depends(auth.get_current_user),
@@ -136,9 +138,12 @@ async def create_order(
     
     return db_order
 
-@app.post("/orders/guest", response_model=schemas.Order)
+@app.post("/orders/guest", response_model=schemas.Order,
+         summary="Create Guest Order (Requires Bearer Token)", 
+         description="Create a guest order with department and name. **Authentication required**: Include Bearer token in Authorization header.")
 async def create_guest_order(
-    order: schemas.OrderCreateWithName,
+    order: schemas.OrderCreateWithDepartmentName,
+    current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     import os
@@ -152,15 +157,19 @@ async def create_guest_order(
     
     db_order = crud.create_guest_order(db, order)
     
+    db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
+    
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
-        "customer_name": order.customer_name
+        "customer_name": f"{order.department}／{order.name}"
     }))
     
     return db_order
 
-@app.get("/orders/{order_id}", response_model=schemas.Order)
+@app.get("/orders/{order_id}", response_model=schemas.Order,
+        summary="Get Order (Requires Bearer Token)",
+        description="Retrieve a specific order by ID. **Authentication required**: Include Bearer token in Authorization header.")
 async def get_order(
     order_id: int,
     current_user: schemas.User = Depends(auth.get_current_user),
@@ -208,6 +217,22 @@ async def get_today_orders(
     
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
+    return orders
+
+@app.get("/orders", response_model=List[schemas.Order],
+        summary="Get Orders by Date (Requires Bearer Token)",
+        description="Retrieve orders for a specific date. **Authentication required**: Include Bearer token in Authorization header.")
+async def get_orders_by_date(
+    date: date,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    orders = crud.get_today_orders(db, date)
+    for order in orders:
+        order.order_id = crud.generate_order_id(db, order.serve_date)
     return orders
 
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])

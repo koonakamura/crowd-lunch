@@ -55,7 +55,7 @@ class OrderItem(OrderItemBase):
 class OrderBase(BaseModel):
     serve_date: date
     delivery_type: DeliveryType
-    request_time: Optional[time] = None
+    request_time: Optional[str] = None
 
 class OrderCreate(OrderBase):
     items: List[OrderItemCreate]
@@ -63,8 +63,16 @@ class OrderCreate(OrderBase):
 class OrderCreateWithName(BaseModel):
     serve_date: date
     delivery_type: DeliveryType
-    request_time: Optional[time] = None
+    request_time: Optional[str] = None
     customer_name: str
+    items: List[OrderItemCreate]
+
+class OrderCreateWithDepartmentName(BaseModel):
+    serve_date: date
+    delivery_type: DeliveryType
+    request_time: Optional[str] = None
+    department: str
+    name: str
     items: List[OrderItemCreate]
 
 class Order(OrderBase):
@@ -75,6 +83,9 @@ class Order(OrderBase):
     created_at: datetime
     user: User
     order_items: List[OrderItem]
+    order_id: Optional[str] = None
+    department: Optional[str] = None
+    customer_name: Optional[str] = None
     
     class Config:
         from_attributes = True

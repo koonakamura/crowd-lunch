@@ -38,7 +38,52 @@ jobs:
       working-directory: ./api
       env:
         TESTING: "true"
-      run: poetry run pytest
+      run: poetry run pytest tests/
+    
+    - name: Run load testing with performance gate
+      working-directory: ./api
+      env:
+        TESTING: "true"
+      run: |
+        # Run database migration
+        poetry run alembic upgrade head
+        
+        # Start the FastAPI server in background
+        poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        SERVER_PID=$!
+        
+        # Wait for server to start
+        sleep 5
+        
+        # Create reports directory
+        mkdir -p reports
+        
+        # Run Locust load test with performance gate (p95 < 200ms)
+        poetry run locust -f scripts/locust_load_test.py --host=http://localhost:8000 \
+          -u 20 -r 20 -t 60s --headless --html=reports/load_test_report.html \
+          --csv=reports/load_test_stats
+        
+        # Check p95 response time from CSV stats
+        P95_TIME=$(tail -n 1 reports/load_test_stats_stats.csv | cut -d',' -f10)
+        echo "P95 response time: ${P95_TIME}ms"
+        
+        # Kill the server
+        kill $SERVER_PID
+        
+        # Fail if p95 > 200ms (convert to integer for comparison)
+        if (( $(echo "$P95_TIME > 200" | bc -l) )); then
+          echo "❌ PERFORMANCE GATE FAILED: P95 response time ${P95_TIME}ms exceeds 200ms threshold"
+          exit 1
+        else
+          echo "✅ PERFORMANCE GATE PASSED: P95 response time ${P95_TIME}ms is under 200ms threshold"
+        fi
+    
+    - name: Upload load test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: load-test-reports
+        path: api/reports/
     
     - name: Run frontend linting
       working-directory: ./web

@@ -28,6 +28,7 @@ interface Order {
   request_time?: string
   user: { name: string }
   order_items: OrderItem[]
+  order_id?: string
 }
 
 interface OrderItem {
@@ -483,18 +484,12 @@ export default function AdminPage() {
                   {orders?.length ? (
                     orders.map((order: Order) => (
                       <tr key={order.id} className="border-b">
-                        <td className="p-2">#{order.id.toString().padStart(7, '0')}</td>
+                        <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2">{format(new Date(order.created_at), 'MM/dd HH:mm')}</td>
                         <td className="p-2">{order.user.name}</td>
-                        <td className="p-2">
-                          {order.order_items?.map((item: OrderItem) => (
-                            <div key={item.id}>
-                              {item.menu_item_name || item.menu.title} × {item.qty}
-                            </div>
-                          ))}
-                        </td>
-                        <td className="p-2">¥{order.total_price}</td>
-                        <td className="p-2">{order.request_time || '時間指定なし'}</td>
+                        <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
+                        <td className="p-2">{order.total_price.toLocaleString()}円</td>
+                        <td className="p-2">{order.request_time || '-'}</td>
                       </tr>
                     ))
                   ) : (
