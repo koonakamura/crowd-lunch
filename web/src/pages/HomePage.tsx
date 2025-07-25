@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
@@ -105,7 +106,8 @@ export default function HomePage() {
         serve_date: format(new Date(), 'yyyy-MM-dd'),
         delivery_type: 'desk',
         request_time: deliveryTime,
-        customer_name: `${department} ${customerName}`,
+        department: department,
+        name: customerName,
         items: orderItems
       })
 
@@ -119,18 +121,13 @@ export default function HomePage() {
       setDepartment('')
       setCustomerName('')
       setDeliveryTime('')
+      toast.success('注文が正常に送信されました')
     } catch (error) {
       console.error('Order submission failed:', error)
+      toast.error('注文の送信に失敗しました。もう一度お試しください。')
       queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
-      setShowOrderModal(false)
-      setShowThankYouModal(true)
-      setCart({})
-      setSelectedDay(null)
-      setDepartment('')
-      setCustomerName('')
-      setDeliveryTime('')
-    } finally {
+    }finally {
       setIsSubmitting(false)
     }
   }
@@ -245,6 +242,7 @@ export default function HomePage() {
                           ? 'bg-primary border-2 border-primary' 
                           : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
                       }`}
+                      data-testid="menu-item"
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -304,6 +302,7 @@ export default function HomePage() {
                   onChange={(e) => setDepartment(e.target.value)}
                   className="bg-white border-gray-300 text-black"
                   placeholder="部署名を入力"
+                  data-testid="department"
                 />
               </div>
 
@@ -314,13 +313,14 @@ export default function HomePage() {
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="bg-white border-gray-300 text-black"
                   placeholder="お名前を入力"
+                  data-testid="customer-name"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">希望お届け時間</label>
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <SelectTrigger className="bg-white border-gray-300 text-black">
+                  <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
@@ -340,6 +340,7 @@ export default function HomePage() {
               onClick={handleSubmitOrder}
               disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime}
               className="w-full bg-primary hover:bg-primary/90 text-white"
+              data-testid="submit-order"
             >
               {isSubmitting ? '注文中...' : '注文確定'}
             </Button>

@@ -24,6 +24,7 @@ export default function OrderPage() {
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'desk'>('pickup')
   const [requestTime, setRequestTime] = useState('12:30')
   const [customerName, setCustomerName] = useState('')
+  const [department, setDepartment] = useState('')
 
   const { data: weeklyMenus } = useQuery({
     queryKey: ['weeklyMenus'],
@@ -35,7 +36,8 @@ export default function OrderPage() {
       serve_date: string;
       delivery_type: "pickup" | "desk";
       request_time?: string;
-      customer_name: string;
+      department: string;
+      name: string;
       items: Array<{ menu_id: number; qty: number }>;
     }) => apiClient.createGuestOrder(orderData),
     onSuccess: (order) => {
@@ -76,8 +78,8 @@ export default function OrderPage() {
   }
 
   const handleSubmitOrder = () => {
-    if (!customerName.trim()) {
-      alert('お名前を入力してください')
+    if (!customerName.trim() || !department.trim()) {
+      alert('部署名とお名前を入力してください')
       return
     }
 
@@ -85,7 +87,8 @@ export default function OrderPage() {
       serve_date: format(new Date(), 'yyyy-MM-dd'),
       delivery_type: deliveryType as "pickup" | "desk",
       request_time: deliveryType === 'desk' ? requestTime : undefined,
-      customer_name: customerName.trim(),
+      department: department.trim(),
+      name: customerName.trim(),
       items: orderItems.map(item => ({
         menu_id: item.menuId,
         qty: item.qty
@@ -202,7 +205,19 @@ export default function OrderPage() {
           <CardHeader>
             <CardTitle>注文者情報</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="department">部署名</Label>
+              <Input
+                id="department"
+                type="text"
+                placeholder="部署名を入力してください"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                required
+                className="mt-1"
+              />
+            </div>
             <div>
               <Label htmlFor="customerName">お名前</Label>
               <Input
@@ -221,7 +236,7 @@ export default function OrderPage() {
         {/* Submit Button */}
         <Button 
           onClick={handleSubmitOrder}
-          disabled={createOrderMutation.isPending || orderItems.length === 0 || !customerName.trim()}
+          disabled={createOrderMutation.isPending || orderItems.length === 0 || !customerName.trim() || !department.trim()}
           className="w-full bg-primary hover:bg-primary/90"
         >
           {createOrderMutation.isPending ? '注文中...' : '注文を確定する'}

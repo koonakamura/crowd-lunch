@@ -47,12 +47,18 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
     
     return menu_with_remaining
 
-def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
+def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> int:
+    """Calculate total price for order items"""
     total_price = 0
-    for item in order.items:
+    for item in items:
         menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
         if menu:
             total_price += menu.price * item.qty
+    return total_price
+
+def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
+    total_price = calculate_order_total(db, order.items)
+    order_id = generate_order_id(db, order.serve_date)
     
     db_order = models.OrderSQLAlchemy(
         user_id=user_id,
@@ -60,7 +66,8 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
         delivery_type=order.delivery_type,
         request_time=order.request_time,
         total_price=total_price,
-        status=models.OrderStatus.new
+        status=models.OrderStatus.new,
+        order_id=order_id
     )
     db.add(db_order)
     db.commit()
@@ -234,15 +241,14 @@ def delete_menu_item(db: Session, item_id: int):
     db.commit()
     return True
 
-def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
+def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName):
     """Create an order without user authentication using customer name"""
-    total_price = 0
-    for item in order.items:
-        menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == item.menu_id).first()
-        if menu:
-            total_price += menu.price * item.qty
+    total_price = calculate_order_total(db, order.items)
     
-    guest_user = get_or_create_user(db, f"guest_{order.customer_name}@temp.com", order.customer_name)
+    customer_name = f"{order.department}／{order.name}"
+    guest_user = get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
+    
+    order_id = generate_order_id(db, order.serve_date)
     
     db_order = models.OrderSQLAlchemy(
         user_id=guest_user.id,
@@ -250,7 +256,10 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithName):
         delivery_type=order.delivery_type,
         request_time=order.request_time,
         total_price=total_price,
-        status=models.OrderStatus.new
+        status=models.OrderStatus.new,
+        department=order.department,
+        customer_name=order.name,
+        order_id=order_id
     )
     db.add(db_order)
     db.commit()
@@ -319,11 +328,11 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     return True
 
 def generate_order_id(db: Session, serve_date: date) -> str:
-    """Generate order ID in #MMDD000 format"""
-    existing_count = db.query(models.OrderSQLAlchemy).filter(
+    """Generate order ID in #MMDD000 format with race condition protection"""
+    existing_orders = db.query(models.OrderSQLAlchemy).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
-    ).count()
+    ).with_for_update().order_by(models.OrderSQLAlchemy.created_at.asc()).all()
     
     month_day = serve_date.strftime("%m%d")
-    order_number = str(existing_count + 1).zfill(3)
+    order_number = str(len(existing_orders) + 1).zfill(3)
     return f"#{month_day}{order_number}"

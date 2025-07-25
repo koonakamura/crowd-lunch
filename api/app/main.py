@@ -138,7 +138,7 @@ async def create_order(
 
 @app.post("/orders/guest", response_model=schemas.Order)
 async def create_guest_order(
-    order: schemas.OrderCreateWithName,
+    order: schemas.OrderCreateWithDepartmentName,
     db: Session = Depends(get_db)
 ):
     import os
@@ -157,7 +157,7 @@ async def create_guest_order(
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
-        "customer_name": order.customer_name
+        "customer_name": f"{order.department}／{order.name}"
     }))
     
     return db_order

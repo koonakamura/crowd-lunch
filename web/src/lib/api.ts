@@ -59,6 +59,8 @@ export interface Order {
     menu_item_name?: string;
   }>;
   order_id?: string;
+  department?: string;
+  customer_name?: string;
 }
 
 export interface WeeklyMenuResponse {
@@ -134,7 +136,8 @@ class ApiClient {
     serve_date: string;
     delivery_type: 'pickup' | 'desk';
     request_time?: string;
-    customer_name: string;
+    department: string;
+    name: string;
     items: OrderItem[];
   }): Promise<Order> {
     const response = await fetch(`${API_BASE_URL}/orders/guest`, {
