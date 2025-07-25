@@ -75,6 +75,16 @@ cd api
 poetry run alembic upgrade head
 ```
 
+### Production Deployment
+
+```bash
+# Run database migration in production
+cd api
+poetry run alembic upgrade head
+```
+
+**Important**: The migration includes adding `department`, `customer_name`, and `order_id` columns with UNIQUE constraint. Existing orders will be back-filled with `#LEGACY{id}` format.
+
 ## 🧪 Testing
 
 ```bash
