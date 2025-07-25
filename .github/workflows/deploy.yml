@@ -38,7 +38,7 @@ jobs:
       working-directory: ./api
       env:
         TESTING: "true"
-      run: poetry run pytest
+      run: poetry run pytest tests/
     
     - name: Run frontend linting
       working-directory: ./web

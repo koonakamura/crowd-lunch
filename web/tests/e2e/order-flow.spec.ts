@@ -72,12 +72,12 @@ test.describe('Order Flow E2E', () => {
     }
     
     await expect(page.getByRole('cell', { name: 'E2Eテスト部／E2Eテスト太郎' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator(`text=${menuName}`)).toBeVisible();
-    await expect(page.locator('text=1,200円')).toBeVisible();
-    await expect(page.locator('text=12:00～12:15')).toBeVisible();
+    await expect(page.getByRole('cell', { name: menuName }).first()).toBeVisible();
+    await expect(page.getByRole('cell', { name: '1,200円' }).first()).toBeVisible();
+    await expect(page.getByRole('cell', { name: '12:00～12:15' }).first()).toBeVisible();
     
     const orderIdPattern = /#\d{4}\d{3}/;
-    await expect(page.locator('td').filter({ hasText: orderIdPattern })).toBeVisible();
+    await expect(page.locator('td:first-child').filter({ hasText: orderIdPattern }).first()).toBeVisible();
   });
   
   test('concurrent order ID generation', async ({ browser }) => {
