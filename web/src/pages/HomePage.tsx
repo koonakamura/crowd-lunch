@@ -109,8 +109,8 @@ export default function HomePage() {
         items: orderItems
       })
 
-      queryClient.invalidateQueries(['orders', format(new Date(), 'yyyy-MM-dd')])
-      queryClient.invalidateQueries(['weeklyMenus'])
+      queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -121,8 +121,8 @@ export default function HomePage() {
       setDeliveryTime('')
     } catch (error) {
       console.error('Order submission failed:', error)
-      queryClient.invalidateQueries(['orders', format(new Date(), 'yyyy-MM-dd')])
-      queryClient.invalidateQueries(['weeklyMenus'])
+      queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
       setShowOrderModal(false)
       setShowThankYouModal(true)
       setCart({})

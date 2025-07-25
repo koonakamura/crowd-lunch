@@ -28,6 +28,7 @@ interface Order {
   request_time?: string
   user: { name: string }
   order_items: OrderItem[]
+  order_id?: string
 }
 
 interface OrderItem {
