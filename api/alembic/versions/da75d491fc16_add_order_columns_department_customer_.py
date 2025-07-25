@@ -39,7 +39,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove department, customer_name, and order_id columns from orders table."""
     with op.batch_alter_table('orders', schema=None) as batch_op:
-        batch_op.drop_constraint('uq_orders_order_id', type_='unique')
         batch_op.drop_column('order_id')
         batch_op.drop_column('customer_name')
         batch_op.drop_column('department')

@@ -85,6 +85,8 @@ poetry run alembic upgrade head
 
 **Important**: The migration includes adding `department`, `customer_name`, and `order_id` columns with UNIQUE constraint. Existing orders will be back-filled with `#LEGACY{id}` format.
 
+**Migration Testing**: Both upgrade and downgrade operations have been tested successfully. The downgrade removes all added columns safely using SQLite-compatible batch operations.
+
 ## 🧪 Testing
 
 ```bash
