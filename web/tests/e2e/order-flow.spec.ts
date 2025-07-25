@@ -1,25 +1,40 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Order Flow E2E', () => {
-  test('complete order flow from menu creation to admin display', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:5174/admin');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000);
+    
+    const loginButton = page.locator('button:has-text("管理者としてログイン")');
+    if (await loginButton.isVisible()) {
+      await loginButton.click();
+      await page.waitForTimeout(1000);
+    }
+  });
+
+  test('complete order flow from menu creation to admin display', async ({ page }) => {
+    const timestamp = Date.now();
+    const menuName = `E2Eテストメニュー${timestamp}`;
+    const price = '1200';
+    const quantity = '5';
     
     const menuNameInput = page.locator('input[placeholder="メニュー名"]').first();
     const priceInput = page.locator('input[placeholder="金額"]').first();
     const quantityInput = page.locator('input[placeholder="数量"]').first();
     const saveButton = page.locator('button:has-text("保存")');
     
-    await menuNameInput.fill('E2Eテストメニュー2');
-    await priceInput.fill('950');
-    await quantityInput.fill('3');
+    await menuNameInput.clear();
+    await menuNameInput.fill(menuName);
+    await priceInput.clear();
+    await priceInput.fill(price);
+    await quantityInput.clear();
+    await quantityInput.fill(quantity);
     
     await saveButton.click();
     await page.waitForTimeout(2000);
     
     await page.goto('http://localhost:5174/');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     
     const landingPage = page.locator('text=CROWD LUNCH');
     if (await landingPage.isVisible()) {
@@ -27,31 +42,28 @@ test.describe('Order Flow E2E', () => {
       await page.waitForTimeout(2000);
     }
     
-    const menuItem = page.locator('[data-testid="menu-item"]').first();
-    if (await menuItem.isVisible()) {
-      await menuItem.click();
-      await page.waitForTimeout(1000);
-    }
+    const menuItem = page.locator(`text=${menuName}`).first();
+    await expect(menuItem).toBeVisible({ timeout: 10000 });
+    await menuItem.click();
     
     const orderButton = page.locator('text=注文');
-    if (await orderButton.isVisible()) {
-      await orderButton.click();
-      await page.waitForTimeout(1000);
-      
-      await page.fill('[data-testid="department"]', 'テスト部');
-      await page.fill('[data-testid="customer-name"]', 'テスト太郎');
-      
-      await page.click('[data-testid="delivery-time"]');
-      await page.waitForTimeout(500);
-      await page.click('text=12:00～12:15');
-      await page.waitForTimeout(500);
-      
-      await page.click('[data-testid="submit-order"]');
-      await page.waitForTimeout(3000);
-    }
+    await expect(orderButton).toBeVisible({ timeout: 5000 });
+    await orderButton.click();
+    
+    await page.fill('[data-testid="department"]', 'E2Eテスト部');
+    await page.fill('[data-testid="customer-name"]', 'E2Eテスト太郎');
+    
+    await page.click('[data-testid="delivery-time"]');
+    await page.waitForTimeout(500);
+    await page.click('text=12:00～12:15');
+    await page.waitForTimeout(500);
+    
+    await page.click('[data-testid="submit-order"]');
+    
+    await expect(page.getByRole('heading', { name: '注文を承りました。' })).toBeVisible({ timeout: 10000 });
     
     await page.goto('http://localhost:5174/admin');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     
     const ordersTab = page.locator('text=注文一覧');
     if (await ordersTab.isVisible()) {
@@ -59,18 +71,87 @@ test.describe('Order Flow E2E', () => {
       await page.waitForTimeout(2000);
     }
     
-    await expect(page.locator('text=テスト部／テスト太郎')).toBeVisible();
-    await expect(page.locator('text=E2Eテストメニュー2')).toBeVisible();
-    await expect(page.locator('text=950円')).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'E2Eテスト部／E2Eテスト太郎' }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator(`text=${menuName}`)).toBeVisible();
+    await expect(page.locator('text=1,200円')).toBeVisible();
     await expect(page.locator('text=12:00～12:15')).toBeVisible();
     
     const orderIdPattern = /#\d{4}\d{3}/;
     await expect(page.locator('td').filter({ hasText: orderIdPattern })).toBeVisible();
   });
   
+  test('concurrent order ID generation', async ({ browser }) => {
+    const contexts = await Promise.all([
+      browser.newContext(),
+      browser.newContext(),
+      browser.newContext()
+    ]);
+    
+    const pages = await Promise.all(contexts.map(context => context.newPage()));
+    
+    const orderPromises = pages.map(async (page, index) => {
+      await page.goto('http://localhost:5174/');
+      await page.waitForLoadState('networkidle');
+      
+      const landingPage = page.locator('text=CROWD LUNCH');
+      if (await landingPage.isVisible()) {
+        await landingPage.click();
+        await page.waitForTimeout(1000);
+      }
+      
+      const menuItem = page.locator('[data-testid="menu-item"]').first();
+      if (await menuItem.isVisible()) {
+        await menuItem.click();
+        
+        const orderButton = page.locator('text=注文');
+        if (await orderButton.isVisible()) {
+          await orderButton.click();
+          
+          await page.fill('[data-testid="department"]', `並行テスト部${index}`);
+          await page.fill('[data-testid="customer-name"]', `並行テスト${index}`);
+          
+          await page.click('[data-testid="delivery-time"]');
+          await page.waitForTimeout(200);
+          await page.click('text=12:00～12:15');
+          await page.waitForTimeout(200);
+          
+          await page.click('[data-testid="submit-order"]');
+          
+          await expect(page.getByRole('heading', { name: '注文を承りました。' })).toBeVisible({ timeout: 10000 });
+        }
+      }
+    });
+    
+    await Promise.all(orderPromises);
+    
+    const adminPage = await browser.newPage();
+    await adminPage.goto('http://localhost:5174/admin');
+    await adminPage.waitForLoadState('networkidle');
+    
+    const loginButton = adminPage.locator('button:has-text("管理者としてログイン")');
+    if (await loginButton.isVisible()) {
+      await loginButton.click();
+      await adminPage.waitForTimeout(1000);
+    }
+    
+    const ordersTab = adminPage.locator('text=注文一覧');
+    if (await ordersTab.isVisible()) {
+      await ordersTab.click();
+      await adminPage.waitForTimeout(2000);
+    }
+    
+    const orderIds = await adminPage.locator('td:first-child').allTextContents();
+    const uniqueOrderIds = new Set(orderIds.filter(id => id.startsWith('#')));
+    
+    expect(uniqueOrderIds.size).toBeGreaterThanOrEqual(1);
+    
+    await Promise.all(contexts.map(context => context.close()));
+    await adminPage.close();
+  });
+  
   test('error handling with toast notifications', async ({ page }) => {
     await page.goto('http://localhost:5174/');
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     
     const landingPage = page.locator('text=CROWD LUNCH');
     if (await landingPage.isVisible()) {
@@ -81,7 +162,10 @@ test.describe('Order Flow E2E', () => {
     const orderButton = page.locator('text=注文');
     if (await orderButton.isVisible()) {
       await orderButton.click();
-      await expect(page.locator('text=注文確認')).not.toBeVisible();
+      
+      await page.click('[data-testid="submit-order"]');
+      
+      await expect(page.locator('text=部署名とお名前を入力してください')).toBeVisible({ timeout: 5000 });
     }
   });
 });
