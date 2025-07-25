@@ -45,6 +45,9 @@ jobs:
       env:
         TESTING: "true"
       run: |
+        # Run database migration
+        poetry run alembic upgrade head
+        
         # Start the FastAPI server in background
         poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         SERVER_PID=$!
