@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import { apiClient, type MenuSQLAlchemy } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -45,11 +44,7 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedDate, setSelectedDate] = useState(new Date())
-  const [menuRows, setMenuRows] = useState<MenuRow[]>([
-    { id: null, title: '', price: 0, max_qty: 0 },
-    { id: null, title: '', price: 0, max_qty: 0 },
-    { id: null, title: '', price: 0, max_qty: 0 }
-  ])
+  const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -147,21 +142,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (sqlAlchemyMenus && sqlAlchemyMenus.length > 0) {
-      const newRows: MenuRow[] = [
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 }
-      ]
-      sqlAlchemyMenus.forEach((menu: MenuSQLAlchemy, index: number) => {
-        if (index < newRows.length) {
-          newRows[index] = {
-            id: menu.id,
-            title: menu.title,
-            price: menu.price,
-            max_qty: menu.max_qty
-          }
-        }
-      })
+      const newRows: MenuRow[] = sqlAlchemyMenus.map((menu: MenuSQLAlchemy) => ({
+        id: menu.id,
+        title: menu.title,
+        price: menu.price,
+        max_qty: menu.max_qty
+      }))
       setMenuRows(newRows)
       
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
@@ -173,11 +159,7 @@ export default function AdminPage() {
         )
       }
     } else {
-      setMenuRows([
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 }
-      ])
+      setMenuRows([])
       setBackgroundPreview(null)
     }
   }, [sqlAlchemyMenus])
@@ -485,7 +467,13 @@ export default function AdminPage() {
                     orders.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
-                        <td className="p-2">{format(new Date(order.created_at), 'MM/dd HH:mm')}</td>
+                        <td className="p-2">{new Date(order.created_at).toLocaleString('ja-JP', { 
+                          timeZone: 'Asia/Tokyo', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}</td>
                         <td className="p-2">{order.user.name}</td>
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>

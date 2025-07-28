@@ -230,8 +230,6 @@ async def get_orders_by_date(
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     orders = crud.get_today_orders(db, date)
-    for order in orders:
-        order.order_id = crud.generate_order_id(db, order.serve_date)
     return orders
 
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])
