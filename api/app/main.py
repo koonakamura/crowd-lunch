@@ -139,11 +139,10 @@ async def create_order(
     return db_order
 
 @app.post("/orders/guest", response_model=schemas.Order,
-         summary="Create Guest Order (Requires Bearer Token)", 
-         description="Create a guest order with department and name. **Authentication required**: Include Bearer token in Authorization header.")
+         summary="Create Guest Order (No Authentication Required)", 
+         description="Create a guest order with department and name. No authentication required.")
 async def create_guest_order(
     order: schemas.OrderCreateWithDepartmentName,
-    current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     import os
