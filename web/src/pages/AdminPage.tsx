@@ -1,27 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, type MenuSQLAlchemy } from '../lib/api'
-
-const formatJSTTime = (utcDateString: string): string => {
-  const date = new Date(utcDateString);
-  
-  try {
-    return date.toLocaleString('ja-JP', { 
-      timeZone: 'Asia/Tokyo', 
-      month: '2-digit', 
-      day: '2-digit', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  } catch {
-    const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-    const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(jstDate.getUTCDate()).padStart(2, '0');
-    const hour = String(jstDate.getUTCHours()).padStart(2, '0');
-    const minute = String(jstDate.getUTCMinutes()).padStart(2, '0');
-    return `${month}/${day} ${hour}:${minute}`;
-  }
-};
+import { formatJSTTime } from '../lib/dateUtils'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -500,7 +480,7 @@ export default function AdminPage() {
                         <td className="p-2">{order.user.name}</td>
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
-                        <td className="p-2">{order.request_time || '-'}</td>
+                        <td className="p-2">{order.request_time ? formatJSTTime(order.request_time) : '-'}</td>
                       </tr>
                     ))
                   ) : (
