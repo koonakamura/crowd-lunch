@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { ArrowLeft, CheckCircle, Clock, Truck, Package } from 'lucide-react'
+import { formatJSTTime } from '../lib/dateUtils'
 
 export default function ConfirmPage() {
   const { orderId } = useParams<{ orderId: string }>()
@@ -150,7 +151,7 @@ export default function ConfirmPage() {
                 <p className="font-semibold">デスク配達</p>
                 {order.request_time && (
                   <p className="text-sm text-muted-foreground">
-                    配達予定時間: {order.request_time}
+                    配達予定時間: {formatJSTTime(order.request_time)}
                   </p>
                 )}
                 <p className="text-sm text-muted-foreground">
