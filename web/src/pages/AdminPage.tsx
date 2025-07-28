@@ -117,7 +117,7 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
       setSelectedImage(null)
       toast({
         title: "成功",
@@ -142,7 +142,7 @@ export default function AdminPage() {
         row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0 } : row
       ))
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
     },
     onError: () => {
     }
@@ -154,7 +154,7 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
     },
     onError: () => {
     }
