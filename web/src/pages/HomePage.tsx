@@ -35,7 +35,7 @@ export default function HomePage() {
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
-    if (adminImage && adminImage.startsWith('/static/uploads/')) {
+    if (adminImage && adminImage.startsWith('/uploads/')) {
       return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
     }
     
