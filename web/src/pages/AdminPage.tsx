@@ -174,7 +174,7 @@ export default function AdminPage() {
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
         const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
-        setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
+        setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/uploads/') 
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
         )
@@ -185,8 +185,6 @@ export default function AdminPage() {
       setMenuRows([])
       setBackgroundPreview(null)
     }
-    
-    setSelectedImage(null)
   }, [sqlAlchemyMenus])
 
   if (user?.email !== 'admin@example.com') {
