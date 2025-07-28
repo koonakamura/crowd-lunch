@@ -13,7 +13,7 @@ const formatJSTTime = (utcDateString: string): string => {
       hour: '2-digit', 
       minute: '2-digit' 
     });
-  } catch (error) {
+  } catch {
     const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
     const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
     const day = String(jstDate.getUTCDate()).padStart(2, '0');
