@@ -90,20 +90,26 @@ export default function AdminPage() {
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
       const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '')
-      const promises = validRows.map((row: MenuRow) => {
+      if (selectedImage && validRows.length === 0) {
+        throw new Error('画像をアップロードするには、少なくとも1つのメニュー項目が必要です')
+      }
+      
+      const promises = validRows.map((row: MenuRow, index: number) => {
+        const imageToUpload = index === 0 ? selectedImage : null
+        
         if (row.id) {
           return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
             title: row.title,
             price: row.price,
             max_qty: row.max_qty
-          }, selectedImage)
+          }, imageToUpload)
         } else {
           return apiClient.createMenuSQLAlchemyWithImage({
             serve_date: formatDateForApi(selectedDate),
             title: row.title,
             price: row.price,
             max_qty: row.max_qty
-          }, selectedImage)
+          }, imageToUpload)
         }
       })
       
@@ -113,12 +119,6 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['menus', 'weekly'] })
       setSelectedImage(null)
-      setBackgroundPreview(null)
-      setMenuRows([
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 },
-        { id: null, title: '', price: 0, max_qty: 0 }
-      ])
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -178,11 +178,15 @@ export default function AdminPage() {
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
         )
+      } else {
+        setBackgroundPreview(null)
       }
     } else {
       setMenuRows([])
       setBackgroundPreview(null)
     }
+    
+    setSelectedImage(null)
   }, [sqlAlchemyMenus])
 
   if (user?.email !== 'admin@example.com') {
@@ -374,6 +378,10 @@ export default function AdminPage() {
                         const previewUrl = URL.createObjectURL(file);
                         setBackgroundPreview(previewUrl);
                         setSelectedImage(file);
+                        
+                        if (menuRows.length === 0) {
+                          setMenuRows([{ id: null, title: '', price: 0, max_qty: 0 }])
+                        }
                       }
                     }}
                   />
