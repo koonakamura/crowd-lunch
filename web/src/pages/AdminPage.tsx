@@ -118,7 +118,10 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
-      setSelectedImage(null)
+      if (selectedImage) {
+        const previewUrl = URL.createObjectURL(selectedImage)
+        setBackgroundPreview(previewUrl)
+      }
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -171,21 +174,25 @@ export default function AdminPage() {
       }))
       setMenuRows(newRows)
       
-      const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
-      if (firstMenuWithImage?.img_url) {
-        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
-        setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/uploads/') 
-          ? `${apiUrl}${firstMenuWithImage.img_url}`
-          : firstMenuWithImage.img_url
-        )
-      } else {
-        setBackgroundPreview(null)
+      if (!selectedImage) {
+        const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
+        if (firstMenuWithImage?.img_url) {
+          const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
+          const imageUrl = firstMenuWithImage.img_url.startsWith('/uploads/') 
+            ? `${apiUrl}${firstMenuWithImage.img_url}?v=${Date.now()}`
+            : firstMenuWithImage.img_url
+          setBackgroundPreview(imageUrl)
+        } else {
+          setBackgroundPreview(null)
+        }
       }
     } else {
       setMenuRows([])
-      setBackgroundPreview(null)
+      if (!selectedImage) {
+        setBackgroundPreview(null)
+      }
     }
-  }, [sqlAlchemyMenus])
+  }, [sqlAlchemyMenus, selectedImage])
 
   if (user?.email !== 'admin@example.com') {
     return (
@@ -354,11 +361,17 @@ export default function AdminPage() {
                 {/* ラベルタグでプレビューと input をまとめてクリック可能に */}
                 <label htmlFor="bg-upload" className="relative w-32 h-32 cursor-pointer">
                   {backgroundPreview ? (
-                    <img
-                      src={backgroundPreview}
-                      alt="Preview"
-                      className="absolute inset-0 w-full h-full object-cover rounded-full"
-                    />
+                    <div className="relative w-32 h-32 rounded-full overflow-hidden">
+                      <img
+                        src={backgroundPreview}
+                        alt="Menu Background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={() => {
+                          console.error('Failed to load image:', backgroundPreview)
+                          setBackgroundPreview(null)
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-gray-500">画像を選択</span>
