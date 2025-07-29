@@ -174,21 +174,33 @@ export default function AdminPage() {
       }))
       setMenuRows(newRows)
       
-      if (!selectedImage) {
-        const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
-        if (firstMenuWithImage?.img_url) {
-          const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
-          const imageUrl = firstMenuWithImage.img_url.startsWith('/uploads/') 
-            ? `${apiUrl}${firstMenuWithImage.img_url}?v=${Date.now()}`
-            : firstMenuWithImage.img_url
+      const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
+      if (firstMenuWithImage?.img_url) {
+        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
+        const imageUrl = firstMenuWithImage.img_url.startsWith('/uploads/') 
+          ? `${apiUrl}${firstMenuWithImage.img_url}?v=${Date.now()}`
+          : firstMenuWithImage.img_url
+        
+        if (selectedImage) {
+          const previewUrl = URL.createObjectURL(selectedImage)
+          setBackgroundPreview(previewUrl)
+        } else {
           setBackgroundPreview(imageUrl)
+        }
+      } else {
+        if (selectedImage) {
+          const previewUrl = URL.createObjectURL(selectedImage)
+          setBackgroundPreview(previewUrl)
         } else {
           setBackgroundPreview(null)
         }
       }
     } else {
       setMenuRows([])
-      if (!selectedImage) {
+      if (selectedImage) {
+        const previewUrl = URL.createObjectURL(selectedImage)
+        setBackgroundPreview(previewUrl)
+      } else {
         setBackgroundPreview(null)
       }
     }
