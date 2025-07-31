@@ -118,7 +118,6 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
-      setSelectedImage(null)
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -174,20 +173,23 @@ export default function AdminPage() {
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
         const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
-        setBackgroundPreview(firstMenuWithImage.img_url.startsWith('/static/uploads/') 
+        const imageUrl = firstMenuWithImage.img_url.startsWith('/uploads/') 
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
-        )
+        
+        setBackgroundPreview(prev => prev !== imageUrl ? imageUrl : prev)
       } else {
-        setBackgroundPreview(null)
+        setBackgroundPreview(prev => prev && prev.startsWith('blob:') ? prev : null)
       }
     } else {
       setMenuRows([])
-      setBackgroundPreview(null)
+      setBackgroundPreview(prev => prev && prev.startsWith('blob:') ? prev : null)
     }
-    
-    setSelectedImage(null)
   }, [sqlAlchemyMenus])
+
+  useEffect(() => {
+    setSelectedImage(null)
+  }, [selectedDate])
 
   if (user?.email !== 'admin@example.com') {
     return (
