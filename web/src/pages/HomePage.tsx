@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots } from '../utils/timeUtils'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -27,21 +26,11 @@ export default function HomePage() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [availableTimeSlots, setAvailableTimeSlots] = useState(getAvailableTimeSlots())
-
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
   })
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAvailableTimeSlots(getAvailableTimeSlots())
-    }, 60000)
-    
-    return () => clearInterval(interval)
-  }, [])
 
   const weekDays = generateWeekdayDates(new Date(), 7)
 
@@ -333,27 +322,6 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">希望お届け時間</label>
-                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
-                    <SelectValue placeholder="時間を選択" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border-gray-300">
-                    {availableTimeSlots.map(({ value, disabled }) => (
-                      <SelectItem 
-                        key={value} 
-                        value={value} 
-                        disabled={disabled}
-                        className={disabled ? "opacity-50 cursor-not-allowed" : ""}
-                      >
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium mb-1 text-white">お届け場所</label>
                 <div className="flex gap-4">
                   <label className="flex items-center text-white">
@@ -377,6 +345,27 @@ export default function HomePage() {
                     10F
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">希望お届け時間</label>
+                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                  <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
+                    <SelectValue placeholder="時間を選択" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-300">
+                    <SelectItem value="11:30～11:45">11:30～11:45</SelectItem>
+                    <SelectItem value="11:45～12:00">11:45～12:00</SelectItem>
+                    <SelectItem value="12:00～12:15">12:00～12:15</SelectItem>
+                    <SelectItem value="12:15～12:30">12:15～12:30</SelectItem>
+                    <SelectItem value="12:30～12:45">12:30～12:45</SelectItem>
+                    <SelectItem value="12:45～13:00">12:45～13:00</SelectItem>
+                    <SelectItem value="13:00～13:15">13:00～13:15</SelectItem>
+                    <SelectItem value="13:15～13:30">13:15～13:30</SelectItem>
+                    <SelectItem value="13:30～13:45">13:30～13:45</SelectItem>
+                    <SelectItem value="13:45～14:00">13:45～14:00</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">

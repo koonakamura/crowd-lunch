@@ -1,31 +1,57 @@
-import sqlite3
 from datetime import datetime, date
-import os
+from app.database import SessionLocal
+from app.models import MenuSQLAlchemy
 
-db_path = os.path.join(os.path.dirname(__file__), 'crowdlunch.db')
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
+def create_sample_menus():
+    db = SessionLocal()
+    try:
+        today = date.today()
+        
+        existing_menus = db.query(MenuSQLAlchemy).filter(MenuSQLAlchemy.serve_date == today).count()
+        if existing_menus > 0:
+            print(f"Sample menus already exist for {today}")
+            return
+        
+        menus = [
+            MenuSQLAlchemy(
+                serve_date=today,
+                title="Chicken Teriyaki",
+                price=800,
+                max_qty=50,
+                img_url="/uploads/chicken.jpg",
+                created_at=datetime.utcnow()
+            ),
+            MenuSQLAlchemy(
+                serve_date=today,
+                title="Beef Curry", 
+                price=900,
+                max_qty=30,
+                img_url="/uploads/beef.jpg",
+                created_at=datetime.utcnow()
+            ),
+            MenuSQLAlchemy(
+                serve_date=today,
+                title="Salmon Bento",
+                price=1000,
+                max_qty=25,
+                img_url="/uploads/salmon.jpg",
+                created_at=datetime.utcnow()
+            )
+        ]
+        
+        for menu in menus:
+            db.add(menu)
+        
+        db.commit()
+        print(f"Sample menu data added for date: {today}")
+        print("Added 3 sample menus: Chicken Teriyaki (¥800), Beef Curry (¥900), Salmon Bento (¥1000)")
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating sample menus: {e}")
+        raise
+    finally:
+        db.close()
 
-today = date.today().strftime('%Y-%m-%d')
-
-cursor.execute("""
-INSERT OR REPLACE INTO menus (id, serve_date, title, price, max_qty, img_url, created_at)
-VALUES (1, ?, 'Chicken Teriyaki', 800, 50, '/uploads/chicken.jpg', ?)
-""", (today, datetime.now()))
-
-cursor.execute("""
-INSERT OR REPLACE INTO menus (id, serve_date, title, price, max_qty, img_url, created_at)
-VALUES (2, ?, 'Beef Curry', 900, 30, '/uploads/beef.jpg', ?)
-""", (today, datetime.now()))
-
-cursor.execute("""
-INSERT OR REPLACE INTO menus (id, serve_date, title, price, max_qty, img_url, created_at)
-VALUES (3, ?, 'Salmon Bento', 1000, 25, '/uploads/salmon.jpg', ?)
-""", (today, datetime.now()))
-
-
-conn.commit()
-conn.close()
-
-print(f"Sample menu data added for date: {today}")
-print("Added 3 sample menus: Chicken Teriyaki (¥800), Beef Curry (¥900), Salmon Bento (¥1000)")
+if __name__ == "__main__":
+    create_sample_menus()
