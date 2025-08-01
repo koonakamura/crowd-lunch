@@ -355,18 +355,16 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots().map(({ value, disabled }) => {
-                      console.log('Rendering time slot:', value, 'disabled:', disabled);
-                      return (
-                        <SelectItem 
-                          key={value} 
-                          value={value} 
-                          disabled={disabled}
-                        >
-                          {value}
-                        </SelectItem>
-                      );
-                    })}
+                    {getAvailableTimeSlots().map(({ value, disabled }) => (
+                      <SelectItem 
+                        key={value} 
+                        value={value} 
+                        disabled={disabled}
+                        className={disabled ? 'text-gray-400 cursor-not-allowed opacity-50' : ''}
+                      >
+                        {value}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
