@@ -47,6 +47,7 @@ interface Order {
   status: string
   created_at: string
   request_time?: string
+  delivery_location?: string
   user: { name: string }
   order_items: OrderItem[]
   order_id?: string
@@ -507,9 +508,10 @@ export default function AdminPage() {
                   <tr className="border-b">
                     <th className="text-left p-2">注文ID</th>
                     <th className="text-left p-2">注文時間</th>
-                    <th className="text-left p-2">注文者</th>
                     <th className="text-left p-2">メニュー</th>
                     <th className="text-left p-2">金額</th>
+                    <th className="text-left p-2">注文者</th>
+                    <th className="text-left p-2">お届け場所</th>
                     <th className="text-left p-2">配達時間</th>
                     <th className="text-left p-2">配達完了</th>
                   </tr>
@@ -520,9 +522,10 @@ export default function AdminPage() {
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2">{formatJSTTime(order.created_at)}</td>
-                        <td className="p-2">{order.user.name}</td>
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
+                        <td className="p-2">{order.user.name}</td>
+                        <td className="p-2">{order.delivery_location || '-'}</td>
                         <td className="p-2">{order.request_time || '-'}</td>
                         <td className="p-2">
                           <div className="flex items-center gap-2">
@@ -540,7 +543,7 @@ export default function AdminPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center text-muted-foreground py-8">
+                      <td colSpan={8} className="text-center text-muted-foreground py-8">
                         注文がありません
                       </td>
                     </tr>
