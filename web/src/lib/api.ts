@@ -136,6 +136,7 @@ class ApiClient {
     serve_date: string;
     delivery_type: 'pickup' | 'desk';
     request_time?: string;
+    delivery_location?: string;
     department: string;
     name: string;
     items: OrderItem[];
