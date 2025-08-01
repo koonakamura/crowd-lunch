@@ -333,27 +333,6 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">希望お届け時間</label>
-                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                  <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
-                    <SelectValue placeholder="時間を選択" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border-gray-300">
-                    {availableTimeSlots.map(({ value, disabled }) => (
-                      <SelectItem 
-                        key={value} 
-                        value={value} 
-                        disabled={disabled}
-                        className={disabled ? "opacity-50 cursor-not-allowed" : ""}
-                      >
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium mb-1 text-white">お届け場所</label>
                 <div className="flex gap-4">
                   <label className="flex items-center text-white">
@@ -377,6 +356,27 @@ export default function HomePage() {
                     10F
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">希望お届け時間</label>
+                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                  <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
+                    <SelectValue placeholder="時間を選択" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-300">
+                    {availableTimeSlots.map(({ value, disabled }) => (
+                      <SelectItem 
+                        key={value} 
+                        value={value} 
+                        disabled={disabled}
+                        className={disabled ? "opacity-50 cursor-not-allowed" : ""}
+                      >
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
