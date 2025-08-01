@@ -49,6 +49,7 @@ class OrderSQLAlchemy(Base):
     serve_date = Column(Date, nullable=False)
     delivery_type = Column(Enum(DeliveryType), nullable=False)
     request_time = Column(String)
+    delivery_location = Column(String)
     total_price = Column(Integer, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.new)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

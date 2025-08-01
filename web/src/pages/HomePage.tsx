@@ -22,6 +22,8 @@ export default function HomePage() {
   const [department, setDepartment] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
+  const [deliveryLocation, setDeliveryLocation] = useState('')
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -93,7 +95,7 @@ export default function HomePage() {
   }
 
   const handleSubmitOrder = async () => {
-    if (!department.trim() || !customerName.trim() || !deliveryTime) return
+    if (!department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation) return
     
     setIsSubmitting(true)
     try {
@@ -106,6 +108,7 @@ export default function HomePage() {
         serve_date: format(new Date(), 'yyyy-MM-dd'),
         delivery_type: 'desk',
         request_time: deliveryTime,
+        delivery_location: deliveryLocation,
         department: department,
         name: customerName,
         items: orderItems
@@ -121,6 +124,8 @@ export default function HomePage() {
       setDepartment('')
       setCustomerName('')
       setDeliveryTime('')
+      setDeliveryLocation('')
+      setShowConfirmationModal(false)
       toast.success('注文が正常に送信されました')
     } catch (error) {
       console.error('Order submission failed:', error)
@@ -324,21 +329,57 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
+                    <SelectItem value="11:30～11:45">11:30～11:45</SelectItem>
+                    <SelectItem value="11:45～12:00">11:45～12:00</SelectItem>
                     <SelectItem value="12:00～12:15">12:00～12:15</SelectItem>
                     <SelectItem value="12:15～12:30">12:15～12:30</SelectItem>
                     <SelectItem value="12:30～12:45">12:30～12:45</SelectItem>
                     <SelectItem value="12:45～13:00">12:45～13:00</SelectItem>
                     <SelectItem value="13:00～13:15">13:00～13:15</SelectItem>
+                    <SelectItem value="13:15～13:30">13:15～13:30</SelectItem>
+                    <SelectItem value="13:30～13:45">13:30～13:45</SelectItem>
+                    <SelectItem value="13:45～14:00">13:45～14:00</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-white">お届け場所</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center text-white">
+                    <input
+                      type="radio"
+                      value="5F"
+                      checked={deliveryLocation === '5F'}
+                      onChange={(e) => setDeliveryLocation(e.target.value)}
+                      className="mr-2"
+                    />
+                    5F
+                  </label>
+                  <label className="flex items-center text-white">
+                    <input
+                      type="radio"
+                      value="10F"
+                      checked={deliveryLocation === '10F'}
+                      onChange={(e) => setDeliveryLocation(e.target.value)}
+                      className="mr-2"
+                    />
+                    10F
+                  </label>
+                </div>
+              </div>
+
+              <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
+                <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。</p>
+                <p>当日11時までの予約注文は、時間通りのお届けがしやすくなりますので事前のご予約をお願いします。</p>
               </div>
             </div>
           </div>
 
           <DialogFooter>
             <Button
-              onClick={handleSubmitOrder}
-              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime}
+              onClick={() => setShowConfirmationModal(true)}
+              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation}
               className="w-full bg-primary hover:bg-primary/90 text-white"
               data-testid="submit-order"
             >
@@ -367,6 +408,63 @@ export default function HomePage() {
               className="w-full bg-primary hover:bg-primary/90 text-white"
             >
               戻る
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
+        <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl">ご注文内容の確認</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold mb-2">注文内容</h3>
+              <div className="space-y-1">
+                {getSelectedMenus().map(({ menu, qty }) => (
+                  <div key={menu!.id} className="flex justify-between text-sm">
+                    <span>{menu!.title} × {qty}</span>
+                    <span>¥{(menu!.price * qty).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-600 pt-2">
+              <div className="flex justify-between font-semibold">
+                <span>合計金額</span>
+                <span>¥{getTotalPrice().toLocaleString()}</span>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-semibold mb-2">お届け先情報</h3>
+              <div className="space-y-1 text-sm">
+                <div><span className="text-gray-300">部署:</span> {department}</div>
+                <div><span className="text-gray-300">お名前:</span> {customerName}</div>
+                <div><span className="text-gray-300">お届け場所:</span> {deliveryLocation}</div>
+                <div><span className="text-gray-300">希望お届け時間:</span> {deliveryTime}</div>
+              </div>
+            </div>
+            
+            <p className="text-center text-gray-300">ご注文を確定します</p>
+          </div>
+          
+          <DialogFooter className="flex gap-2">
+            <Button 
+              onClick={() => setShowConfirmationModal(false)}
+              className="flex-1 bg-gray-600 text-white hover:bg-gray-700"
+            >
+              キャンセル
+            </Button>
+            <Button 
+              onClick={handleSubmitOrder} 
+              className="flex-1 bg-primary hover:bg-primary/90 text-white"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '注文中...' : '注文確定'}
             </Button>
           </DialogFooter>
         </DialogContent>

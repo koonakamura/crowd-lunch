@@ -71,6 +71,7 @@ class OrderCreateWithDepartmentName(BaseModel):
     serve_date: date
     delivery_type: DeliveryType
     request_time: Optional[str] = None
+    delivery_location: Optional[str] = None
     department: str
     name: str
     items: List[OrderItemCreate]

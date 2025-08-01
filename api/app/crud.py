@@ -255,6 +255,7 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
         request_time=order.request_time,
+        delivery_location=order.delivery_location,
         total_price=total_price,
         status=models.OrderStatus.new,
         department=order.department,

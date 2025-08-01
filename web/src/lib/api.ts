@@ -116,8 +116,9 @@ class ApiClient {
     });
   }
 
-  async getWeeklyMenus(): Promise<WeeklyMenuResponse[]> {
-    return this.request('/menus/weekly');
+  async getWeeklyMenus(date?: string): Promise<WeeklyMenuResponse[]> {
+    const currentDate = date || new Date().toISOString().split('T')[0];
+    return this.request(`/menus/weekly?date=${currentDate}`);
   }
 
   async createOrder(order: {
@@ -136,6 +137,7 @@ class ApiClient {
     serve_date: string;
     delivery_type: 'pickup' | 'desk';
     request_time?: string;
+    delivery_location?: string;
     department: string;
     name: string;
     items: OrderItem[];
