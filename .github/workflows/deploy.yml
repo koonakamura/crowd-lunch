@@ -48,6 +48,16 @@ jobs:
         # Run database migration
         poetry run alembic upgrade head
         
+        # Create sample menu data for load testing
+        poetry run python -c "
+        from app.database import SessionLocal
+        from app.crud import create_sample_menus
+        db = SessionLocal()
+        create_sample_menus(db)
+        db.close()
+        print('Sample menu data created for load testing')
+        "
+        
         # Start the FastAPI server in background
         poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         SERVER_PID=$!

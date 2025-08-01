@@ -61,6 +61,7 @@ export interface Order {
   order_id?: string;
   department?: string;
   customer_name?: string;
+  delivered_at?: string;
 }
 
 export interface WeeklyMenuResponse {
@@ -166,6 +167,12 @@ class ApiClient {
     return this.request(`/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    });
+  }
+
+  async toggleDeliveryCompletion(orderId: number): Promise<Order> {
+    return this.request(`/admin/orders/${orderId}/delivery-completion`, {
+      method: 'PATCH',
     });
   }
 

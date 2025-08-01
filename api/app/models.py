@@ -56,6 +56,7 @@ class OrderSQLAlchemy(Base):
     department = Column(String, nullable=True)
     customer_name = Column(String, nullable=True)
     order_id = Column(String, unique=True, nullable=False, index=True)
+    delivered_at = Column(DateTime(timezone=True), nullable=True)
     
     user = relationship("User")
     order_items = relationship("OrderItem", back_populates="order")

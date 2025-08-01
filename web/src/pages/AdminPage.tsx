@@ -26,6 +26,7 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import { Switch } from '../components/ui/switch'
 import { useAuth } from '../lib/auth'
 
 interface MenuRow {
@@ -49,6 +50,7 @@ interface Order {
   user: { name: string }
   order_items: OrderItem[]
   order_id?: string
+  delivered_at?: string
 }
 
 interface OrderItem {
@@ -157,6 +159,24 @@ export default function AdminPage() {
     },
     onError: () => {
     }
+  })
+
+  const toggleDeliveryMutation = useMutation({
+    mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      toast({
+        title: "配達状況を更新しました",
+        description: "配達完了状況が正常に更新されました。",
+      })
+    },
+    onError: (error) => {
+      toast({
+        title: "エラー",
+        description: `配達状況の更新に失敗しました: ${error.message}`,
+        variant: "destructive",
+      })
+    },
   })
 
 
@@ -491,6 +511,7 @@ export default function AdminPage() {
                     <th className="text-left p-2">メニュー</th>
                     <th className="text-left p-2">金額</th>
                     <th className="text-left p-2">配達時間</th>
+                    <th className="text-left p-2">配達完了</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -503,11 +524,23 @@ export default function AdminPage() {
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
                         <td className="p-2">{order.request_time || '-'}</td>
+                        <td className="p-2">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={!!order.delivered_at}
+                              onCheckedChange={() => toggleDeliveryMutation.mutate(order.id)}
+                              disabled={toggleDeliveryMutation.isPending}
+                            />
+                            <span className="text-sm text-gray-600">
+                              {order.delivered_at ? formatJSTTime(order.delivered_at) : ''}
+                            </span>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted-foreground py-8">
+                      <td colSpan={7} className="text-center text-muted-foreground py-8">
                         注文がありません
                       </td>
                     </tr>

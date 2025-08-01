@@ -87,6 +87,7 @@ class Order(OrderBase):
     order_id: Optional[str] = None
     department: Optional[str] = None
     customer_name: Optional[str] = None
+    delivered_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

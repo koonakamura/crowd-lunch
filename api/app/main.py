@@ -15,6 +15,7 @@ import logging
 from .database import get_db, engine, create_db_and_tables
 from .models import Base
 from . import crud, schemas, auth, models
+from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
 
@@ -121,11 +122,10 @@ async def create_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        now = datetime.now()
-        if now.hour >= 12:
+        if order.request_time and not validate_delivery_time(order.request_time):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="注文受付時間を過ぎています"
+                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
     db_order = crud.create_order(db, order, current_user.id)
@@ -147,11 +147,10 @@ async def create_guest_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        now = datetime.now()
-        if now.hour >= 12:
+        if order.request_time and not validate_delivery_time(order.request_time):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="注文受付時間を過ぎています"
+                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
     db_order = crud.create_guest_order(db, order)
@@ -201,6 +200,39 @@ async def update_order_status(
         "type": "status_updated",
         "order_id": order.id,
         "status": order.status.value
+    }))
+    
+    return order
+
+@app.patch("/admin/orders/{order_id}/delivery-completion", response_model=schemas.Order)
+async def toggle_delivery_completion(
+    order_id: int,
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    order = db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="注文が見つかりません")
+    
+    from .time_utils import get_jst_time
+    
+    if order.delivered_at:
+        order.delivered_at = None
+        order.status = models.OrderStatus.ready
+    else:
+        order.delivered_at = get_jst_time()
+        order.status = models.OrderStatus.delivered
+    
+    db.commit()
+    db.refresh(order)
+    
+    await manager.broadcast(json.dumps({
+        "type": "delivery_completed",
+        "order_id": order.id,
+        "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None
     }))
     
     return order
