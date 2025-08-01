@@ -81,6 +81,12 @@ export default function HomePage() {
     setShowOrderModal(true)
   }
 
+  const getSelectedDate = () => {
+    if (!selectedDay) return new Date()
+    const selectedDayInfo = weekDays.find(day => format(day.date, 'M/d') === selectedDay)
+    return selectedDayInfo ? selectedDayInfo.date : new Date()
+  }
+
   const getSelectedMenus = () => {
     if (!weeklyMenus) return []
     const allMenus = weeklyMenus.flatMap(day => day.menus || [])
@@ -105,7 +111,7 @@ export default function HomePage() {
       }))
 
       await apiClient.createGuestOrder({
-        serve_date: format(new Date(), 'yyyy-MM-dd'),
+        serve_date: format(getSelectedDate(), 'yyyy-MM-dd'),
         delivery_type: 'desk',
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
@@ -355,7 +361,7 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(new Date()).map(slot => (
+                    {getAvailableTimeSlots(getSelectedDate()).map(slot => (
                       <SelectItem 
                         key={slot.value} 
                         value={slot.value}
