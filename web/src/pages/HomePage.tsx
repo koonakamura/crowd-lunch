@@ -360,7 +360,7 @@ export default function HomePage() {
                         key={value} 
                         value={value} 
                         disabled={disabled}
-                        className={disabled ? 'text-gray-400 cursor-not-allowed' : ''}
+                        className={disabled ? 'text-gray-400 cursor-not-allowed opacity-50 bg-gray-100' : ''}
                       >
                         {value}
                       </SelectItem>
