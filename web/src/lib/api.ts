@@ -116,8 +116,9 @@ class ApiClient {
     });
   }
 
-  async getWeeklyMenus(): Promise<WeeklyMenuResponse[]> {
-    return this.request('/menus/weekly');
+  async getWeeklyMenus(date?: string): Promise<WeeklyMenuResponse[]> {
+    const currentDate = date || new Date().toISOString().split('T')[0];
+    return this.request(`/menus/weekly?date=${currentDate}`);
   }
 
   async createOrder(order: {
