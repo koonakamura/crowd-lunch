@@ -15,6 +15,7 @@ import logging
 from .database import get_db, engine, create_db_and_tables
 from .models import Base
 from . import crud, schemas, auth, models
+from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
 
@@ -121,11 +122,10 @@ async def create_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        now = datetime.now()
-        if now.hour >= 12:
+        if order.request_time and not validate_delivery_time(order.request_time):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="注文受付時間を過ぎています"
+                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
     db_order = crud.create_order(db, order, current_user.id)
@@ -147,11 +147,10 @@ async def create_guest_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        now = datetime.now()
-        if now.hour >= 12:
+        if order.request_time and not validate_delivery_time(order.request_time):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="注文受付時間を過ぎています"
+                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
     db_order = crud.create_guest_order(db, order)
