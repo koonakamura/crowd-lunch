@@ -5,25 +5,31 @@ export const getJSTTime = (): Date => {
   return new Date(utc + (jstOffset * 60000));
 };
 
-export const parseTimeSlot = (timeSlot: string): { startTime: Date, endTime: Date } => {
+export const parseTimeSlot = (timeSlot: string, serveDate?: Date): { startTime: Date, endTime: Date } => {
   const [startStr, endStr] = timeSlot.split('～');
   const [startHour, startMin] = startStr.split(':').map(Number);
   const [endHour, endMin] = endStr.split(':').map(Number);
   
-  const today = getJSTTime();
-  const startTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMin);
-  const endTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMin);
+  const targetDate = serveDate || getJSTTime();
+  const startTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), startHour, startMin);
+  const endTime = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), endHour, endMin);
   
   return { startTime, endTime };
 };
 
-export const isTimeSlotExpired = (timeSlot: string): boolean => {
+export const isTimeSlotExpired = (timeSlot: string, serveDate?: Date): boolean => {
   const currentJST = getJSTTime();
-  const { startTime } = parseTimeSlot(timeSlot);
+  const targetDate = serveDate || currentJST;
+  
+  if (targetDate.toDateString() !== currentJST.toDateString()) {
+    return false;
+  }
+  
+  const { startTime } = parseTimeSlot(timeSlot, serveDate);
   return currentJST >= startTime;
 };
 
-export const getAvailableTimeSlots = (): Array<{value: string, disabled: boolean}> => {
+export const getAvailableTimeSlots = (serveDate?: Date): Array<{value: string, disabled: boolean}> => {
   const timeSlots = [
     "11:30～11:45",
     "11:45～12:00", 
@@ -39,6 +45,6 @@ export const getAvailableTimeSlots = (): Array<{value: string, disabled: boolean
   
   return timeSlots.map(slot => ({
     value: slot,
-    disabled: isTimeSlotExpired(slot)
+    disabled: isTimeSlotExpired(slot, serveDate)
   }));
 };

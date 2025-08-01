@@ -122,7 +122,7 @@ async def create_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        if order.request_time and not validate_delivery_time(order.request_time):
+        if order.request_time and not validate_delivery_time(order.request_time, order.serve_date):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
@@ -147,7 +147,7 @@ async def create_guest_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
-        if order.request_time and not validate_delivery_time(order.request_time):
+        if order.request_time and not validate_delivery_time(order.request_time, order.serve_date):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"

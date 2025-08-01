@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
+import { getAvailableTimeSlots } from '../utils/timeUtils'
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -80,6 +81,12 @@ export default function HomePage() {
     setShowOrderModal(true)
   }
 
+  const getSelectedDate = () => {
+    if (!selectedDay) return new Date()
+    const selectedDayInfo = weekDays.find(day => format(day.date, 'M/d') === selectedDay)
+    return selectedDayInfo ? selectedDayInfo.date : new Date()
+  }
+
   const getSelectedMenus = () => {
     if (!weeklyMenus) return []
     const allMenus = weeklyMenus.flatMap(day => day.menus || [])
@@ -104,7 +111,7 @@ export default function HomePage() {
       }))
 
       await apiClient.createGuestOrder({
-        serve_date: format(new Date(), 'yyyy-MM-dd'),
+        serve_date: format(getSelectedDate(), 'yyyy-MM-dd'),
         delivery_type: 'desk',
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
@@ -354,16 +361,16 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    <SelectItem value="11:30～11:45">11:30～11:45</SelectItem>
-                    <SelectItem value="11:45～12:00">11:45～12:00</SelectItem>
-                    <SelectItem value="12:00～12:15">12:00～12:15</SelectItem>
-                    <SelectItem value="12:15～12:30">12:15～12:30</SelectItem>
-                    <SelectItem value="12:30～12:45">12:30～12:45</SelectItem>
-                    <SelectItem value="12:45～13:00">12:45～13:00</SelectItem>
-                    <SelectItem value="13:00～13:15">13:00～13:15</SelectItem>
-                    <SelectItem value="13:15～13:30">13:15～13:30</SelectItem>
-                    <SelectItem value="13:30～13:45">13:30～13:45</SelectItem>
-                    <SelectItem value="13:45～14:00">13:45～14:00</SelectItem>
+                    {getAvailableTimeSlots(getSelectedDate()).map(slot => (
+                      <SelectItem 
+                        key={slot.value} 
+                        value={slot.value}
+                        disabled={slot.disabled}
+                        className={slot.disabled ? "text-gray-400" : ""}
+                      >
+                        {slot.value}{slot.disabled ? " (終了)" : ""}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
