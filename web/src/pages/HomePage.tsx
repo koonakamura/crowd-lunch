@@ -28,7 +28,7 @@ export default function HomePage() {
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['weeklyMenus'],
+    queryKey: ['weeklyMenus', format(new Date(), 'yyyy-MM-dd')],
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
   })
@@ -360,9 +360,9 @@ export default function HomePage() {
                         key={value} 
                         value={value} 
                         disabled={disabled}
-                        className={disabled ? 'text-gray-400 cursor-not-allowed opacity-50' : ''}
+                        className={disabled ? 'text-gray-400 opacity-50' : ''}
                       >
-                        {value}
+                        {value}{disabled ? ' (終了)' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
