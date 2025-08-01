@@ -449,14 +449,13 @@ export default function HomePage() {
               </div>
             </div>
             
-            <p className="text-center text-gray-300">ご注文を確定しますがよろしいでしょうか</p>
+            <p className="text-center text-gray-300">ご注文を確定します</p>
           </div>
           
           <DialogFooter className="flex gap-2">
             <Button 
               onClick={() => setShowConfirmationModal(false)}
-              variant="outline" 
-              className="flex-1 border-gray-600 text-white hover:bg-gray-800"
+              className="flex-1 bg-gray-600 text-white hover:bg-gray-700"
             >
               キャンセル
             </Button>
