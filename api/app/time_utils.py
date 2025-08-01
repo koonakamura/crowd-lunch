@@ -12,7 +12,18 @@ def parse_time_slot(time_slot: str, serve_date=None) -> Tuple[datetime, datetime
     start_hour, start_min = map(int, start_str.split(':'))
     end_hour, end_min = map(int, end_str.split(':'))
     
-    target_date = serve_date if serve_date else get_jst_time().date()
+    if serve_date:
+        from datetime import date
+        if isinstance(serve_date, str):
+            from datetime import datetime as dt
+            target_date = dt.strptime(serve_date, '%Y-%m-%d').date()
+        elif isinstance(serve_date, date):
+            target_date = serve_date
+        else:
+            target_date = get_jst_time().date()
+    else:
+        target_date = get_jst_time().date()
+        
     jst = timezone(timedelta(hours=9))
     
     start_time = datetime.combine(target_date, datetime.min.time().replace(hour=start_hour, minute=start_min))
@@ -26,12 +37,23 @@ def parse_time_slot(time_slot: str, serve_date=None) -> Tuple[datetime, datetime
 def is_time_slot_expired(time_slot: str, serve_date=None) -> bool:
     """Check if a time slot has expired (current JST time >= start time)"""
     current_jst = get_jst_time()
-    target_date = serve_date if serve_date else current_jst.date()
+    
+    if serve_date:
+        from datetime import date
+        if isinstance(serve_date, str):
+            from datetime import datetime
+            target_date = datetime.strptime(serve_date, '%Y-%m-%d').date()
+        elif isinstance(serve_date, date):
+            target_date = serve_date
+        else:
+            target_date = current_jst.date()
+    else:
+        target_date = current_jst.date()
     
     if target_date > current_jst.date():
         return False
         
-    start_time, _ = parse_time_slot(time_slot, serve_date)
+    start_time, _ = parse_time_slot(time_slot, target_date)
     return current_jst >= start_time
 
 def validate_delivery_time(request_time: str, serve_date=None) -> bool:
