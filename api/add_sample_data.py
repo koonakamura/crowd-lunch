@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from app.database import SessionLocal
 from app.models import MenuSQLAlchemy
+from app.time_utils import get_jst_time
 
 def create_sample_menus():
     db = SessionLocal()
@@ -19,7 +20,7 @@ def create_sample_menus():
                 price=800,
                 max_qty=50,
                 img_url="/uploads/chicken.jpg",
-                created_at=datetime.utcnow()
+                created_at=get_jst_time()
             ),
             MenuSQLAlchemy(
                 serve_date=today,
@@ -27,7 +28,7 @@ def create_sample_menus():
                 price=900,
                 max_qty=30,
                 img_url="/uploads/beef.jpg",
-                created_at=datetime.utcnow()
+                created_at=get_jst_time()
             ),
             MenuSQLAlchemy(
                 serve_date=today,
@@ -35,7 +36,7 @@ def create_sample_menus():
                 price=1000,
                 max_qty=25,
                 img_url="/uploads/salmon.jpg",
-                created_at=datetime.utcnow()
+                created_at=get_jst_time()
             )
         ]
         

@@ -7,6 +7,7 @@ from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+from .time_utils import get_jst_time
 
 class DeliveryType(enum.Enum):
     pickup = "pickup"
@@ -26,7 +27,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     seat_id = Column(String)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=get_jst_time)
 
 class MenuSQLAlchemy(Base):
     __tablename__ = "menus"
@@ -37,7 +38,7 @@ class MenuSQLAlchemy(Base):
     price = Column(Integer, nullable=False)
     max_qty = Column(Integer, nullable=False)
     img_url = Column(String)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=get_jst_time)
     
     order_items = relationship("OrderItem", back_populates="menu")
 
@@ -52,7 +53,7 @@ class OrderSQLAlchemy(Base):
     delivery_location = Column(String)
     total_price = Column(Integer, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.new)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=get_jst_time)
     department = Column(String, nullable=True)
     customer_name = Column(String, nullable=True)
     order_id = Column(String, unique=True, nullable=False, index=True)
