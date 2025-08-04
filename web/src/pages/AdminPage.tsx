@@ -6,21 +6,20 @@ const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
   
   try {
-    const jstTime = date.toLocaleString('ja-JP', { 
+    return date.toLocaleString('ja-JP', { 
       timeZone: 'Asia/Tokyo', 
       month: '2-digit', 
       day: '2-digit', 
       hour: '2-digit', 
       minute: '2-digit' 
     });
-    return `${jstTime} JST`;
   } catch {
     const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
     const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
     const day = String(jstDate.getUTCDate()).padStart(2, '0');
     const hour = String(jstDate.getUTCHours()).padStart(2, '0');
     const minute = String(jstDate.getUTCMinutes()).padStart(2, '0');
-    return `${month}/${day} ${hour}:${minute} JST`;
+    return `${month}/${day} ${hour}:${minute}`;
   }
 };
 import { Button } from '../components/ui/button'
