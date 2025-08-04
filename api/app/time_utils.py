@@ -23,18 +23,39 @@ def parse_time_slot(time_slot: str) -> Tuple[datetime, datetime]:
     
     return start_time, end_time
 
-def is_time_slot_expired(time_slot: str) -> bool:
-    """Check if a time slot has expired (current JST time >= start time)"""
+def is_time_slot_expired(time_slot: str, delivery_date: str = None) -> bool:
+    """Check if a time slot has expired (current JST time >= start time)
+    
+    Args:
+        time_slot: Time slot string like '11:30～11:45'
+        delivery_date: Delivery date in 'YYYY-MM-DD' format. If None or future date, returns False
+    """
+    if delivery_date:
+        from datetime import date
+        try:
+            target_date = date.fromisoformat(delivery_date)
+            today = get_jst_time().date()
+            
+            if target_date > today:
+                return False
+        except (ValueError, TypeError):
+            pass
+    
     current_jst = get_jst_time()
     start_time, _ = parse_time_slot(time_slot)
     return current_jst >= start_time
 
-def validate_delivery_time(request_time: str) -> bool:
-    """Validate that the requested delivery time is still available"""
+def validate_delivery_time(request_time: str, delivery_date: str = None) -> bool:
+    """Validate that the requested delivery time is still available
+    
+    Args:
+        request_time: Time slot string like '11:30～11:45'
+        delivery_date: Delivery date in 'YYYY-MM-DD' format. If None or future date, always valid
+    """
     if not request_time:
         return False
     
     try:
-        return not is_time_slot_expired(request_time)
+        return not is_time_slot_expired(request_time, delivery_date)
     except (ValueError, AttributeError):
         return False
