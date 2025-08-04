@@ -7,8 +7,20 @@ def get_jst_time() -> datetime:
     return datetime.now(jst)
 
 def parse_time_slot(time_slot: str, target_date: str = None) -> Tuple[datetime, datetime]:
-    """Parse time slot string like '11:30～11:45' into JST datetime objects"""
-    start_str, end_str = time_slot.split('～')
+    """Parse time slot string like '11:30～11:45' or '11:30' into JST datetime objects"""
+    
+    if '～' in time_slot:
+        start_str, end_str = time_slot.split('～')
+    else:
+        start_str = time_slot
+        start_hour, start_min = map(int, start_str.split(':'))
+        end_min = start_min + 15
+        end_hour = start_hour
+        if end_min >= 60:
+            end_min -= 60
+            end_hour += 1
+        end_str = f"{end_hour:02d}:{end_min:02d}"
+    
     start_hour, start_min = map(int, start_str.split(':'))
     end_hour, end_min = map(int, end_str.split(':'))
     
