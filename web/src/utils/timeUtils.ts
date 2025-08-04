@@ -23,7 +23,7 @@ export const isTimeSlotExpired = (timeSlot: string): boolean => {
   return currentJST >= startTime;
 };
 
-export const getAvailableTimeSlots = (): Array<{value: string, disabled: boolean}> => {
+export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, disabled: boolean}> => {
   const timeSlots = [
     "11:30～11:45",
     "11:45～12:00", 
@@ -36,6 +36,17 @@ export const getAvailableTimeSlots = (): Array<{value: string, disabled: boolean
     "13:30～13:45",
     "13:45～14:00"
   ];
+  
+  if (!targetDate) {
+    return timeSlots.map(slot => ({ value: slot, disabled: false }));
+  }
+  
+  const today = getJSTTime();
+  const isToday = targetDate.toDateString() === today.toDateString();
+  
+  if (!isToday) {
+    return timeSlots.map(slot => ({ value: slot, disabled: false }));
+  }
   
   return timeSlots.map(slot => ({
     value: slot,
