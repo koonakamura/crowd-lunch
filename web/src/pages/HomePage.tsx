@@ -10,7 +10,68 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots } from '../utils/timeUtils'
+import { getAvailableTimeSlots, getJSTTime } from '../utils/timeUtils'
+
+interface TodayOrderData {
+  date: string;
+  department: string;
+  customerName: string;
+  deliveryLocation: string;
+  deliveryTime: string;
+  items: Array<{
+    title: string;
+    price: number;
+    qty: number;
+  }>;
+  totalPrice: number;
+  timestamp: number;
+}
+
+const saveTodayOrder = (orderData: TodayOrderData): void => {
+  try {
+    localStorage.setItem('todayOrder', JSON.stringify(orderData));
+  } catch (error) {
+    console.error('Failed to save order to localStorage:', error);
+  }
+};
+
+const getTodayOrder = (): TodayOrderData | null => {
+  try {
+    const stored = localStorage.getItem('todayOrder');
+    if (!stored) return null;
+    
+    const orderData = JSON.parse(stored) as TodayOrderData;
+    const today = format(getJSTTime(), 'yyyy-MM-dd');
+    
+    if (orderData.date !== today) {
+      localStorage.removeItem('todayOrder');
+      return null;
+    }
+    
+    return orderData;
+  } catch (error) {
+    console.error('Failed to get order from localStorage:', error);
+    localStorage.removeItem('todayOrder');
+    return null;
+  }
+};
+
+const clearOldOrders = (): void => {
+  try {
+    const stored = localStorage.getItem('todayOrder');
+    if (!stored) return;
+    
+    const orderData = JSON.parse(stored) as TodayOrderData;
+    const today = format(getJSTTime(), 'yyyy-MM-dd');
+    
+    if (orderData.date !== today) {
+      localStorage.removeItem('todayOrder');
+    }
+  } catch (error) {
+    console.error('Failed to clear old orders:', error);
+    localStorage.removeItem('todayOrder');
+  }
+};
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -27,6 +88,7 @@ export default function HomePage() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
@@ -120,6 +182,25 @@ export default function HomePage() {
         items: orderItems
       })
 
+      const selectedMenus = getSelectedMenus();
+      const orderData: TodayOrderData = {
+        date: format(getJSTTime(), 'yyyy-MM-dd'),
+        department: department,
+        customerName: customerName,
+        deliveryLocation: deliveryLocation,
+        deliveryTime: deliveryTime,
+        items: selectedMenus.map(({ menu, qty }) => ({
+          title: menu!.title,
+          price: menu!.price,
+          qty: qty
+        })),
+        totalPrice: getTotalPrice(),
+        timestamp: Date.now()
+      };
+
+      saveTodayOrder(orderData);
+      setTodayOrder(orderData);
+
       queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
 
@@ -175,6 +256,20 @@ export default function HomePage() {
     }
   }, [showLanding])
 
+  useEffect(() => {
+    clearOldOrders();
+    const order = getTodayOrder();
+    setTodayOrder(order);
+
+    const interval = setInterval(() => {
+      clearOldOrders();
+      const currentOrder = getTodayOrder();
+      setTodayOrder(currentOrder);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -205,7 +300,28 @@ export default function HomePage() {
     <div className="min-h-screen">
       <header className="fixed top-0 left-0 right-0 z-20 bg-white shadow-sm p-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-black font-lato">CROWD LUNCH</h1>
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold text-black font-lato">CROWD LUNCH</h1>
+            {todayOrder && (
+              <div className="text-xs text-gray-600 mt-1">
+                <div className="font-medium">本日の注文履歴</div>
+                <div className="flex flex-wrap gap-1 items-center">
+                  {todayOrder.items.map((item, index) => (
+                    <span key={index} className="text-gray-700">
+                      {item.title} × {item.qty}
+                      {index < todayOrder.items.length - 1 && ', '}
+                    </span>
+                  ))}
+                  <span className="font-medium text-gray-800">
+                    ¥{todayOrder.totalPrice.toLocaleString()}
+                  </span>
+                  <span className="text-gray-600">
+                    {todayOrder.deliveryLocation} {todayOrder.deliveryTime}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-black">{user?.name}</span>
             <Button variant="ghost" size="sm" onClick={logout} className="text-black hover:bg-gray-100">
