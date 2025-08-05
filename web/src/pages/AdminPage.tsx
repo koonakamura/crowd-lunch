@@ -373,6 +373,29 @@ export default function AdminPage() {
             <CardTitle>メニュー構成</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Table Header Row - positioned at the very top */}
+            <div className="mb-4">
+              <div className="flex gap-6">
+                <div className="w-32"></div> {/* Space for image column */}
+                <div className="flex-1">
+                  {/* Column Headers - Table Header Style */}
+                  <div className="flex gap-3 items-center py-3 px-2 bg-gray-50 border-b-2 border-gray-200 rounded-t-lg">
+                    <div className="flex-1">
+                      <span className="text-sm font-bold text-gray-800 bg-yellow-200 px-3 py-2 rounded-md">メニュー</span>
+                    </div>
+                    <div className="w-24">
+                      <span className="text-sm font-bold text-gray-800 bg-yellow-200 px-3 py-2 rounded-md">金額</span>
+                    </div>
+                    <div className="w-24">
+                      <span className="text-sm font-bold text-gray-800 bg-yellow-200 px-3 py-2 rounded-md">販売数</span>
+                    </div>
+                    <div className="w-8"></div> {/* Edit button space */}
+                    <div className="w-8"></div> {/* Delete button space */}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex gap-6">
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
@@ -413,20 +436,6 @@ export default function AdminPage() {
 
               {/* Menu Rows */}
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
-                {/* Column Headers */}
-                <div className="flex gap-3 items-center mb-3 px-1">
-                  <div className="flex-1">
-                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">メニュー</span>
-                  </div>
-                  <div className="w-24">
-                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">金額</span>
-                  </div>
-                  <div className="w-24">
-                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">販売数</span>
-                  </div>
-                  <div className="w-8"></div> {/* Edit button space */}
-                  <div className="w-8"></div> {/* Delete button space */}
-                </div>
                 
                 <div className="space-y-3">
                   {menuRows.map((row, index) => (
