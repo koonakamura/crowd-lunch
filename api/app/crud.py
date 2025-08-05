@@ -243,12 +243,16 @@ def delete_menu_item(db: Session, item_id: int):
 
 def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName):
     """Create an order without user authentication using customer name"""
+    print(f"DEBUG CRUD: Received order - delivery_location: '{order.delivery_location}', department: '{order.department}', name: '{order.name}'")
+    
     total_price = calculate_order_total(db, order.items)
     
     customer_name = f"{order.department}／{order.name}"
     guest_user = get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
     
     order_id = generate_order_id(db, order.serve_date)
+    
+    print(f"DEBUG CRUD: Creating OrderSQLAlchemy with delivery_location: '{order.delivery_location}'")
     
     db_order = models.OrderSQLAlchemy(
         user_id=guest_user.id,
@@ -265,6 +269,8 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
+    
+    print(f"DEBUG CRUD: Saved order to DB - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
     for item in order.items:
         db_item = models.OrderItem(

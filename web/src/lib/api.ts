@@ -61,6 +61,7 @@ export interface Order {
   order_id?: string;
   department?: string;
   customer_name?: string;
+  delivery_location?: string;
   delivered_at?: string;
 }
 

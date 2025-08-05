@@ -146,6 +146,8 @@ async def create_guest_order(
     db: Session = Depends(get_db)
 ):
     import os
+    print(f"DEBUG: Received order data - delivery_location: '{order.delivery_location}', department: '{order.department}', name: '{order.name}'")
+    
     if os.getenv("TESTING") != "true":
         if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
             raise HTTPException(
@@ -154,6 +156,8 @@ async def create_guest_order(
             )
     
     db_order = crud.create_guest_order(db, order)
+    
+    print(f"DEBUG: Created order in DB - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
     db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
     
