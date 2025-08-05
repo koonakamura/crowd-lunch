@@ -52,6 +52,8 @@ interface Order {
   order_items: OrderItem[]
   order_id?: string
   delivered_at?: string
+  department?: string
+  customer_name?: string
 }
 
 interface OrderItem {
