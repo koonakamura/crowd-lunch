@@ -146,7 +146,11 @@ async def create_guest_order(
     db: Session = Depends(get_db)
 ):
     import os
-    print(f"DEBUG: Received order data - delivery_location: '{order.delivery_location}', department: '{order.department}', name: '{order.name}'")
+    print(f"DEBUG MAIN: Raw request received")
+    print(f"DEBUG MAIN: order.delivery_location = '{order.delivery_location}' (type: {type(order.delivery_location)})")
+    print(f"DEBUG MAIN: order.department = '{order.department}'")
+    print(f"DEBUG MAIN: order.name = '{order.name}'")
+    print(f"DEBUG MAIN: Full order object: {order}")
     
     if os.getenv("TESTING") != "true":
         if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
@@ -155,11 +159,15 @@ async def create_guest_order(
                 detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
+    print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
     
-    print(f"DEBUG: Created order in DB - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
+    print(f"DEBUG MAIN: crud.create_guest_order returned - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
     db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
+    
+    print(f"DEBUG MAIN: Final order before response - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
+    print(f"DEBUG MAIN: Final order object: {db_order}")
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -252,6 +260,13 @@ async def get_today_orders(
     
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
+    
+    print(f"DEBUG ADMIN API: get_today_orders returning {len(orders)} orders for date {target_date}")
+    for order in orders:
+        print(f"DEBUG ADMIN API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
+        print(f"DEBUG ADMIN API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
+        print(f"DEBUG ADMIN API: Order {order.id} full object: {order}")
+    
     return orders
 
 @app.get("/orders", response_model=List[schemas.Order],
