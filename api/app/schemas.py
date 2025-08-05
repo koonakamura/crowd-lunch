@@ -65,6 +65,7 @@ class OrderCreateWithName(BaseModel):
     serve_date: date
     delivery_type: DeliveryType
     request_time: Optional[str] = None
+    delivery_location: Optional[str] = None
     customer_name: str
     items: List[OrderItemCreate]
 
