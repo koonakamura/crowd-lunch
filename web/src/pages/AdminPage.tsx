@@ -35,7 +35,7 @@ interface MenuRow {
   price: number;
   max_qty: number;
 }
-import { ArrowLeft, Plus, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Edit, Trash2, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
@@ -329,6 +329,60 @@ export default function AdminPage() {
     saveMenusMutation.mutate()
   }
 
+  const generateCSV = (orders: Order[]): string => {
+    const BOM = '\uFEFF';
+    const headers = [
+      '注文ID', '注文時間', '注文者部署', '注文者名前', 'メニュー', 
+      '金額', 'お届け場所', '配達時間', '配達完了ステータス', '配達完了時間'
+    ];
+    
+    const csvRows = [headers.join(',')];
+    
+    orders.forEach(order => {
+      const row = [
+        order.order_id || `#${order.id.toString().padStart(7, '0')}`,
+        formatJSTTime(order.created_at),
+        order.department || '',
+        order.customer_name || order.user?.name || '',
+        order.order_items.map(item => item.menu.title).join('、'),
+        order.total_price.toString(),
+        order.delivery_location || '',
+        order.request_time || '',
+        order.delivered_at ? 'true' : 'false',
+        order.delivered_at ? formatJSTTime(order.delivered_at) : ''
+      ];
+      csvRows.push(row.map(field => `"${field.replace(/"/g, '""')}"`).join(','));
+    });
+    
+    return BOM + csvRows.join('\n');
+  };
+
+  const downloadCSV = () => {
+    if (!orders || orders.length === 0) {
+      toast({
+        title: "エラー",
+        description: "ダウンロードする注文データがありません",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const csvContent = generateCSV(orders);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    const today = new Date();
+    const dateStr = today.getFullYear() + 
+      String(today.getMonth() + 1).padStart(2, '0') + 
+      String(today.getDate()).padStart(2, '0');
+    const filename = `orders_${dateStr}.csv`;
+    
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -499,7 +553,18 @@ export default function AdminPage() {
         {/* Order List Section */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>注文一覧</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>注文一覧</CardTitle>
+              <Button 
+                onClick={downloadCSV}
+                variant="outline"
+                size="sm"
+                className="bg-white text-black border-gray-300 hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                ダウンロード
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
