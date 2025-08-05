@@ -414,15 +414,15 @@ export default function AdminPage() {
               {/* Menu Rows */}
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
                 {/* Column Headers */}
-                <div className="flex gap-3 items-center mb-2 px-1">
+                <div className="flex gap-3 items-center mb-3 px-1">
                   <div className="flex-1">
-                    <span className="text-sm font-medium text-gray-700">メニュー</span>
+                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">メニュー</span>
                   </div>
                   <div className="w-24">
-                    <span className="text-sm font-medium text-gray-700">金額</span>
+                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">金額</span>
                   </div>
                   <div className="w-24">
-                    <span className="text-sm font-medium text-gray-700">販売数</span>
+                    <span className="text-sm font-semibold text-gray-800 bg-yellow-100 px-2 py-1 rounded">販売数</span>
                   </div>
                   <div className="w-8"></div> {/* Edit button space */}
                   <div className="w-8"></div> {/* Delete button space */}
