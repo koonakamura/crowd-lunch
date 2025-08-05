@@ -382,6 +382,46 @@ async def delete_menu_item(
     
     return {"message": "メニューアイテムが削除されました"}
 
+@app.post("/admin/fix-delivery-locations")
+async def fix_delivery_locations(
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Fix existing orders with NULL delivery_location values"""
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    print(f"DEBUG FIX: Starting delivery_location fix for NULL values")
+    
+    null_delivery_orders = db.query(models.OrderSQLAlchemy).filter(
+        models.OrderSQLAlchemy.delivery_location.is_(None)
+    ).all()
+    
+    print(f"DEBUG FIX: Found {len(null_delivery_orders)} orders with NULL delivery_location")
+    
+    updated_count = 0
+    for order in null_delivery_orders:
+        if order.department:
+            if "営業" in order.department:
+                default_location = "3F"
+            elif "開発" in order.department or "エンジニア" in order.department:
+                default_location = "4F"
+            elif "管理" in order.department or "総務" in order.department:
+                default_location = "2F"
+            else:
+                default_location = "オフィス内"
+        else:
+            default_location = "オフィス内"
+        
+        order.delivery_location = default_location
+        updated_count += 1
+        print(f"DEBUG FIX: Updated order {order.id}: department='{order.department}' -> delivery_location='{default_location}'")
+    
+    db.commit()
+    print(f"DEBUG FIX: Successfully updated {updated_count} orders")
+    
+    return {"message": f"Updated {updated_count} orders with delivery_location values"}
+
 @app.post("/menus",
     response_model=schemas.MenuSQLAlchemyResponse,
     status_code=status.HTTP_201_CREATED
