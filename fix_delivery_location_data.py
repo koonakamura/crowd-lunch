@@ -8,9 +8,8 @@ import sys
 import os
 sys.path.append('/home/ubuntu/repos/crowd-lunch/api')
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.database import get_database_url
 from app import models
 import logging
 
@@ -20,8 +19,8 @@ logger = logging.getLogger(__name__)
 def fix_delivery_location_data():
     """Update existing orders with NULL delivery_location to have default values"""
     
-    database_url = get_database_url()
-    logger.info(f"Connecting to database...")
+    database_url = os.getenv("DATABASE_URL", "sqlite:///./crowdlunch.db")
+    logger.info(f"Connecting to database: {database_url}")
     
     engine = create_engine(database_url)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
