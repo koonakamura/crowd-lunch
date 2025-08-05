@@ -174,7 +174,7 @@ export default function HomePage() {
 
       const orderPayload = {
         serve_date: getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        delivery_type: 'desk',
+        delivery_type: 'desk' as const,
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
         department: department,
