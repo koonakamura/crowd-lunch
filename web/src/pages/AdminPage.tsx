@@ -35,7 +35,7 @@ interface MenuRow {
   price: number;
   max_qty: number;
 }
-import { ArrowLeft, Plus, Edit, Trash2, Download } from 'lucide-react'
+import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
@@ -76,6 +76,10 @@ export default function AdminPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [menuToDelete, setMenuToDelete] = useState<{ index: number; menu: MenuRow } | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [isNotificationEnabled, setIsNotificationEnabled] = useState(() => {
+    return localStorage.getItem('adminNotificationEnabled') !== 'false'
+  })
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -213,6 +217,39 @@ export default function AdminPage() {
   useEffect(() => {
     setSelectedImage(null)
   }, [selectedDate])
+
+  useEffect(() => {
+    const audio = new Audio(new URL('../assets/sounds/notify.mp3', import.meta.url).href)
+    audio.preload = 'auto'
+    setAudioElement(audio)
+    
+    return () => {
+      audio.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user?.email !== 'admin@example.com') return
+    
+    const wsUrl = (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws')
+    const ws = new WebSocket(`${wsUrl}/ws/orders`)
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
+          audioElement.play().catch(console.error)
+          queryClient.invalidateQueries({ queryKey: ['orders'] })
+        }
+      } catch (error) {
+        console.error('WebSocket message parsing error:', error)
+      }
+    }
+    
+    return () => {
+      ws.close()
+    }
+  }, [user, isNotificationEnabled, audioElement, queryClient])
 
   if (user?.email !== 'admin@example.com') {
     return (
@@ -401,6 +438,17 @@ export default function AdminPage() {
           <span className="text-sm text-muted-foreground ml-4">
             {getTodayFormatted()}
           </span>
+          <div className="flex items-center gap-2 ml-auto">
+            {isNotificationEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            <span className="text-sm text-muted-foreground">通知音</span>
+            <Switch
+              checked={isNotificationEnabled}
+              onCheckedChange={(checked) => {
+                setIsNotificationEnabled(checked)
+                localStorage.setItem('adminNotificationEnabled', checked.toString())
+              }}
+            />
+          </div>
         </div>
       </header>
 
