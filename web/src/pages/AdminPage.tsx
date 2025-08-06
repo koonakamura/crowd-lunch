@@ -219,7 +219,7 @@ export default function AdminPage() {
   }, [selectedDate])
 
   useEffect(() => {
-    const audio = new Audio('/sounds/notify.mp3')
+    const audio = new Audio('/src/assets/sounds/notify.mp3')
     audio.preload = 'auto'
     setAudioElement(audio)
     
