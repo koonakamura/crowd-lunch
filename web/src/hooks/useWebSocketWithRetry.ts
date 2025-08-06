@@ -6,7 +6,7 @@ interface WebSocketMessage {
   order_id?: number
   customer_name?: string
   user_id?: number
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface UseWebSocketWithRetryOptions {
