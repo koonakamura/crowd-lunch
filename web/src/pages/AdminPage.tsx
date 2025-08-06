@@ -449,17 +449,6 @@ export default function AdminPage() {
               }}
             />
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            {isNotificationEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            <span className="text-sm text-muted-foreground">通知音</span>
-            <Switch
-              checked={isNotificationEnabled}
-              onCheckedChange={(checked) => {
-                setIsNotificationEnabled(checked)
-                localStorage.setItem('adminNotificationEnabled', checked.toString())
-              }}
-            />
-          </div>
         </div>
       </header>
 
