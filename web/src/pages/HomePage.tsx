@@ -172,15 +172,20 @@ export default function HomePage() {
         qty
       }))
 
-      await apiClient.createGuestOrder({
+      const orderPayload = {
         serve_date: getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        delivery_type: 'desk',
+        delivery_type: 'desk' as const,
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
         department: department,
         name: customerName,
         items: orderItems
-      })
+      };
+      
+      console.log('DEBUG FRONTEND: About to send order payload:', orderPayload);
+      console.log('DEBUG FRONTEND: delivery_location value:', deliveryLocation, 'type:', typeof deliveryLocation);
+      
+      await apiClient.createGuestOrder(orderPayload)
 
       const selectedMenus = getSelectedMenus();
       const orderData: TodayOrderData = {

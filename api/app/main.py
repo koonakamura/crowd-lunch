@@ -153,9 +153,14 @@ async def create_guest_order(
                 detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
             )
     
+    print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
+    print(f"DEBUG MAIN: crud.create_guest_order returned - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
     db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
+    
+    print(f"DEBUG MAIN: Final order before response - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
+    print(f"DEBUG MAIN: Final order object attributes: {[attr for attr in dir(db_order) if not attr.startswith('_')]}")
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -248,6 +253,13 @@ async def get_today_orders(
     
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
+    
+    print(f"DEBUG ADMIN API: get_today_orders returning {len(orders)} orders for date {target_date}")
+    for order in orders:
+        print(f"DEBUG ADMIN API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
+        print(f"DEBUG ADMIN API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
+        print(f"DEBUG ADMIN API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
+    
     return orders
 
 @app.get("/orders", response_model=List[schemas.Order],
@@ -262,6 +274,13 @@ async def get_orders_by_date(
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     orders = crud.get_today_orders(db, date)
+    
+    print(f"DEBUG ORDERS API: get_orders_by_date returning {len(orders)} orders for date {date}")
+    for order in orders:
+        print(f"DEBUG ORDERS API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
+        print(f"DEBUG ORDERS API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
+        print(f"DEBUG ORDERS API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
+    
     return orders
 
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])
@@ -362,6 +381,46 @@ async def delete_menu_item(
         raise HTTPException(status_code=404, detail="メニューアイテムが見つかりません")
     
     return {"message": "メニューアイテムが削除されました"}
+
+@app.post("/admin/fix-delivery-locations")
+async def fix_delivery_locations(
+    current_user: schemas.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Fix existing orders with NULL delivery_location values"""
+    if current_user.email != "admin@example.com":
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    
+    print(f"DEBUG FIX: Starting delivery_location fix for NULL values")
+    
+    null_delivery_orders = db.query(models.OrderSQLAlchemy).filter(
+        models.OrderSQLAlchemy.delivery_location.is_(None)
+    ).all()
+    
+    print(f"DEBUG FIX: Found {len(null_delivery_orders)} orders with NULL delivery_location")
+    
+    updated_count = 0
+    for order in null_delivery_orders:
+        if order.department:
+            if "営業" in order.department:
+                default_location = "3F"
+            elif "開発" in order.department or "エンジニア" in order.department:
+                default_location = "4F"
+            elif "管理" in order.department or "総務" in order.department:
+                default_location = "2F"
+            else:
+                default_location = "オフィス内"
+        else:
+            default_location = "オフィス内"
+        
+        order.delivery_location = default_location
+        updated_count += 1
+        print(f"DEBUG FIX: Updated order {order.id}: department='{order.department}' -> delivery_location='{default_location}'")
+    
+    db.commit()
+    print(f"DEBUG FIX: Successfully updated {updated_count} orders")
+    
+    return {"message": f"Updated {updated_count} orders with delivery_location values"}
 
 @app.post("/menus",
     response_model=schemas.MenuSQLAlchemyResponse,
