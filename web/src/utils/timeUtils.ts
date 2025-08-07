@@ -68,11 +68,11 @@ export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, 
   
   return timeSlots.map(slot => ({
     value: slot,
-    disabled: isTimeSlotExpired(slot) || isCutoffTimeExpired(slot)
+    disabled: isTimeSlotExpired(slot) || isCutoffTimeExpired()
   }));
 };
 
-export const isCutoffTimeExpired = (timeSlot: string): boolean => {
+export const isCutoffTimeExpired = (): boolean => {
   const currentJST = getJSTTime();
   const currentHour = currentJST.getHours();
   const currentMinute = currentJST.getMinutes();
