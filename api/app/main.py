@@ -108,8 +108,6 @@ async def get_menus_by_date(
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
-    if not menus:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
     return menus
 
 @app.post("/orders", response_model=schemas.Order, 
