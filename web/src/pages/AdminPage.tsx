@@ -570,7 +570,6 @@ export default function AdminPage() {
                           checked={row.cafe_time_available}
                           onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
                         />
-                        <span className="text-xs text-gray-600 text-center">カフェタイム</span>
                       </div>
                       <Button
                         size="sm"
