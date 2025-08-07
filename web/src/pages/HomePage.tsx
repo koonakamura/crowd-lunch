@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots, getJSTTime, isCafeTime, isCutoffTimeExpired } from '../utils/timeUtils'
+import { getAvailableTimeSlots, getJSTTime, isCutoffTimeExpired } from '../utils/timeUtils'
 
 interface TodayOrderData {
   date: string;

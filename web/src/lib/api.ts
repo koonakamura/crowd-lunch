@@ -397,7 +397,6 @@ export interface MenuSQLAlchemy {
   img_url?: string;
   cafe_time_available: boolean;
   created_at: string;
-  cafe_time_available?: boolean;
 }
 
 export const apiClient = new ApiClient();

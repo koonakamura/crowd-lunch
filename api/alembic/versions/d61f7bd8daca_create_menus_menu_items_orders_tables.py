@@ -21,7 +21,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_table('menu',
+    op.create_table('menus',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date', sa.Date(), nullable=False),
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -34,7 +34,7 @@ def upgrade() -> None:
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('price', sa.Float(), nullable=False),
     sa.Column('stock', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['menu_id'], ['menu.id'], ),
+    sa.ForeignKeyConstraint(['menu_id'], ['menus.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('order',
@@ -53,4 +53,4 @@ def downgrade() -> None:
     """Downgrade schema."""
     op.drop_table('order')
     op.drop_table('menuitem')
-    op.drop_table('menu')
+    op.drop_table('menus')
