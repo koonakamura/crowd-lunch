@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots, getJSTTime } from '../utils/timeUtils'
+import { getAvailableTimeSlots, getJSTTime, isCutoffTimeExpired } from '../utils/timeUtils'
 
 interface TodayOrderData {
   date: string;
@@ -113,13 +113,24 @@ export default function HomePage() {
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const getMenusForDate = (date: Date) => {
+  const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
     if (!weeklyMenus || weeklyMenus.length === 0) return []
     
     const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
     const dateKey = format(date, 'yyyy-MM-dd')
     const menus = menusByDate.get(dateKey) ?? []
+    
+    if (selectedDeliveryTime && isCafeTime(selectedDeliveryTime)) {
+      return menus.filter(menu => menu.cafe_time_available === true)
+    }
+    
     return menus
+  }
+
+  const isCafeTime = (timeSlot: string): boolean => {
+    const startTime = timeSlot.split('～')[0]
+    const [hour] = startTime.split(':').map(Number)
+    return hour >= 14
   }
 
   const getSelectedDate = (): Date | null => {
@@ -164,6 +175,11 @@ export default function HomePage() {
 
   const handleSubmitOrder = async () => {
     if (!department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation) return
+    
+    if (isCutoffTimeExpired()) {
+      toast.error('申し訳ございません。18:14以降の注文受付は終了しております。')
+      return
+    }
     
     setIsSubmitting(true)
     try {
@@ -339,7 +355,7 @@ export default function HomePage() {
       <div className="pt-16">
         {weekDays.map((dayInfo, index) => {
           const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date)
+          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
           
           return (
             <section 

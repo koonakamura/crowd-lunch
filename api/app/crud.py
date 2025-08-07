@@ -286,19 +286,30 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
 
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     """Get MenuSQLAlchemy menus with optional date filter"""
+    query = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == date_filter).all()
-    else:
-        return db.query(models.MenuSQLAlchemy).all()
+        query = query.filter(models.MenuSQLAlchemy.serve_date == date_filter)
+    menus = query.all()
+    
+    for menu in menus:
+        if not hasattr(menu, 'cafe_time_available') or menu.cafe_time_available is None:
+            menu.cafe_time_available = False
+    
+    return menus
 
 def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     """Create a new MenuSQLAlchemy menu"""
+    cafe_time_available = getattr(menu, 'cafe_time_available', False)
+    if cafe_time_available is None:
+        cafe_time_available = False
+    
     db_menu = models.MenuSQLAlchemy(
         serve_date=menu.serve_date,
         title=menu.title,
         price=menu.price,
         max_qty=menu.max_qty,
-        img_url=menu.img_url
+        img_url=menu.img_url,
+        cafe_time_available=cafe_time_available
     )
     db.add(db_menu)
     db.commit()
@@ -319,6 +330,8 @@ def update_menu_sqlalchemy(db: Session, menu_id: int, menu_update: schemas.MenuS
         menu.max_qty = menu_update.max_qty
     if menu_update.img_url is not None:
         menu.img_url = menu_update.img_url
+    if menu_update.cafe_time_available is not None:
+        menu.cafe_time_available = menu_update.cafe_time_available
     
     db.commit()
     db.refresh(menu)

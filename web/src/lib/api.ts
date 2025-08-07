@@ -15,6 +15,7 @@ export interface Menu {
   price: number;
   max_qty: number;
   img_url?: string;
+  cafe_time_available: boolean;
   created_at: string;
   remaining_qty?: number;
 }
@@ -261,6 +262,7 @@ class ApiClient {
     price: number;
     max_qty: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request('/menus', {
       method: 'POST',
@@ -273,6 +275,7 @@ class ApiClient {
     price?: number;
     max_qty?: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request(`/menus/${menuId}`, {
       method: 'PUT',
@@ -311,12 +314,14 @@ class ApiClient {
     title: string;
     price: number;
     max_qty: number;
+    cafe_time_available?: boolean;
   }, image?: File | null): Promise<MenuSQLAlchemy> {
     const formData = new FormData();
     formData.append('serve_date', menu.serve_date);
     formData.append('title', menu.title);
     formData.append('price', menu.price.toString());
     formData.append('max_qty', menu.max_qty.toString());
+    formData.append('cafe_time_available', (menu.cafe_time_available || false).toString());
     if (image) {
       formData.append('image', image);
     }
@@ -348,11 +353,13 @@ class ApiClient {
     title?: string;
     price?: number;
     max_qty?: number;
+    cafe_time_available?: boolean;
   }, image?: File | null): Promise<MenuSQLAlchemy> {
     const formData = new FormData();
     if (menu.title !== undefined) formData.append('title', menu.title);
     if (menu.price !== undefined) formData.append('price', menu.price.toString());
     if (menu.max_qty !== undefined) formData.append('max_qty', menu.max_qty.toString());
+    if (menu.cafe_time_available !== undefined) formData.append('cafe_time_available', menu.cafe_time_available.toString());
     if (image) {
       formData.append('image', image);
     }
@@ -388,6 +395,7 @@ export interface MenuSQLAlchemy {
   price: number;
   max_qty: number;
   img_url?: string;
+  cafe_time_available: boolean;
   created_at: string;
 }
 
