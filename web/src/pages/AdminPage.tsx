@@ -522,6 +522,16 @@ export default function AdminPage() {
 
               {/* Menu Rows */}
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
+                {/* Column Headers */}
+                <div className="flex gap-3 items-center mb-3 pb-2 border-b border-gray-200">
+                  <div className="flex-1 text-sm font-medium text-gray-700">メニュー</div>
+                  <div className="w-24 text-sm font-medium text-gray-700 text-center">金額</div>
+                  <div className="w-24 text-sm font-medium text-gray-700 text-center">販売数</div>
+                  <div className="w-16 text-sm font-medium text-gray-700 text-center">カフェ</div>
+                  <div className="w-8"></div> {/* Edit button space */}
+                  <div className="w-8"></div> {/* Delete button space */}
+                </div>
+                
                 <div className="space-y-3">
                   {menuRows.map((row, index) => (
                     <div key={index} className="flex gap-3 items-center">
