@@ -15,6 +15,7 @@ export interface Menu {
   price: number;
   max_qty: number;
   img_url?: string;
+  cafe_time_available: boolean;
   created_at: string;
   remaining_qty?: number;
 }

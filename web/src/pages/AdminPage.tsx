@@ -348,7 +348,7 @@ export default function AdminPage() {
     return null
   }
 
-  const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number) => {
+  const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number | boolean) => {
     const updated = [...menuRows]
     updated[index] = { ...updated[index], [field]: value }
     setMenuRows(updated)
@@ -512,7 +512,7 @@ export default function AdminPage() {
                         setSelectedImage(file);
                         
                         if (menuRows.length === 0) {
-                          setMenuRows([{ id: null, title: '', price: 0, max_qty: 0 }])
+                          setMenuRows([{ id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false }])
                         }
                       }
                     }}
