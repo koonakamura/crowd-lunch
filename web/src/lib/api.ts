@@ -392,3 +392,4 @@ export interface MenuSQLAlchemy {
 }
 
 export const apiClient = new ApiClient();
+export { ApiClient };

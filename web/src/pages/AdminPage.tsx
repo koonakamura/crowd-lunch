@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient, type MenuSQLAlchemy } from '../lib/api'
+import { type MenuSQLAlchemy, ApiClient } from '../lib/api'
 
 const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
@@ -39,6 +39,9 @@ import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucid
 import { useNavigate } from 'react-router-dom'
 import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
+import { useWebSocketWithRetry } from '../hooks/useWebSocketWithRetry'
+import { showOrderNotification } from '../components/OrderNotificationPopup'
+import { Alert, AlertDescription } from '../components/ui/alert'
 
 interface Order {
   id: number
@@ -81,6 +84,7 @@ export default function AdminPage() {
   })
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
 
+  const apiClient = new ApiClient()
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
   const { data: orders } = useQuery<Order[]>({
@@ -228,28 +232,44 @@ export default function AdminPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (user?.email !== 'admin@example.com') return
-    
-    const wsUrl = (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws')
-    const ws = new WebSocket(`${wsUrl}/ws/orders`)
-    
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
+  const { showErrorBanner } = useWebSocketWithRetry({
+    url: (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws') + '/ws/orders',
+    enabled: user?.email === 'admin@example.com',
+    maxRetries: 5,
+    retryInterval: 3000,
+    onMessage: async (data) => {
+      if (data.type === 'order_created' && isNotificationEnabled) {
+        if (audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
         }
-      } catch (error) {
-        console.error('WebSocket message parsing error:', error)
+        
+        try {
+          if (data.order_id) {
+            const fullOrder = await apiClient.getOrder(data.order_id)
+            showOrderNotification(fullOrder)
+          } else {
+            toast({
+              title: "新規注文",
+              description: data.customer_name ? `${data.customer_name}からの新規注文` : "新規注文が入りました",
+              duration: 5000,
+            })
+          }
+        } catch (error) {
+          console.error('Failed to fetch order details:', error)
+          toast({
+            title: "新規注文",
+            description: data.customer_name ? `${data.customer_name}からの新規注文` : "新規注文が入りました",
+            duration: 5000,
+          })
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
       }
+    },
+    onConnectionChange: (connected) => {
+      console.log('WebSocket connection status:', connected)
     }
-    
-    return () => {
-      ws.close()
-    }
-  }, [user, isNotificationEnabled, audioElement, queryClient])
+  })
 
   if (user?.email !== 'admin@example.com') {
     return (
@@ -451,6 +471,14 @@ export default function AdminPage() {
           </div>
         </div>
       </header>
+
+      {showErrorBanner && (
+        <Alert variant="destructive" className="mx-4 mt-4">
+          <AlertDescription>
+            WebSocket接続に失敗しました。通知機能が利用できません。接続を再試行中です...
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="p-4 space-y-6">
         {/* Date Selection - Round Buttons */}
