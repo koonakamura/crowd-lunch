@@ -431,6 +431,7 @@ async def create_menu_by_date(
     title: str = Form(...),
     price: int = Form(...),
     max_qty: int = Form(...),
+    cafe_time_available: bool = Form(False),
     image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
@@ -459,7 +460,8 @@ async def create_menu_by_date(
         title=title,
         price=price,
         max_qty=max_qty,
-        img_url=img_url
+        img_url=img_url,
+        cafe_time_available=cafe_time_available
     )
     db_menu = crud.create_menu_sqlalchemy(db, menu_data)
     return db_menu
@@ -470,6 +472,7 @@ async def update_menu_by_date(
     title: str = Form(None),
     price: int = Form(None),
     max_qty: int = Form(None),
+    cafe_time_available: bool = Form(None),
     image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
@@ -510,7 +513,8 @@ async def update_menu_by_date(
         title=title,
         price=price,
         max_qty=max_qty,
-        img_url=img_url
+        img_url=img_url,
+        cafe_time_available=cafe_time_available
     )
     db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
     if not db_menu:

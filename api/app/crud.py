@@ -298,7 +298,8 @@ def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
         title=menu.title,
         price=menu.price,
         max_qty=menu.max_qty,
-        img_url=menu.img_url
+        img_url=menu.img_url,
+        cafe_time_available=menu.cafe_time_available
     )
     db.add(db_menu)
     db.commit()
@@ -319,6 +320,8 @@ def update_menu_sqlalchemy(db: Session, menu_id: int, menu_update: schemas.MenuS
         menu.max_qty = menu_update.max_qty
     if menu_update.img_url is not None:
         menu.img_url = menu_update.img_url
+    if menu_update.cafe_time_available is not None:
+        menu.cafe_time_available = menu_update.cafe_time_available
     
     db.commit()
     db.refresh(menu)

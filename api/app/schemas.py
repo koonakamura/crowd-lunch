@@ -152,6 +152,7 @@ class MenuSQLAlchemyBase(BaseModel):
     price: int
     max_qty: int
     img_url: Optional[str] = None
+    cafe_time_available: bool = False
 
 class MenuSQLAlchemyCreate(MenuSQLAlchemyBase):
     pass
@@ -161,6 +162,7 @@ class MenuSQLAlchemyUpdate(BaseModel):
     price: Optional[int] = None
     max_qty: Optional[int] = None
     img_url: Optional[str] = None
+    cafe_time_available: Optional[bool] = None
 
 class MenuSQLAlchemyResponse(MenuSQLAlchemyBase):
     id: int

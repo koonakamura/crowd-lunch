@@ -34,6 +34,7 @@ interface MenuRow {
   title: string;
   price: number;
   max_qty: number;
+  cafe_time_available: boolean;
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -110,14 +111,16 @@ export default function AdminPage() {
           return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty
+            max_qty: row.max_qty,
+            cafe_time_available: row.cafe_time_available
           }, imageToUpload)
         } else {
           return apiClient.createMenuSQLAlchemyWithImage({
             serve_date: formatDateForApi(selectedDate),
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty
+            max_qty: row.max_qty,
+            cafe_time_available: row.cafe_time_available
           }, imageToUpload)
         }
       })
@@ -147,7 +150,7 @@ export default function AdminPage() {
     },
     onSuccess: (_, menuId) => {
       setMenuRows(prevRows => prevRows.map(row => 
-        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0 } : row
+        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
       ))
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
@@ -193,7 +196,8 @@ export default function AdminPage() {
         id: menu.id,
         title: menu.title,
         price: menu.price,
-        max_qty: menu.max_qty
+        max_qty: menu.max_qty,
+        cafe_time_available: menu.cafe_time_available || false
       }))
       setMenuRows(newRows)
       
@@ -278,7 +282,7 @@ export default function AdminPage() {
 
 
   const addMenuRow = () => {
-    setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0 }])
+    setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false }])
   }
 
   const handleDeleteMenu = (index: number) => {
@@ -311,7 +315,8 @@ export default function AdminPage() {
         menuData: {
           title: menu.title,
           price: menu.price,
-          max_qty: menu.max_qty
+          max_qty: menu.max_qty,
+          cafe_time_available: menu.cafe_time_available
         }
       })
     }
@@ -549,6 +554,13 @@ export default function AdminPage() {
                         {validationErrors[`${index}-max_qty`] && (
                           <p className="text-sm text-red-500">{validationErrors[`${index}-max_qty`]}</p>
                         )}
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <label className="text-xs text-gray-600">カフェタイム</label>
+                        <Switch
+                          checked={row.cafe_time_available}
+                          onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
+                        />
                       </div>
                       <Button
                         size="sm"

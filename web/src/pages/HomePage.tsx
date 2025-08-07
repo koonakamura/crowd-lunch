@@ -113,13 +113,24 @@ export default function HomePage() {
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const getMenusForDate = (date: Date) => {
+  const getMenusForDate = (date: Date, selectedTime?: string) => {
     if (!weeklyMenus || weeklyMenus.length === 0) return []
     
     const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
     const dateKey = format(date, 'yyyy-MM-dd')
-    const menus = menusByDate.get(dateKey) ?? []
+    let menus = menusByDate.get(dateKey) ?? []
+    
+    if (selectedTime && isCafeTime(selectedTime)) {
+      menus = menus.filter(menu => menu.cafe_time_available)
+    }
+    
     return menus
+  }
+
+  const isCafeTime = (timeSlot: string): boolean => {
+    const startTime = timeSlot.split('～')[0]
+    const [hour] = startTime.split(':').map(Number)
+    return hour >= 14
   }
 
   const getSelectedDate = (): Date | null => {
@@ -339,7 +350,7 @@ export default function HomePage() {
       <div className="pt-16">
         {weekDays.map((dayInfo, index) => {
           const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date)
+          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
           
           return (
             <section 
