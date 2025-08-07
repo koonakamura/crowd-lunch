@@ -37,7 +37,7 @@ class MenuSQLAlchemy(Base):
     price = Column(Integer, nullable=False)
     max_qty = Column(Integer, nullable=False)
     img_url = Column(String)
-    cafe_time_available = Column(Boolean, nullable=False, default=False)
+    cafe_time_available = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     order_items = relationship("OrderItem", back_populates="menu")

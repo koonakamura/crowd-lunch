@@ -299,7 +299,7 @@ def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
         price=menu.price,
         max_qty=menu.max_qty,
         img_url=menu.img_url,
-        cafe_time_available=menu.cafe_time_available
+        cafe_time_available=menu.cafe_time_available or False
     )
     db.add(db_menu)
     db.commit()

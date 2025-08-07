@@ -37,6 +37,7 @@ class Menu(MenuBase):
 
 class MenuWithRemaining(Menu):
     remaining_qty: int
+    cafe_time_available: Optional[bool] = False
 
 class OrderItemBase(BaseModel):
     menu_id: int
@@ -152,7 +153,7 @@ class MenuSQLAlchemyBase(BaseModel):
     price: int
     max_qty: int
     img_url: Optional[str] = None
-    cafe_time_available: bool = False
+    cafe_time_available: Optional[bool] = False
 
 class MenuSQLAlchemyCreate(MenuSQLAlchemyBase):
     pass

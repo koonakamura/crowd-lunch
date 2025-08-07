@@ -556,11 +556,11 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <label className="text-xs text-gray-600">カフェタイム</label>
                         <Switch
                           checked={row.cafe_time_available}
                           onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
                         />
+                        <span className="text-xs text-gray-600 text-center">カフェタイム</span>
                       </div>
                       <Button
                         size="sm"

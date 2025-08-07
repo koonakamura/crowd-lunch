@@ -262,6 +262,7 @@ class ApiClient {
     price: number;
     max_qty: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request('/menus', {
       method: 'POST',
@@ -274,6 +275,7 @@ class ApiClient {
     price?: number;
     max_qty?: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request(`/menus/${menuId}`, {
       method: 'PUT',
@@ -395,6 +397,7 @@ export interface MenuSQLAlchemy {
   img_url?: string;
   cafe_time_available: boolean;
   created_at: string;
+  cafe_time_available?: boolean;
 }
 
 export const apiClient = new ApiClient();

@@ -72,14 +72,14 @@ export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, 
   }));
 };
 
+export const isCafeTime = (timeSlot: string): boolean => {
+  const { startTime } = parseTimeSlot(timeSlot);
+  const cafeTimeStart = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate(), 14, 0);
+  return startTime >= cafeTimeStart;
+};
+
 export const isCutoffTimeExpired = (): boolean => {
   const currentJST = getJSTTime();
-  const currentHour = currentJST.getHours();
-  const currentMinute = currentJST.getMinutes();
-  
-  if (currentHour > 18 || (currentHour === 18 && currentMinute >= 14)) {
-    return true;
-  }
-  
-  return false;
+  const today = new Date(currentJST.getFullYear(), currentJST.getMonth(), currentJST.getDate(), 18, 14);
+  return currentJST >= today;
 };
