@@ -11,9 +11,35 @@
   to = "https://crowd-lunch.fly.dev/:splat"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
 
 [[redirects]]
   from = "/server-time"
   to = "https://crowd-lunch.fly.dev/server-time"
   status = 200
   force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure auth endpoints are properly proxied
+[[redirects]]
+  from = "/api/auth/*"
+  to = "https://crowd-lunch.fly.dev/auth/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure menu endpoints are properly proxied
+[[redirects]]
+  from = "/api/menus/*"
+  to = "https://crowd-lunch.fly.dev/menus/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure order endpoints are properly proxied
+[[redirects]]
+  from = "/api/orders/*"
+  to = "https://crowd-lunch.fly.dev/orders/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
