@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://crowd-lunch.fly.dev';
+const API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
 
 export interface User {
   id: number;
@@ -15,6 +15,7 @@ export interface Menu {
   price: number;
   max_qty: number;
   img_url?: string;
+  cafe_time_available: boolean;
   created_at: string;
   remaining_qty?: number;
 }
@@ -104,8 +105,33 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `HTTP ${response.status}`);
+      if (response.status === 401) {
+        this.clearToken();
+        window.location.href = '/login';
+        throw new Error('認証が必要です。ログインしてください。');
+      }
+      
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}`;
+      let errorCode = null;
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.detail && typeof errorJson.detail === 'object' && errorJson.detail.code) {
+          errorCode = errorJson.detail.code;
+          errorMessage = errorJson.detail.message || errorMessage;
+        } else {
+          errorMessage = errorJson.detail || errorMessage;
+        }
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      
+      const error = new Error(errorMessage) as Error & { code?: string };
+      if (errorCode) {
+        error.code = errorCode;
+      }
+      throw error;
     }
 
     return response.json();
@@ -120,7 +146,7 @@ class ApiClient {
 
   async getWeeklyMenus(date?: string): Promise<WeeklyMenuResponse[]> {
     const currentDate = date || new Date().toISOString().split('T')[0];
-    return this.request(`/menus/weekly?date=${currentDate}`);
+    return this.request(`/weekly-menus?date=${currentDate}`);
   }
 
   async createOrder(order: {
@@ -144,20 +170,10 @@ class ApiClient {
     name: string;
     items: OrderItem[];
   }): Promise<Order> {
-    const response = await fetch(`${API_BASE_URL}/orders/guest`, {
+    return this.request('/orders/guest', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(order),
     });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `HTTP ${response.status}`);
-    }
-    
-    return response.json();
   }
 
   async getOrder(orderId: number): Promise<Order> {
@@ -261,6 +277,7 @@ class ApiClient {
     price: number;
     max_qty: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request('/menus', {
       method: 'POST',
@@ -273,6 +290,7 @@ class ApiClient {
     price?: number;
     max_qty?: number;
     img_url?: string;
+    cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
     return this.request(`/menus/${menuId}`, {
       method: 'PUT',
@@ -311,12 +329,14 @@ class ApiClient {
     title: string;
     price: number;
     max_qty: number;
+    cafe_time_available?: boolean;
   }, image?: File | null): Promise<MenuSQLAlchemy> {
     const formData = new FormData();
     formData.append('serve_date', menu.serve_date);
     formData.append('title', menu.title);
     formData.append('price', menu.price.toString());
     formData.append('max_qty', menu.max_qty.toString());
+    formData.append('cafe_time_available', (menu.cafe_time_available || false).toString());
     if (image) {
       formData.append('image', image);
     }
@@ -348,14 +368,21 @@ class ApiClient {
     title?: string;
     price?: number;
     max_qty?: number;
+    cafe_time_available?: boolean;
   }, image?: File | null): Promise<MenuSQLAlchemy> {
+    if (!image) {
+      return this.request(`/menus/${menuId}`, {
+        method: 'PUT',
+        body: JSON.stringify(menu),
+      });
+    }
+
     const formData = new FormData();
     if (menu.title !== undefined) formData.append('title', menu.title);
     if (menu.price !== undefined) formData.append('price', menu.price.toString());
     if (menu.max_qty !== undefined) formData.append('max_qty', menu.max_qty.toString());
-    if (image) {
-      formData.append('image', image);
-    }
+    if (menu.cafe_time_available !== undefined) formData.append('cafe_time_available', menu.cafe_time_available.toString());
+    formData.append('image', image);
 
     const response = await fetch(`${API_BASE_URL}/menus/${menuId}`, {
       method: 'PUT',
@@ -366,6 +393,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+        window.location.href = '/login';
+        throw new Error('認証が必要です。ログインしてください。');
+      }
+      
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}`;
       try {
@@ -379,6 +412,10 @@ class ApiClient {
 
     return response.json();
   }
+
+  async getServerTime(): Promise<{ current_time: string; timezone: string }> {
+    return this.request('/server-time');
+  }
 }
 
 export interface MenuSQLAlchemy {
@@ -388,6 +425,7 @@ export interface MenuSQLAlchemy {
   price: number;
   max_qty: number;
   img_url?: string;
+  cafe_time_available: boolean;
   created_at: string;
 }
 

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots, getJSTTime } from '../utils/timeUtils'
+import { getAvailableTimeSlots, isCutoffTimeExpired } from '../utils/timeUtils'
 
 interface TodayOrderData {
   date: string;
@@ -41,7 +41,7 @@ const getTodayOrder = (): TodayOrderData | null => {
     if (!stored) return null;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(getJSTTime(), 'yyyy-MM-dd');
+    const today = format(new Date(), 'yyyy-MM-dd');
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -62,7 +62,7 @@ const clearOldOrders = (): void => {
     if (!stored) return;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(getJSTTime(), 'yyyy-MM-dd');
+    const today = format(new Date(), 'yyyy-MM-dd');
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -89,11 +89,28 @@ export default function HomePage() {
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
+  const [serverTime, setServerTime] = useState<Date | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
     queryKey: ['weeklyMenus'],
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
   })
+
+  useEffect(() => {
+    const fetchServerTime = async () => {
+      try {
+        const response = await apiClient.getServerTime()
+        setServerTime(new Date(response.current_time))
+      } catch (error) {
+        console.error('Failed to fetch server time:', error)
+      }
+    }
+    
+    fetchServerTime()
+    const interval = setInterval(fetchServerTime, 60000)
+    
+    return () => clearInterval(interval)
+  }, [])
 
   const weekDays = generateWeekdayDates(new Date(), 7)
 
@@ -113,13 +130,28 @@ export default function HomePage() {
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const getMenusForDate = (date: Date) => {
+  const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
     if (!weeklyMenus || weeklyMenus.length === 0) return []
     
     const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
     const dateKey = format(date, 'yyyy-MM-dd')
     const menus = menusByDate.get(dateKey) ?? []
+    
+    const shouldFilterForCafeTime = selectedDeliveryTime ? 
+      isCafeTime(selectedDeliveryTime) : 
+      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
+    
+    if (shouldFilterForCafeTime) {
+      return menus.filter(menu => menu.cafe_time_available === true)
+    }
+    
     return menus
+  }
+
+  const isCafeTime = (timeSlot: string): boolean => {
+    const startTime = timeSlot.split('～')[0]
+    const [hour] = startTime.split(':').map(Number)
+    return hour >= 14
   }
 
   const getSelectedDate = (): Date | null => {
@@ -165,6 +197,11 @@ export default function HomePage() {
   const handleSubmitOrder = async () => {
     if (!department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation) return
     
+    if (isCutoffTimeExpired()) {
+      toast.error('申し訳ございません。18:14以降の注文受付は終了しております。')
+      return
+    }
+    
     setIsSubmitting(true)
     try {
       const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
@@ -189,7 +226,7 @@ export default function HomePage() {
 
       const selectedMenus = getSelectedMenus();
       const orderData: TodayOrderData = {
-        date: format(getJSTTime(), 'yyyy-MM-dd'),
+        date: serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         department: department,
         customerName: customerName,
         deliveryLocation: deliveryLocation,
@@ -206,7 +243,7 @@ export default function HomePage() {
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
 
       setShowOrderModal(false)
@@ -221,10 +258,20 @@ export default function HomePage() {
       toast.success('注文が正常に送信されました')
     } catch (error) {
       console.error('Order submission failed:', error)
-      toast.error('注文の送信に失敗しました。もう一度お試しください。')
-      queryClient.invalidateQueries({ queryKey: ['orders', format(new Date(), 'yyyy-MM-dd')] })
+      const errorWithCode = error as Error & { code?: string }
+      
+      if (errorWithCode.code === 'cafe_time_closed') {
+        toast.error('本日のカフェタイム受付は18:14で終了しました')
+      } else if (errorWithCode.code === 'menu_not_available') {
+        toast.error('このメニューはカフェタイムでは注文できません')
+      } else if (errorWithCode.code === 'invalid_timeslot') {
+        toast.error('選択した時間が有効範囲外です')
+      } else {
+        toast.error('注文の送信に失敗しました。もう一度お試しください。')
+      }
+      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
-    }finally {
+    } finally {
       setIsSubmitting(false)
     }
   }
@@ -339,7 +386,7 @@ export default function HomePage() {
       <div className="pt-16">
         {weekDays.map((dayInfo, index) => {
           const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date)
+          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
           
           return (
             <section 

@@ -76,7 +76,7 @@ def test_login(client):
     assert data["user"]["email"] == "test@example.com"
 
 def test_weekly_menus(client, test_menu):
-    response = client.get("/menus/weekly")
+    response = client.get("/weekly-menus")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -186,7 +186,7 @@ def test_error_handling(client):
     assert response.status_code == 401
 
 def test_menu_endpoints_coverage(client, test_menu):
-    response = client.get("/menus/weekly")
+    response = client.get("/weekly-menus")
     assert response.status_code == 200
     
     data = response.json()
@@ -277,7 +277,7 @@ def test_auth_dependency_coverage(client):
     assert get_current_user_optional is not None
 
 def test_cors_and_startup_coverage(client):
-    response = client.options("/menus/weekly", headers={
+    response = client.options("/weekly-menus", headers={
         "Origin": "http://localhost:3000",
         "Access-Control-Request-Method": "GET"
     })

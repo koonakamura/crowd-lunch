@@ -18,16 +18,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = localStorage.getItem('auth_token');
     if (token) {
       apiClient.setToken(token);
-      apiClient.getTodayOrders().then(() => {
-        setUser({ id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() });
-        setIsLoading(false);
-      }).catch(() => {
-        apiClient.clearToken();
-        setIsLoading(false);
-      });
-    } else {
-      setIsLoading(false);
+      setUser({ id: 1, name: 'Admin', email: 'admin@example.com', seat_id: undefined, created_at: new Date().toISOString() });
     }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string) => {

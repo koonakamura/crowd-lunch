@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date, datetime, time
 import enum
 
-from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
@@ -37,6 +37,7 @@ class MenuSQLAlchemy(Base):
     price = Column(Integer, nullable=False)
     max_qty = Column(Integer, nullable=False)
     img_url = Column(String)
+    cafe_time_available = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     
     order_items = relationship("OrderItem", back_populates="menu")
