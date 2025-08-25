@@ -370,14 +370,19 @@ class ApiClient {
     max_qty?: number;
     cafe_time_available?: boolean;
   }, image?: File | null): Promise<MenuSQLAlchemy> {
+    if (!image) {
+      return this.request(`/menus/${menuId}`, {
+        method: 'PUT',
+        body: JSON.stringify(menu),
+      });
+    }
+
     const formData = new FormData();
     if (menu.title !== undefined) formData.append('title', menu.title);
     if (menu.price !== undefined) formData.append('price', menu.price.toString());
     if (menu.max_qty !== undefined) formData.append('max_qty', menu.max_qty.toString());
     if (menu.cafe_time_available !== undefined) formData.append('cafe_time_available', menu.cafe_time_available.toString());
-    if (image) {
-      formData.append('image', image);
-    }
+    formData.append('image', image);
 
     const response = await fetch(`${API_BASE_URL}/menus/${menuId}`, {
       method: 'PUT',
@@ -388,6 +393,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+        window.location.href = '/login';
+        throw new Error('認証が必要です。ログインしてください。');
+      }
+      
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}`;
       try {

@@ -27,16 +27,17 @@ async def validation_exception_handler(request, exc):
         content={"detail": "Validation error occurred"}
     )
 
+ALLOWED_ORIGINS = [
+    "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
-        "*"  # Allow all origins for development
-    ],
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,  # Bearer auth doesn't need credentials=True
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["authorization", "content-type"],
 )
 
 Base.metadata.create_all(bind=engine)
