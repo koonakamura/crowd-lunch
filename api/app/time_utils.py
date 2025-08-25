@@ -80,7 +80,7 @@ def validate_delivery_time(request_time: str, delivery_date: str = None) -> bool
     
     try:
         current_jst = get_jst_time()
-        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 14):
+        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15):
             return False
         
         # JST timezone validation: future dates are always valid

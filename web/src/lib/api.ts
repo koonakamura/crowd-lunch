@@ -105,8 +105,27 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `HTTP ${response.status}`);
+      const errorText = await response.text();
+      let errorMessage = `HTTP ${response.status}`;
+      let errorCode = null;
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.detail && typeof errorJson.detail === 'object' && errorJson.detail.code) {
+          errorCode = errorJson.detail.code;
+          errorMessage = errorJson.detail.message || errorMessage;
+        } else {
+          errorMessage = errorJson.detail || errorMessage;
+        }
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      
+      const error = new Error(errorMessage) as Error & { code?: string };
+      if (errorCode) {
+        error.code = errorCode;
+      }
+      throw error;
     }
 
     return response.json();
@@ -145,20 +164,10 @@ class ApiClient {
     name: string;
     items: OrderItem[];
   }): Promise<Order> {
-    const response = await fetch(`${API_BASE_URL}/orders/guest`, {
+    return this.request('/orders/guest', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(order),
     });
-    
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || `HTTP ${response.status}`);
-    }
-    
-    return response.json();
   }
 
   async getOrder(orderId: number): Promise<Order> {
@@ -385,6 +394,10 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  async getServerTime(): Promise<{ current_time: string; timezone: string }> {
+    return this.request('/server-time');
   }
 }
 

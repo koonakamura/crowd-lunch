@@ -68,6 +68,15 @@ manager = ConnectionManager()
 async def healthz():
     return {"status": "ok"}
 
+@app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
+async def get_server_time():
+    from .time_utils import get_jst_time
+    current_jst = get_jst_time()
+    return {
+        "current_time": current_jst.isoformat(),
+        "timezone": "Asia/Tokyo"
+    }
+
 @app.post("/auth/login")
 async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = crud.get_or_create_user(db, login_request.email)
@@ -120,10 +129,28 @@ async def create_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
+        from .time_utils import get_jst_time
+        current_jst = get_jst_time()
+        
+        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "cafe_time_closed", "message": "本日のカフェタイム受付は18:14で終了しました"}
+            )
+        
+        if current_jst.hour >= 14:
+            for item in order.items:
+                menu = crud.get_menu_by_id(db, item.menu_id)
+                if menu and not menu.cafe_time_available:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
+                    )
+        
         if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
             )
     
     db_order = crud.create_order(db, order, current_user.id)
@@ -145,10 +172,28 @@ async def create_guest_order(
 ):
     import os
     if os.getenv("TESTING") != "true":
+        from .time_utils import get_jst_time
+        current_jst = get_jst_time()
+        
+        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "cafe_time_closed", "message": "本日のカフェタイム受付は18:14で終了しました"}
+            )
+        
+        if current_jst.hour >= 14:
+            for item in order.items:
+                menu = crud.get_menu_by_id(db, item.menu_id)
+                if menu and not menu.cafe_time_available:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
+                    )
+        
         if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
             )
     
     print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")

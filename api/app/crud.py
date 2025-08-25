@@ -5,6 +5,9 @@ from typing import List, Optional
 from . import models, schemas
 from sqlmodel import select
 
+def get_menu_by_id(db: Session, menu_id: int):
+    return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
@@ -282,7 +285,13 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     
     db.commit()
     db.refresh(db_order)
-    return db_order
+    
+    from sqlalchemy.orm import joinedload
+    db_order_with_menus = db.query(models.OrderSQLAlchemy).options(
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu)
+    ).filter(models.OrderSQLAlchemy.id == db_order.id).first()
+    
+    return db_order_with_menus
 
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     """Get MenuSQLAlchemy menus with optional date filter"""
