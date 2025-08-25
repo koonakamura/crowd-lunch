@@ -83,7 +83,7 @@ async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_d
     access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
-@app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
+@app.get("/weekly-menus", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
     from datetime import timezone, timedelta as td
     jst = timezone(td(hours=9))
@@ -147,11 +147,12 @@ async def create_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
         
-        if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
-            )
+        if order.request_time and current_jst.hour < 14:
+            if not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                )
     
     db_order = crud.create_order(db, order, current_user.id)
     
@@ -190,11 +191,12 @@ async def create_guest_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
         
-        if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
-            )
+        if order.request_time and current_jst.hour < 14:
+            if not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                )
     
     print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
