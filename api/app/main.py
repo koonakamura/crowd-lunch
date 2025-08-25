@@ -30,6 +30,7 @@ async def validation_exception_handler(request, exc):
 ALLOWED_ORIGINS = [
     "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
     "http://localhost:3000",
+    "http://localhost:3001",
 ]
 
 app.add_middleware(
@@ -573,8 +574,16 @@ async def update_menu_by_date(
     db: Session = Depends(get_db)
 ):
     from .logging import log_audit
+    from .time_utils import get_jst_time
+    import logging
+    logger = logging.getLogger(__name__)
+    current_jst = get_jst_time()
+    
+    logger.info(f"PUT /menus/{menu_id} - Request arrived at {current_jst.isoformat()}")
+    logger.info(f"PUT /menus/{menu_id} - User: {current_user.email}, Data: title={title}, price={price}, max_qty={max_qty}, cafe_time_available={cafe_time_available}")
     
     if current_user.email != "admin@example.com":
+        logger.warning(f"PUT /menus/{menu_id} - Access denied (403) for user: {current_user.email}")
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     current_menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
@@ -621,11 +630,21 @@ async def update_menu_by_date(
         img_url=img_url,
         cafe_time_available=cafe_time_available
     )
-    db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
-    if not db_menu:
-        raise HTTPException(status_code=404, detail="メニューが見つかりません")
-    
-    return db_menu
+    try:
+        db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
+        if not db_menu:
+            logger.warning(f"PUT /menus/{menu_id} - Menu not found (404)")
+            raise HTTPException(status_code=404, detail="メニューが見つかりません")
+        
+        logger.info(f"PUT /menus/{menu_id} - Success (200) - Updated menu: {db_menu.title}")
+        return db_menu
+        
+    except HTTPException as e:
+        logger.error(f"PUT /menus/{menu_id} - HTTP Error {e.status_code}: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"PUT /menus/{menu_id} - Server Error (500): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 @app.delete("/menus/{menu_id}")
 async def delete_menu_by_date(

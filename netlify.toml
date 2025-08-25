@@ -1,7 +1,10 @@
 [build]
   base = "web"
   publish = "dist"
-  command = "npm run build"
+  command = "VITE_APP_COMMIT_SHA=$COMMIT_REF VITE_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) npm run build"
+
+[build.environment]
+  VITE_API_BASE_URL = "https://crowd-lunch.fly.dev"
 
 [dev]
   framework = "vite"

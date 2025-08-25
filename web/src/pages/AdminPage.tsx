@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, type MenuSQLAlchemy } from '../lib/api'
+import { DiagnosticInfo } from '../components/DiagnosticInfo'
 
 const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
@@ -710,6 +711,7 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DiagnosticInfo />
     </div>
   )
 }

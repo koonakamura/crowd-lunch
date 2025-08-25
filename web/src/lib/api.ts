@@ -1,4 +1,28 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
+function sanitizeApiUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.hostname.startsWith('xn--')) {
+      console.warn(`Punycode domain detected: ${urlObj.hostname}, falling back to direct API host`);
+      return 'https://crowd-lunch.fly.dev';
+    }
+    return url;
+  } catch {
+    return 'https://crowd-lunch.fly.dev';
+  }
+}
+
+const RAW_API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
+const API_BASE_URL = sanitizeApiUrl(RAW_API_BASE_URL);
+
+const DIAGNOSTIC_INFO = {
+  API_BASE_URL: API_BASE_URL,
+  RAW_API_BASE_URL: RAW_API_BASE_URL,
+  APP_COMMIT_SHA: (import.meta.env as { VITE_APP_COMMIT_SHA?: string }).VITE_APP_COMMIT_SHA || 'unknown',
+  APP_BUILD_TIME: (import.meta.env as { VITE_APP_BUILD_TIME?: string }).VITE_APP_BUILD_TIME || new Date().toISOString(),
+  ENVIRONMENT: (import.meta.env as { MODE?: string }).MODE || 'development'
+};
+
+console.log('=== API CLIENT DIAGNOSTIC INFO ===', DIAGNOSTIC_INFO);
 
 export interface User {
   id: number;
@@ -430,3 +454,5 @@ export interface MenuSQLAlchemy {
 }
 
 export const apiClient = new ApiClient();
+
+export { DIAGNOSTIC_INFO };
