@@ -140,7 +140,7 @@ class ApiClient {
 
   async getWeeklyMenus(date?: string): Promise<WeeklyMenuResponse[]> {
     const currentDate = date || new Date().toISOString().split('T')[0];
-    return this.request(`/menus/weekly?date=${currentDate}`);
+    return this.request(`/weekly-menus?date=${currentDate}`);
   }
 
   async createOrder(order: {
