@@ -24,6 +24,24 @@ const DIAGNOSTIC_INFO = {
 
 console.log('=== API CLIENT DIAGNOSTIC INFO ===', DIAGNOSTIC_INFO);
 
+const performConnectivityCheck = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/server-time`, {
+      method: 'GET',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    if (response.ok) {
+      console.log('✅ API connectivity verified');
+    } else {
+      console.warn('⚠️ API connectivity issue:', response.status);
+    }
+  } catch (error) {
+    console.error('❌ API connectivity failed:', error);
+  }
+};
+
+performConnectivityCheck();
+
 export interface User {
   id: number;
   name: string;
@@ -316,10 +334,20 @@ class ApiClient {
     img_url?: string;
     cafe_time_available?: boolean;
   }): Promise<MenuSQLAlchemy> {
-    return this.request(`/menus/${menuId}`, {
-      method: 'PUT',
-      body: JSON.stringify(menu),
-    });
+    console.log(`🔄 Updating menu ${menuId}:`, menu);
+    console.log(`📡 Request URL: ${API_BASE_URL}/menus/${menuId}`);
+    
+    try {
+      const result = await this.request<MenuSQLAlchemy>(`/menus/${menuId}`, {
+        method: 'PUT',
+        body: JSON.stringify(menu),
+      });
+      console.log(`✅ Menu ${menuId} updated successfully:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Menu ${menuId} update failed:`, error);
+      throw error;
+    }
   }
 
   async deleteMenuSQLAlchemy(menuId: number): Promise<void> {
