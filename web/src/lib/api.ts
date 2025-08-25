@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta.env as { VITE_API_URL?: string }).VITE_API_URL || 'https://crowd-lunch.fly.dev';
+const API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
 
 export interface User {
   id: number;
@@ -105,6 +105,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.clearToken();
+        window.location.href = '/login';
+        throw new Error('認証が必要です。ログインしてください。');
+      }
+      
       const errorText = await response.text();
       let errorMessage = `HTTP ${response.status}`;
       let errorCode = null;

@@ -27,13 +27,16 @@ async def validation_exception_handler(request, exc):
         content={"detail": "Validation error occurred"}
     )
 
-# Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=[
+        "http://localhost:3000",
+        "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
+        "*"  # Allow all origins for development
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 Base.metadata.create_all(bind=engine)
@@ -67,6 +70,11 @@ manager = ConnectionManager()
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
+
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    from fastapi import Response
+    return Response(status_code=204)
 
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
 async def get_server_time():

@@ -9,7 +9,9 @@ from .database import get_db
 from .models import User
 from .schemas import User as UserSchema
 
-SECRET_KEY = "your-secret-key-here"
+import os
+
+SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
