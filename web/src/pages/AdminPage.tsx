@@ -265,7 +265,7 @@ export default function AdminPage() {
             <Button 
               onClick={async () => {
                 try {
-                  await login('admin@example.com');
+                  await login();
                 } catch {
                   // Login errors are handled silently
                 }

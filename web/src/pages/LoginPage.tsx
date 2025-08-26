@@ -15,7 +15,7 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
-      await login(email)
+      await login()
     } catch (error) {
       console.error('Login failed:', error)
     } finally {
