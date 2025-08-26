@@ -63,7 +63,7 @@ if __name__ == "__main__":
     
     test_scenario("12:30", "12:30 (通常帯) → 成功", expected_status=200)
     test_scenario("14:30", "14:30 + cafe menu (menu_id=1) → 成功", expected_status=200, menu_id=1)
-    test_scenario("14:30", "14:30 + non-cafe menu (menu_id=3) → menu_not_available", expected_status=422, expected_error_code="menu_not_available", menu_id=3)
+    test_scenario("14:30", "14:30 + non-cafe menu (menu_id=2) → menu_not_available", expected_status=422, expected_error_code="menu_not_available", menu_id=2)
     test_scenario("18:45", "18:45 → invalid_timeslot", expected_status=422, expected_error_code="invalid_timeslot")
     test_scenario("10:30", "10:30 → invalid_timeslot (before cafe time)", expected_status=422, expected_error_code="invalid_timeslot")
     
@@ -75,4 +75,4 @@ if __name__ == "__main__":
     print("=" * 50)
     
     test_scenario("12:30～12:45", "Legacy 12:30～12:45 → 成功", expected_status=200, use_legacy_format=True)
-    test_scenario("14:30～14:45", "Legacy 14:30～14:45 + non-cafe menu → menu_not_available", expected_status=422, expected_error_code="menu_not_available", use_legacy_format=True, menu_id=3)
+    test_scenario("14:30～14:45", "Legacy 14:30～14:45 + non-cafe menu → menu_not_available", expected_status=422, expected_error_code="menu_not_available", use_legacy_format=True, menu_id=2)
