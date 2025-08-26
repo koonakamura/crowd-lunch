@@ -3,7 +3,7 @@ import { apiClient, User } from './api';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string) => Promise<void>;
+  login: () => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string) => {
+  const login = async () => {
     try {
       const API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
       const authUrl = `${API_BASE_URL}/auth/login?redirect_uri=${encodeURIComponent(
