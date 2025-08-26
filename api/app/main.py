@@ -28,7 +28,8 @@ async def validation_exception_handler(request, exc):
     )
 
 ALLOWED_ORIGINS = [
-    "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
+    "https://cheery-dango-2fd190.netlify.app",              # Production
+    "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",  # Preview
     "http://localhost:3000",
     "http://localhost:3001",
 ]
@@ -36,10 +37,10 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,  # Set to true as per user specifications
+    allow_credentials=False,  # Cookie方式なら True（その場合は * は不可）
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["authorization", "content-type"],
-    max_age=600,  # Add max age as specified
+    max_age=600,
 )
 
 Base.metadata.create_all(bind=engine)
