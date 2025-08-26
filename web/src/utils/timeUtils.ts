@@ -83,3 +83,13 @@ export const isCutoffTimeExpired = (): boolean => {
   const today = new Date(currentJST.getFullYear(), currentJST.getMonth(), currentJST.getDate(), 18, 14);
   return currentJST >= today;
 };
+
+export const convertToPickupAt = (serveDate: string, requestTime: string): string => {
+  const startTime = requestTime.split('～')[0];
+  const [hour, minute] = startTime.split(':').map(Number);
+  
+  const pickupDate = new Date(serveDate + 'T00:00:00.000Z');
+  pickupDate.setUTCHours(hour - 9, minute, 0, 0);
+  
+  return pickupDate.toISOString().replace('Z', '+09:00');
+};

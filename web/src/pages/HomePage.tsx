@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots, isCutoffTimeExpired } from '../utils/timeUtils'
+import { getAvailableTimeSlots, isCutoffTimeExpired, isCafeTime, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
   date: string;
@@ -202,6 +202,15 @@ export default function HomePage() {
       return
     }
     
+    if (isCafeTime(deliveryTime)) {
+      const selectedMenus = getSelectedMenus();
+      const invalidMenus = selectedMenus.filter(({ menu }) => !menu?.cafe_time_available);
+      if (invalidMenus.length > 0) {
+        toast.error('選択されたメニューの一部はカフェタイムでは注文できません。')
+        return
+      }
+    }
+    
     setIsSubmitting(true)
     try {
       const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
@@ -209,18 +218,23 @@ export default function HomePage() {
         qty
       }))
 
+      const selectedDate = getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
+
       const orderPayload = {
-        serve_date: getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        serve_date: selectedDate,
         delivery_type: 'desk' as const,
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
         department: department,
         name: customerName,
-        items: orderItems
+        items: orderItems,
+        pickup_at: pickupAt
       };
       
       console.log('DEBUG FRONTEND: About to send order payload:', orderPayload);
       console.log('DEBUG FRONTEND: delivery_location value:', deliveryLocation, 'type:', typeof deliveryLocation);
+      console.log('DEBUG FRONTEND: pickup_at value:', pickupAt);
       
       await apiClient.createGuestOrder(orderPayload)
 

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date, time
 from typing import Tuple
 
 def get_jst_time() -> datetime:
@@ -98,3 +98,35 @@ def validate_delivery_time(request_time: str, delivery_date: str = None) -> bool
         return not is_time_slot_expired(request_time, delivery_date)
     except (ValueError, AttributeError):
         return False
+
+def convert_to_pickup_at(serve_date: date, request_time: str) -> datetime:
+    """Convert serve_date + request_time to pickup_at datetime in JST"""
+    if '～' in request_time:
+        start_time_str = request_time.split('～')[0]
+    else:
+        start_time_str = request_time
+    
+    start_hour, start_min = map(int, start_time_str.split(':'))
+    jst = timezone(timedelta(hours=9))
+    
+    pickup_datetime = datetime.combine(
+        serve_date, 
+        datetime.min.time().replace(hour=start_hour, minute=start_min)
+    )
+    return pickup_datetime.replace(tzinfo=jst)
+
+def validate_pickup_at(pickup_at: datetime) -> Tuple[bool, str]:
+    """Validate pickup_at and return (is_valid, error_code)"""
+    current_jst = get_jst_time()
+    
+    if pickup_at.date() == current_jst.date() and (current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15)):
+        return False, "cafe_time_closed"
+    
+    pickup_time = pickup_at.time()
+    if not (time(14, 0) <= pickup_time <= time(18, 30)):
+        return False, "invalid_timeslot"
+    
+    if pickup_at.date() == current_jst.date() and current_jst >= pickup_at:
+        return False, "invalid_timeslot"
+    
+    return True, ""

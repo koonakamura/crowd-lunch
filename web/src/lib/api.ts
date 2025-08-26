@@ -196,6 +196,7 @@ class ApiClient {
     delivery_type: 'pickup' | 'desk';
     request_time?: string;
     items: OrderItem[];
+    pickup_at?: string;
   }): Promise<Order> {
     return this.request('/orders', {
       method: 'POST',
@@ -211,6 +212,7 @@ class ApiClient {
     department: string;
     name: string;
     items: OrderItem[];
+    pickup_at?: string;
   }): Promise<Order> {
     return this.request('/orders/guest', {
       method: 'POST',
