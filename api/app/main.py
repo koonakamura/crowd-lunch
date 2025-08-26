@@ -36,9 +36,10 @@ ALLOWED_ORIGINS = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,  # Bearer auth doesn't need credentials=True
+    allow_credentials=True,  # Set to true as per user specifications
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["authorization", "content-type"],
+    max_age=600,  # Add max age as specified
 )
 
 Base.metadata.create_all(bind=engine)
