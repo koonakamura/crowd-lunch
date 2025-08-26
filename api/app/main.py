@@ -40,7 +40,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["authorization", "content-type"],
     max_age=600,  # Add max age as specified
-    vary_header=True,  # Add Vary: Origin header as specified
 )
 
 Base.metadata.create_all(bind=engine)
