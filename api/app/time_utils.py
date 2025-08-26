@@ -123,7 +123,7 @@ def validate_pickup_at(pickup_at: datetime) -> Tuple[bool, str]:
         return False, "cafe_time_closed"
     
     pickup_time = pickup_at.time()
-    if not (time(14, 0) <= pickup_time <= time(18, 30)):
+    if not (time(12, 0) <= pickup_time <= time(18, 30)):
         return False, "invalid_timeslot"
     
     if pickup_at.date() == current_jst.date() and current_jst >= pickup_at:
