@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, type MenuSQLAlchemy } from '../lib/api'
+import { DiagnosticInfo } from '../components/DiagnosticInfo'
 
 const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
@@ -34,6 +35,7 @@ interface MenuRow {
   title: string;
   price: number;
   max_qty: number;
+  cafe_time_available: boolean;
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -110,14 +112,16 @@ export default function AdminPage() {
           return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty
+            max_qty: row.max_qty,
+            cafe_time_available: row.cafe_time_available
           }, imageToUpload)
         } else {
           return apiClient.createMenuSQLAlchemyWithImage({
             serve_date: formatDateForApi(selectedDate),
             title: row.title,
             price: row.price,
-            max_qty: row.max_qty
+            max_qty: row.max_qty,
+            cafe_time_available: row.cafe_time_available
           }, imageToUpload)
         }
       })
@@ -147,7 +151,7 @@ export default function AdminPage() {
     },
     onSuccess: (_, menuId) => {
       setMenuRows(prevRows => prevRows.map(row => 
-        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0 } : row
+        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
       ))
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
@@ -193,7 +197,8 @@ export default function AdminPage() {
         id: menu.id,
         title: menu.title,
         price: menu.price,
-        max_qty: menu.max_qty
+        max_qty: menu.max_qty,
+        cafe_time_available: menu.cafe_time_available || false
       }))
       setMenuRows(newRows)
       
@@ -278,7 +283,7 @@ export default function AdminPage() {
 
 
   const addMenuRow = () => {
-    setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0 }])
+    setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false }])
   }
 
   const handleDeleteMenu = (index: number) => {
@@ -311,7 +316,8 @@ export default function AdminPage() {
         menuData: {
           title: menu.title,
           price: menu.price,
-          max_qty: menu.max_qty
+          max_qty: menu.max_qty,
+          cafe_time_available: menu.cafe_time_available
         }
       })
     }
@@ -343,7 +349,7 @@ export default function AdminPage() {
     return null
   }
 
-  const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number) => {
+  const updateMenuRow = (index: number, field: keyof MenuRow, value: string | number | boolean) => {
     const updated = [...menuRows]
     updated[index] = { ...updated[index], [field]: value }
     setMenuRows(updated)
@@ -507,7 +513,7 @@ export default function AdminPage() {
                         setSelectedImage(file);
                         
                         if (menuRows.length === 0) {
-                          setMenuRows([{ id: null, title: '', price: 0, max_qty: 0 }])
+                          setMenuRows([{ id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false }])
                         }
                       }
                     }}
@@ -517,6 +523,16 @@ export default function AdminPage() {
 
               {/* Menu Rows */}
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
+                {/* Column Headers */}
+                <div className="flex gap-3 items-center mb-3 pb-2 border-b border-gray-200">
+                  <div className="flex-1 text-sm font-medium text-gray-700">メニュー</div>
+                  <div className="w-24 text-sm font-medium text-gray-700 text-center">金額</div>
+                  <div className="w-24 text-sm font-medium text-gray-700 text-center">販売数</div>
+                  <div className="w-16 text-sm font-medium text-gray-700 text-center">カフェ</div>
+                  <div className="w-8"></div> {/* Edit button space */}
+                  <div className="w-8"></div> {/* Delete button space */}
+                </div>
+                
                 <div className="space-y-3">
                   {menuRows.map((row, index) => (
                     <div key={index} className="flex gap-3 items-center">
@@ -549,6 +565,12 @@ export default function AdminPage() {
                         {validationErrors[`${index}-max_qty`] && (
                           <p className="text-sm text-red-500">{validationErrors[`${index}-max_qty`]}</p>
                         )}
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <Switch
+                          checked={row.cafe_time_available}
+                          onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
+                        />
                       </div>
                       <Button
                         size="sm"
@@ -689,6 +711,7 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DiagnosticInfo />
     </div>
   )
 }

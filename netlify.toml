@@ -1,7 +1,48 @@
 [build]
   base = "web"
   publish = "dist"
-  command = "npm run build"
+  command = "VITE_APP_COMMIT_SHA=$COMMIT_REF VITE_APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) npm run build"
+
+[build.environment]
+  VITE_API_BASE_URL = "https://crowd-lunch.fly.dev"
 
 [dev]
   framework = "vite"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://crowd-lunch.fly.dev/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+[[redirects]]
+  from = "/server-time"
+  to = "https://crowd-lunch.fly.dev/server-time"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure auth endpoints are properly proxied
+[[redirects]]
+  from = "/api/auth/*"
+  to = "https://crowd-lunch.fly.dev/auth/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure menu endpoints are properly proxied
+[[redirects]]
+  from = "/api/menus/*"
+  to = "https://crowd-lunch.fly.dev/menus/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+# Ensure order endpoints are properly proxied
+[[redirects]]
+  from = "/api/orders/*"
+  to = "https://crowd-lunch.fly.dev/orders/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}

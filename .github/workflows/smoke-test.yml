@@ -1,0 +1,54 @@
+name: Smoke Test
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Fly.io"]
+    types:
+      - completed
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: Test Server-Time Endpoint
+        run: |
+          echo "Testing server-time endpoint..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://crowd-lunch.fly.dev/server-time)
+          if [ "$response" != "200" ]; then
+            echo "❌ Server-time endpoint failed: HTTP $response"
+            exit 1
+          fi
+          echo "✅ Server-time endpoint working: HTTP $response"
+          
+      - name: Test Health Check
+        run: |
+          echo "Testing health check..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://crowd-lunch.fly.dev/healthz)
+          if [ "$response" != "200" ]; then
+            echo "❌ Health check failed: HTTP $response"
+            exit 1
+          fi
+          echo "✅ Health check working: HTTP $response"
+          
+      - name: Test CORS Headers
+        run: |
+          echo "Testing CORS preflight..."
+          headers=$(curl -s -I -X OPTIONS https://crowd-lunch.fly.dev/menus/1 \
+            -H "Origin: https://deploy-preview-62--cheery-dango-2fd190.netlify.app" \
+            -H "Access-Control-Request-Method: PUT")
+          
+          if echo "$headers" | grep -q "access-control-max-age: 600"; then
+            echo "✅ CORS Max-Age header present"
+          else
+            echo "❌ CORS Max-Age header missing"
+            exit 1
+          fi
+          
+          if echo "$headers" | grep -q "vary:.*origin"; then
+            echo "✅ Vary: Origin header present"
+          else
+            echo "❌ Vary: Origin header missing"
+            exit 1
+          fi

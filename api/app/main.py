@@ -27,13 +27,19 @@ async def validation_exception_handler(request, exc):
         content={"detail": "Validation error occurred"}
     )
 
-# Disable CORS. Do not remove this for full-stack development.
+ALLOWED_ORIGINS = [
+    "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,  # Set to true as per user specifications
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["authorization", "content-type"],
+    max_age=600,  # Add max age as specified
 )
 
 Base.metadata.create_all(bind=engine)
@@ -68,13 +74,34 @@ manager = ConnectionManager()
 async def healthz():
     return {"status": "ok"}
 
+@app.options("/{path:path}")
+async def options_handler(path: str):
+    from fastapi import Response
+    return Response(status_code=204)
+
+@app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
+async def get_server_time():
+    from .time_utils import get_jst_time
+    from fastapi import Response
+    import json
+    
+    current_jst = get_jst_time()
+    return Response(
+        content=json.dumps({
+            "current_time": current_jst.isoformat(),
+            "timezone": "Asia/Tokyo"
+        }),
+        media_type="application/json",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+    )
+
 @app.post("/auth/login")
 async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = crud.get_or_create_user(db, login_request.email)
     access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
-@app.get("/menus/weekly", response_model=List[schemas.WeeklyMenuResponse])
+@app.get("/weekly-menus", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
     from datetime import timezone, timedelta as td
     jst = timezone(td(hours=9))
@@ -108,8 +135,6 @@ async def get_menus_by_date(
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
-    if not menus:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not Found")
     return menus
 
 @app.post("/orders", response_model=schemas.Order, 
@@ -121,12 +146,48 @@ async def create_order(
     db: Session = Depends(get_db)
 ):
     import os
+    from .logging import log_order_event
+    from datetime import time
+    
     if os.getenv("TESTING") != "true":
-        if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+        from .time_utils import get_jst_time
+        current_jst = get_jst_time()
+        
+        log_order_event("order_attempt", user_id=current_user.id, time=current_jst.isoformat(), serve_date=str(order.serve_date))
+        
+        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15):
+            log_order_event("reject", code="cafe_time_closed", user_id=current_user.id, now=current_jst.isoformat())
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "cafe_time_closed", "message": "本日のカフェタイム受付は18:14で終了しました"}
             )
+        
+        if current_jst.hour >= 14:
+            for item in order.items:
+                menu = crud.get_menu_by_id(db, item.menu_id)
+                if menu and not menu.cafe_time_available:
+                    log_order_event("reject", code="menu_not_available", menu_id=item.menu_id, user_id=current_user.id, now=current_jst.isoformat())
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
+                    )
+        
+        if order.request_time:
+            request_time_obj = time.fromisoformat(order.request_time.split('～')[0])
+            if not (time(14, 0) <= request_time_obj <= time(18, 30)):
+                log_order_event("reject", code="invalid_timeslot", request_time=order.request_time, user_id=current_user.id, now=current_jst.isoformat())
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                )
+            
+            if current_jst.hour < 14:
+                if not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+                    log_order_event("reject", code="invalid_timeslot", request_time=order.request_time, user_id=current_user.id, now=current_jst.isoformat())
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                    )
     
     db_order = crud.create_order(db, order, current_user.id)
     
@@ -146,12 +207,48 @@ async def create_guest_order(
     db: Session = Depends(get_db)
 ):
     import os
+    from .logging import log_order_event
+    from datetime import time
+    
     if os.getenv("TESTING") != "true":
-        if order.request_time and not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+        from .time_utils import get_jst_time
+        current_jst = get_jst_time()
+        
+        log_order_event("guest_order_attempt", department=order.department, name=order.name, time=current_jst.isoformat(), serve_date=str(order.serve_date))
+        
+        if current_jst.hour > 18 or (current_jst.hour == 18 and current_jst.minute >= 15):
+            log_order_event("reject", code="cafe_time_closed", department=order.department, name=order.name, now=current_jst.isoformat())
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"配達時間「{order.request_time}」の受付時間を過ぎています"
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={"code": "cafe_time_closed", "message": "本日のカフェタイム受付は18:14で終了しました"}
             )
+        
+        if current_jst.hour >= 14:
+            for item in order.items:
+                menu = crud.get_menu_by_id(db, item.menu_id)
+                if menu and not menu.cafe_time_available:
+                    log_order_event("reject", code="menu_not_available", menu_id=item.menu_id, department=order.department, name=order.name, now=current_jst.isoformat())
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
+                    )
+        
+        if order.request_time:
+            request_time_obj = time.fromisoformat(order.request_time.split('～')[0])
+            if not (time(14, 0) <= request_time_obj <= time(18, 30)):
+                log_order_event("reject", code="invalid_timeslot", request_time=order.request_time, department=order.department, name=order.name, now=current_jst.isoformat())
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                )
+            
+            if current_jst.hour < 14:
+                if not validate_delivery_time(order.request_time, str(order.serve_date) if order.serve_date else None):
+                    log_order_event("reject", code="invalid_timeslot", request_time=order.request_time, department=order.department, name=order.name, now=current_jst.isoformat())
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail={"code": "invalid_timeslot", "message": "選択した時間が有効範囲外です"}
+                    )
     
     print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
@@ -431,6 +528,7 @@ async def create_menu_by_date(
     title: str = Form(...),
     price: int = Form(...),
     max_qty: int = Form(...),
+    cafe_time_available: bool = Form(False),
     image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
@@ -459,7 +557,8 @@ async def create_menu_by_date(
         title=title,
         price=price,
         max_qty=max_qty,
-        img_url=img_url
+        img_url=img_url,
+        cafe_time_available=cafe_time_available
     )
     db_menu = crud.create_menu_sqlalchemy(db, menu_data)
     return db_menu
@@ -470,16 +569,35 @@ async def update_menu_by_date(
     title: str = Form(None),
     price: int = Form(None),
     max_qty: int = Form(None),
+    cafe_time_available: bool = Form(None),
     image: UploadFile | None = File(None),
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
+    from .logging import log_audit
+    from .time_utils import get_jst_time
+    import logging
+    logger = logging.getLogger(__name__)
+    current_jst = get_jst_time()
+    
+    logger.info(f"PUT /menus/{menu_id} - Request arrived at {current_jst.isoformat()}")
+    logger.info(f"PUT /menus/{menu_id} - User: {current_user.email}, Data: title={title}, price={price}, max_qty={max_qty}, cafe_time_available={cafe_time_available}")
+    
     if current_user.email != "admin@example.com":
+        logger.warning(f"PUT /menus/{menu_id} - Access denied (403) for user: {current_user.email}")
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     current_menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
     if not current_menu:
         raise HTTPException(status_code=404, detail="メニューが見つかりません")
+    
+    if cafe_time_available is not None and cafe_time_available != current_menu.cafe_time_available:
+        log_audit("menu_toggle", 
+                 actor_id=current_user.id, 
+                 menu_id=menu_id, 
+                 menu_title=current_menu.title,
+                 from_value=current_menu.cafe_time_available, 
+                 to_value=cafe_time_available)
     
     img_url = None
     if image:
@@ -510,13 +628,24 @@ async def update_menu_by_date(
         title=title,
         price=price,
         max_qty=max_qty,
-        img_url=img_url
+        img_url=img_url,
+        cafe_time_available=cafe_time_available
     )
-    db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
-    if not db_menu:
-        raise HTTPException(status_code=404, detail="メニューが見つかりません")
-    
-    return db_menu
+    try:
+        db_menu = crud.update_menu_sqlalchemy(db, menu_id, menu_update)
+        if not db_menu:
+            logger.warning(f"PUT /menus/{menu_id} - Menu not found (404)")
+            raise HTTPException(status_code=404, detail="メニューが見つかりません")
+        
+        logger.info(f"PUT /menus/{menu_id} - Success (200) - Updated menu: {db_menu.title}")
+        return db_menu
+        
+    except HTTPException as e:
+        logger.error(f"PUT /menus/{menu_id} - HTTP Error {e.status_code}: {e.detail}")
+        raise
+    except Exception as e:
+        logger.error(f"PUT /menus/{menu_id} - Server Error (500): {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 @app.delete("/menus/{menu_id}")
 async def delete_menu_by_date(
