@@ -128,6 +128,7 @@ class ApiClient {
   setAdminToken(token: string) {
     this.token = token;
     sessionStorage.setItem('adminToken', token);
+    localStorage.removeItem('adminToken');
   }
 
   clearToken() {

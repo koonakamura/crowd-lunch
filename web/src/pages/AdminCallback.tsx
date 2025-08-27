@@ -20,6 +20,7 @@ const AdminCallback = () => {
         const params = new URLSearchParams(fragment.substring(1));
         const token = params.get('token');
         const state = params.get('state');
+        const stateSig = params.get('state_sig');
         
         if (!token) {
           setError('認証トークンが見つかりません');
@@ -27,12 +28,27 @@ const AdminCallback = () => {
           return;
         }
 
-        const storedState = sessionStorage.getItem('auth_state');
-        if (state && storedState && state !== storedState) {
-          setError('認証状態が一致しません');
-          sessionStorage.removeItem('auth_state');
-          setTimeout(() => navigate('/admin', { replace: true }), 2000);
-          return;
+        if (state && stateSig) {
+          const storedState = sessionStorage.getItem('auth_state');
+          
+          const [stateValue, stateExpStr] = state.split(':');
+          const stateExp = parseInt(stateExpStr);
+          const now = Math.floor(Date.now() / 1000);
+          
+          if (stateExp < now) {
+            setError('認証状態の有効期限が切れています');
+            sessionStorage.removeItem('auth_state');
+            setTimeout(() => navigate('/admin', { replace: true }), 2000);
+            return;
+          }
+          
+          if (storedState && stateValue !== storedState) {
+            setError('認証状態が一致しません');
+            sessionStorage.removeItem('auth_state');
+            setTimeout(() => navigate('/admin', { replace: true }), 2000);
+            return;
+          }
+          
         }
 
         const tokenParts = token.split('.');
@@ -52,14 +68,26 @@ const AdminCallback = () => {
             return;
           }
 
-          if (payload.iss && payload.iss !== 'crowd-lunch-api') {
+          if (payload.iss !== 'crowd-lunch-api') {
             setError('認証トークンの発行者が無効です');
             setTimeout(() => navigate('/admin', { replace: true }), 2000);
             return;
           }
 
-          if (payload.aud && payload.aud !== 'crowd-lunch-admin') {
+          if (payload.aud !== 'crowd-lunch-admin') {
             setError('認証トークンの対象者が無効です');
+            setTimeout(() => navigate('/admin', { replace: true }), 2000);
+            return;
+          }
+
+          if (payload.role !== 'admin') {
+            setError('管理者権限が不足しています');
+            setTimeout(() => navigate('/admin', { replace: true }), 2000);
+            return;
+          }
+
+          if (payload.sub !== 'admin@example.com') {
+            setError('認証ユーザーが無効です');
             setTimeout(() => navigate('/admin', { replace: true }), 2000);
             return;
           }
@@ -74,7 +102,7 @@ const AdminCallback = () => {
         
         window.history.replaceState(null, '', '/admin');
         
-        console.log('Admin token saved successfully');
+        console.log('Admin token saved successfully with enhanced validation');
         navigate('/admin', { replace: true });
         
       } catch (error) {
