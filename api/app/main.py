@@ -144,7 +144,7 @@ async def login_redirect(redirect_uri: str, state: str = None):
             detail={"code": "redirect_uri_not_allowed", "message": "HTTP only allowed for localhost"}
         )
     
-    if parsed_uri.path.rstrip("/") != "/admin/callback":
+    if parsed_uri.path != "/admin/callback":
         logging.warning({
             "event": "admin_login_blocked",
             "reason": "invalid_path",
@@ -196,7 +196,7 @@ async def login_redirect(redirect_uri: str, state: str = None):
     admin_token = auth.create_access_token(
         data={
             "sub": "admin@example.com",
-            "iss": "crowd-lunch-api",
+            "iss": "crowd-lunch-api", 
             "aud": "crowd-lunch-admin",
             "iat": current_time.timestamp(),
             "role": "admin"
