@@ -88,6 +88,7 @@ export default function HomePage() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [timeSlotError, setTimeSlotError] = useState<string>('')
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
@@ -152,6 +153,25 @@ export default function HomePage() {
     const startTime = timeSlot.split('～')[0]
     const [hour] = startTime.split(':').map(Number)
     return hour >= 14
+  }
+
+  const validateTimeSlot = (timeSlot: string) => {
+    if (isCutoffTimeExpired()) {
+      setTimeSlotError('18:14以降の注文受付は終了しております')
+      return false
+    }
+    
+    if (isCafeTime(timeSlot)) {
+      const selectedMenus = getSelectedMenus()
+      const invalidMenus = selectedMenus.filter(({ menu }) => !menu?.cafe_time_available)
+      if (invalidMenus.length > 0) {
+        setTimeSlotError('選択されたメニューはカフェタイムでは注文できません')
+        return false
+      }
+    }
+    
+    setTimeSlotError('')
+    return true
   }
 
   const getSelectedDate = (): Date | null => {
@@ -538,7 +558,10 @@ export default function HomePage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">希望お届け時間</label>
-                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                <Select value={deliveryTime} onValueChange={(value) => {
+                  setDeliveryTime(value)
+                  validateTimeSlot(value)
+                }}>
                   <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
@@ -555,6 +578,11 @@ export default function HomePage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {timeSlotError && (
+                  <div className="mt-2 text-sm text-red-400">
+                    {timeSlotError}
+                  </div>
+                )}
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
@@ -567,7 +595,7 @@ export default function HomePage() {
           <DialogFooter>
             <Button
               onClick={() => setShowConfirmationModal(true)}
-              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation}
+              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation || timeSlotError !== ''}
               className="w-full bg-primary hover:bg-primary/90 text-white"
               data-testid="submit-order"
             >
