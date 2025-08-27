@@ -66,7 +66,7 @@ interface OrderItem {
 }
 
 export default function AdminPage() {
-  const { user, login } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -256,19 +256,17 @@ export default function AdminPage() {
     }
   }, [user, isNotificationEnabled, audioElement, queryClient])
 
-  if (user?.email !== 'admin@example.com') {
+  const adminToken = apiClient.getAdminToken();
+  
+  if (user?.email !== 'admin@example.com' && !adminToken) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-lg mb-4">管理者権限が必要です</p>
           <div className="space-y-2">
             <Button 
-              onClick={async () => {
-                try {
-                  await login();
-                } catch {
-                  // Login errors are handled silently
-                }
+              onClick={() => {
+                apiClient.adminLogin();
               }}
               className="w-full"
             >
