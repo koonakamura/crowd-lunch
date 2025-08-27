@@ -88,8 +88,8 @@ export const convertToPickupAt = (serveDate: string, requestTime: string): strin
   const startTime = requestTime.split('～')[0];
   const [hour, minute] = startTime.split(':').map(Number);
   
-  const pickupDate = new Date(serveDate + 'T00:00:00.000Z');
-  pickupDate.setUTCHours(hour - 9, minute, 0, 0);
+  const hourStr = String(hour).padStart(2, '0');
+  const minuteStr = String(minute).padStart(2, '0');
   
-  return pickupDate.toISOString().replace('Z', '+09:00');
+  return `${serveDate}T${hourStr}:${minuteStr}:00+09:00`;
 };
