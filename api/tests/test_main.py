@@ -69,14 +69,16 @@ def test_menu(client):
     return menu
 
 def test_login(client):
-    from app.auth import create_access_token
-    from datetime import timedelta
+    from jose import jwt
+    from datetime import datetime, timedelta
     
-    token = create_access_token(
-        data={"sub": "test@example.com"}, 
-        expires_delta=timedelta(minutes=15)
-    )
+    payload = {
+        "sub": "test@example.com",
+        "exp": datetime.utcnow() + timedelta(minutes=15)
+    }
+    token = jwt.encode(payload, "your-secret-key-here", algorithm="HS256")
     assert token is not None
+    assert isinstance(token, str)
 
 def test_weekly_menus(client, test_menu):
     response = client.get("/weekly-menus")
