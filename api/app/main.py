@@ -376,8 +376,6 @@ async def create_guest_order(
     db_order = crud.create_guest_order(db, order)
     print(f"DEBUG MAIN: crud.create_guest_order returned - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
-    db_order.order_id = crud.generate_order_id(db, db_order.serve_date)
-    
     print(f"DEBUG MAIN: Final order before response - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     print(f"DEBUG MAIN: Final order object attributes: {[attr for attr in dir(db_order) if not attr.startswith('_')]}")
     
