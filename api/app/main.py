@@ -102,6 +102,16 @@ async def get_server_time():
         headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
     )
 
+@app.get("/auth/whoami")
+async def whoami(admin: dict = Depends(auth.get_current_admin)):
+    return {
+        "sub": admin.get("sub"),
+        "role": admin.get("role"), 
+        "iss": admin.get("iss"),
+        "aud": admin.get("aud"),
+        "exp": admin.get("exp")
+    }
+
 @app.get("/auth/login")
 async def login_redirect(redirect_uri: str, state: str = None):
     import logging
@@ -180,26 +190,25 @@ async def login_redirect(redirect_uri: str, state: str = None):
         hashlib.sha256
     ).hexdigest()
     
-    from .time_utils import get_jst_time
-    current_time = get_jst_time()
-    exp_time = current_time + timedelta(minutes=15)
+    import time
+    now = int(time.time())
     
     admin_token = auth.create_access_token(
         data={
             "sub": "admin@example.com",
-            "iss": "crowd-lunch-api",
-            "aud": "crowd-lunch-admin",
             "role": "admin",
-            "iat": current_time.timestamp()
-        },
-        expires_delta=timedelta(minutes=15)
+            "iss": "crowd-lunch",
+            "aud": "admin",
+            "iat": now,
+            "exp": now + 15*60,
+        }
     )
     
     logging.info({
         "event": "admin_login_redirect",
         "redirect_origin": redirect_origin,
-        "sub": "admin",
-        "exp": exp_time.isoformat(),
+        "sub": "admin@example.com",
+        "exp": now + 15*60,
         "state_exp": state_exp
     })
     
@@ -246,7 +255,7 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
     date: date = None,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
@@ -401,11 +410,9 @@ async def get_order(
 async def update_order_status(
     order_id: int,
     status_update: schemas.OrderStatusUpdate,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     order = crud.update_order_status(db, order_id, status_update.status)
     if not order:
@@ -422,11 +429,9 @@ async def update_order_status(
 @app.patch("/admin/orders/{order_id}/delivery-completion", response_model=schemas.Order)
 async def toggle_delivery_completion(
     order_id: int,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     order = db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
     if not order:
@@ -455,11 +460,9 @@ async def toggle_delivery_completion(
 @app.get("/admin/orders/today", response_model=List[schemas.Order])
 async def get_today_orders(
     date_filter: date = None,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
@@ -477,11 +480,9 @@ async def get_today_orders(
         description="Retrieve orders for a specific date. **Authentication required**: Include Bearer token in Authorization header.")
 async def get_orders_by_date(
     date: date,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     orders = crud.get_today_orders(db, date)
     
@@ -496,11 +497,9 @@ async def get_orders_by_date(
 @app.get("/admin/menus", response_model=List[schemas.MenuResponse])
 async def get_menus(
     date_filter: date = None,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     menus = crud.get_menus(db, date_filter)
     return menus
@@ -508,11 +507,9 @@ async def get_menus(
 @app.post("/admin/menus", response_model=schemas.MenuResponse)
 async def create_menu(
     menu: schemas.MenuCreate,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     db_menu = crud.create_menu(db, menu)
     return db_menu
@@ -521,11 +518,9 @@ async def create_menu(
 async def update_menu(
     menu_id: int,
     menu_update: schemas.MenuUpdate,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     db_menu = crud.update_menu(db, menu_id, menu_update)
     if not db_menu:
@@ -536,11 +531,9 @@ async def update_menu(
 @app.delete("/admin/menus/{menu_id}")
 async def delete_menu(
     menu_id: int,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     success = crud.delete_menu(db, menu_id)
     if not success:
@@ -552,11 +545,9 @@ async def delete_menu(
 async def create_menu_item(
     menu_id: int,
     item: schemas.MenuItemCreate,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     db_item = crud.create_menu_item(db, menu_id, item)
     return db_item
@@ -565,11 +556,9 @@ async def create_menu_item(
 async def update_menu_item(
     item_id: int,
     item_update: schemas.MenuItemUpdate,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     db_item = crud.update_menu_item(db, item_id, item_update)
     if not db_item:
@@ -580,11 +569,9 @@ async def update_menu_item(
 @app.delete("/admin/menu-items/{item_id}")
 async def delete_menu_item(
     item_id: int,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     success = crud.delete_menu_item(db, item_id)
     if not success:
@@ -594,12 +581,10 @@ async def delete_menu_item(
 
 @app.post("/admin/fix-delivery-locations")
 async def fix_delivery_locations(
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Fix existing orders with NULL delivery_location values"""
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     print(f"DEBUG FIX: Starting delivery_location fix for NULL values")
     
@@ -643,7 +628,7 @@ async def create_menu_by_date(
     max_qty: int = Form(...),
     cafe_time_available: bool = Form(False),
     image: UploadFile | None = File(None),
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
     img_url = None
@@ -684,7 +669,7 @@ async def update_menu_by_date(
     max_qty: int = Form(None),
     cafe_time_available: bool = Form(None),
     image: UploadFile | None = File(None),
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
     from .logging import log_audit
@@ -694,11 +679,7 @@ async def update_menu_by_date(
     current_jst = get_jst_time()
     
     logger.info(f"PUT /menus/{menu_id} - Request arrived at {current_jst.isoformat()}")
-    logger.info(f"PUT /menus/{menu_id} - User: {current_user.email}, Data: title={title}, price={price}, max_qty={max_qty}, cafe_time_available={cafe_time_available}")
-    
-    if current_user.email != "admin@example.com":
-        logger.warning(f"PUT /menus/{menu_id} - Access denied (403) for user: {current_user.email}")
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    logger.info(f"PUT /menus/{menu_id} - Admin: {admin.get('sub')}, Data: title={title}, price={price}, max_qty={max_qty}, cafe_time_available={cafe_time_available}")
     
     current_menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
     if not current_menu:
@@ -706,7 +687,7 @@ async def update_menu_by_date(
     
     if cafe_time_available is not None and cafe_time_available != current_menu.cafe_time_available:
         log_audit("menu_toggle", 
-                 actor_id=current_user.id, 
+                 actor_id=admin.get('sub'), 
                  menu_id=menu_id, 
                  menu_title=current_menu.title,
                  from_value=current_menu.cafe_time_available, 
@@ -763,11 +744,9 @@ async def update_menu_by_date(
 @app.delete("/menus/{menu_id}")
 async def delete_menu_by_date(
     menu_id: int,
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     success = crud.delete_menu_sqlalchemy(db, menu_id)
     if not success:
@@ -779,11 +758,9 @@ async def delete_menu_by_date(
 async def upload_background_image(
     date: date,
     file: UploadFile = File(...),
-    current_user: schemas.User = Depends(auth.get_current_user),
+    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
-    if current_user.email != "admin@example.com":
-        raise HTTPException(status_code=403, detail="管理者権限が必要です")
     
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="画像ファイルのみアップロード可能です")
