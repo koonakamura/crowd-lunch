@@ -224,17 +224,6 @@ async def login_redirect(redirect_uri: str, state: str = None):
         headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
     )
 
-@app.post("/auth/login")
-async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
-    import logging
-    logging.warning({
-        "event": "deprecated_post_auth_login_used",
-        "email": login_request.email,
-        "message": "POST /auth/login is deprecated, use GET /auth/login for admin authentication"
-    })
-    user = crud.get_or_create_user(db, login_request.email)
-    access_token = auth.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 @app.get("/weekly-menus", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):
