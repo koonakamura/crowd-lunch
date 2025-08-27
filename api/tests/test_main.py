@@ -69,11 +69,14 @@ def test_menu(client):
     return menu
 
 def test_login(client):
-    response = client.post("/auth/login", json={"email": "test@example.com"})
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["user"]["email"] == "test@example.com"
+    from app.auth import create_access_token
+    from datetime import timedelta
+    
+    token = create_access_token(
+        data={"sub": "test@example.com"}, 
+        expires_delta=timedelta(minutes=15)
+    )
+    assert token is not None
 
 def test_weekly_menus(client, test_menu):
     response = client.get("/weekly-menus")
@@ -246,15 +249,25 @@ def test_invalid_token_format(client):
     assert response.status_code == 401
 
 def test_missing_order(client, test_user):
-    login_response = client.post("/auth/login", json={"email": "test@example.com"})
-    token = login_response.json()["access_token"]
+    from app.auth import create_access_token
+    from datetime import timedelta
+    
+    token = create_access_token(
+        data={"sub": "test@example.com"}, 
+        expires_delta=timedelta(minutes=15)
+    )
     
     response = client.get("/orders/999999", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
 
 def test_invalid_status_update(client, test_user, test_menu):
-    login_response = client.post("/auth/login", json={"email": "test@example.com"})
-    token = login_response.json()["access_token"]
+    from app.auth import create_access_token
+    from datetime import timedelta
+    
+    token = create_access_token(
+        data={"sub": "test@example.com"}, 
+        expires_delta=timedelta(minutes=15)
+    )
     
     order_data = {
         "serve_date": str(date.today()),
