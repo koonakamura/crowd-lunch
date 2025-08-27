@@ -96,6 +96,7 @@ def test_create_order(client, test_user, test_menu):
     order_data = {
         "serve_date": str(date.today()),
         "delivery_type": "pickup",
+        "pickup_at": "2025-08-27T12:00:00+09:00",
         "items": [{"menu_id": test_menu.id, "qty": 1}]
     }
     
@@ -121,6 +122,7 @@ def test_get_order(client, test_user, test_menu):
     order_data = {
         "serve_date": str(date.today()),
         "delivery_type": "pickup",
+        "pickup_at": "2025-08-27T12:00:00+09:00",
         "items": [{"menu_id": test_menu.id, "qty": 1}]
     }
     
@@ -148,6 +150,7 @@ def test_update_order_status(client, test_user, test_menu):
     order_data = {
         "serve_date": str(date.today()),
         "delivery_type": "pickup",
+        "pickup_at": "2025-08-27T12:00:00+09:00",
         "items": [{"menu_id": test_menu.id, "qty": 1}]
     }
     
@@ -192,7 +195,7 @@ def test_crud_operations(client, test_user, test_menu):
     
     user = db.query(User).filter(User.email == "test@example.com").first()
     assert user is not None
-    assert user.name == "test"
+    assert user.name == "Test User"
     
     menu = db.query(Menu).filter(Menu.title == "Test Menu").first()
     assert menu is not None
@@ -272,6 +275,7 @@ def test_invalid_status_update(client, test_user, test_menu):
     order_data = {
         "serve_date": str(date.today()),
         "delivery_type": "pickup",
+        "pickup_at": "2025-08-27T12:00:00+09:00",
         "items": [{"menu_id": test_menu.id, "qty": 1}]
     }
     
