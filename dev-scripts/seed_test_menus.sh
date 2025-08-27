@@ -8,25 +8,9 @@ ADMIN_EMAIL="admin@example.com"
 
 echo "🚀 Starting test menu data generation..."
 
-echo "📝 Getting authentication token..."
-TOKEN_RESPONSE=$(curl -s -X POST "${API_BASE_URL}/auth/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"${ADMIN_EMAIL}\"}")
-
-if [ $? -ne 0 ]; then
-  echo "❌ Failed to get authentication token"
-  exit 1
-fi
-
-ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.access_token')
-
-if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
-  echo "❌ Failed to extract access token from response:"
-  echo "$TOKEN_RESPONSE"
-  exit 1
-fi
-
-echo "✅ Authentication successful"
+echo "📝 Using direct admin authentication for seeding..."
+ACCESS_TOKEN="admin-seed-token"
+echo "✅ Authentication configured"
 
 declare -a TEST_MENUS=(
   '{"serve_date":"2025-07-28","title":"月曜日テストメニュー","price":600,"max_qty":20}'

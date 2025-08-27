@@ -8,15 +8,16 @@ class OrderUser(HttpUser):
     
     def on_start(self):
         """Setup for each user - authenticate and get JWT token"""
+        from app.auth import create_access_token
+        from datetime import timedelta
+        
         self.serve_date = date.today().strftime('%Y-%m-%d')
         
-        login_response = self.client.post("/auth/login", json={"email": "test@example.com"})
-        if login_response.status_code == 200:
-            self.token = login_response.json()["access_token"]
-            self.headers = {"Authorization": f"Bearer {self.token}"}
-        else:
-            self.token = None
-            self.headers = {}
+        self.token = create_access_token(
+            data={"sub": "test@example.com"}, 
+            expires_delta=timedelta(minutes=15)
+        )
+        self.headers = {"Authorization": f"Bearer {self.token}"}
         
     @task
     def create_guest_order(self):

@@ -43,6 +43,12 @@ app.add_middleware(
     max_age=600,
 )
 
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
 
@@ -97,50 +103,135 @@ async def get_server_time():
     )
 
 @app.get("/auth/login")
-async def login_redirect(redirect_uri: str):
+async def login_redirect(redirect_uri: str, state: str = None):
     import logging
+    import re
+    import secrets
     from urllib.parse import urlparse
     from fastapi.responses import RedirectResponse
+    from datetime import timedelta
     
-    ALLOWED_REDIRECT_ORIGINS = [
-        "https://cheery-dango-2fd190.netlify.app",
-        "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
-        "http://localhost:3000",
-        "http://localhost:3001"
+    ALLOWED_REDIRECT_PATTERNS = [
+        r"^https://cheery-dango-2fd190\.netlify\.app$",
+        r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$",
+        r"^http://localhost:3000$",
+        r"^http://localhost:3001$"
     ]
     
     parsed_uri = urlparse(redirect_uri)
-    origin = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
     
-    if origin not in ALLOWED_REDIRECT_ORIGINS:
+    if parsed_uri.scheme not in ["https", "http"]:
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "invalid_protocol",
+            "redirect_uri": redirect_uri,
+            "scheme": parsed_uri.scheme
+        })
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "invalid_redirect_uri", "message": "Invalid redirect URI"}
+            detail={"code": "redirect_uri_not_allowed", "message": "Invalid protocol"}
         )
     
-    from datetime import timedelta
-    admin_token = auth.create_access_token(
-        data={"sub": "admin@example.com"}, 
-        expires_delta=timedelta(minutes=15)
-    )
+    if parsed_uri.scheme == "http" and not parsed_uri.netloc.startswith("localhost"):
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "http_not_localhost",
+            "redirect_uri": redirect_uri,
+            "netloc": parsed_uri.netloc
+        })
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "redirect_uri_not_allowed", "message": "HTTP only allowed for localhost"}
+        )
+    
+    if parsed_uri.path.rstrip("/") != "/admin/callback":
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "invalid_path",
+            "redirect_uri": redirect_uri,
+            "path": parsed_uri.path
+        })
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "redirect_uri_not_allowed", "message": "Invalid callback path"}
+        )
+    
+    if parsed_uri.query or parsed_uri.fragment:
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "query_or_fragment_present",
+            "redirect_uri": redirect_uri,
+            "query": parsed_uri.query,
+            "fragment": parsed_uri.fragment
+        })
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "redirect_uri_not_allowed", "message": "Query parameters and fragments not allowed"}
+        )
+    
+    origin = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+    
+    allowed = False
+    for pattern in ALLOWED_REDIRECT_PATTERNS:
+        if re.match(pattern, origin):
+            allowed = True
+            break
+    
+    if not allowed:
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "redirect_uri_not_allowed",
+            "redirect_uri": redirect_uri,
+            "origin": origin
+        })
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"code": "redirect_uri_not_allowed", "message": "Redirect URI not allowed"}
+        )
     
     from .time_utils import get_jst_time
     current_time = get_jst_time()
     exp_time = current_time + timedelta(minutes=15)
+    
+    admin_token = auth.create_access_token(
+        data={
+            "sub": "admin@example.com",
+            "iss": "crowd-lunch-api",
+            "aud": "crowd-lunch-admin",
+            "iat": current_time.timestamp(),
+            "role": "admin"
+        }, 
+        expires_delta=timedelta(minutes=15)
+    )
     
     logging.info({
         "event": "admin_login_redirect",
         "redirect_uri": redirect_uri,
         "origin": origin,
         "sub": "admin",
+        "iss": "crowd-lunch-api",
+        "aud": "crowd-lunch-admin",
         "exp": exp_time.isoformat()
     })
     
     redirect_url = f"{redirect_uri}#token={admin_token}"
-    return RedirectResponse(url=redirect_url, status_code=302)
+    if state:
+        redirect_url += f"&state={state}"
+    
+    return RedirectResponse(
+        url=redirect_url, 
+        status_code=302,
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+    )
 
 @app.post("/auth/login")
 async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
+    import logging
+    logging.warning({
+        "event": "deprecated_post_auth_login_used",
+        "email": login_request.email,
+        "message": "POST /auth/login is deprecated, use GET /auth/login for admin authentication"
+    })
     user = crud.get_or_create_user(db, login_request.email)
     access_token = auth.create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer", "user": user}
