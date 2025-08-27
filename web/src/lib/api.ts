@@ -117,7 +117,7 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    this.token = localStorage.getItem('auth_token');
+    this.token = localStorage.getItem('auth_token') || localStorage.getItem('adminToken');
   }
 
   setToken(token: string) {
@@ -125,9 +125,19 @@ class ApiClient {
     localStorage.setItem('auth_token', token);
   }
 
+  setAdminToken(token: string) {
+    this.token = token;
+    localStorage.setItem('adminToken', token);
+  }
+
   clearToken() {
     this.token = null;
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('adminToken');
+  }
+
+  getAdminToken(): string | null {
+    return localStorage.getItem('adminToken');
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -184,6 +194,12 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
+  }
+
+  adminLogin(): void {
+    const redirectUri = `${window.location.origin}/admin/callback`;
+    const authUrl = `${API_BASE_URL}/auth/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.assign(authUrl);
   }
 
   async getWeeklyMenus(date?: string): Promise<WeeklyMenuResponse[]> {
