@@ -43,6 +43,12 @@ app.add_middleware(
     max_age=600,
 )
 
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
 
@@ -97,53 +103,118 @@ async def get_server_time():
     )
 
 @app.get("/auth/login")
-async def login_redirect(redirect_uri: str):
+async def login_redirect(redirect_uri: str, state: str = None):
     import logging
+    import re
+    import secrets
+    import hmac
+    import hashlib
+    import time
     from urllib.parse import urlparse
     from fastapi.responses import RedirectResponse
+    from datetime import timedelta
     
-    ALLOWED_REDIRECT_ORIGINS = [
-        "https://cheery-dango-2fd190.netlify.app",
-        "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
-        "http://localhost:3000",
-        "http://localhost:3001"
-    ]
-    
-    parsed_uri = urlparse(redirect_uri)
-    origin = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
-    
-    if origin not in ALLOWED_REDIRECT_ORIGINS:
+    try:
+        parsed_uri = urlparse(redirect_uri)
+        normalized_netloc = parsed_uri.netloc.encode('idna').decode('ascii').lower()
+        normalized_path = parsed_uri.path.rstrip('/')
+        
+        if parsed_uri.scheme not in ["https", "http"]:
+            raise ValueError("Invalid protocol")
+        
+        if parsed_uri.scheme == "http" and not normalized_netloc.startswith("localhost"):
+            raise ValueError("HTTP only allowed for localhost")
+        
+        if ':' in normalized_netloc and not normalized_netloc.startswith("localhost"):
+            raise ValueError("Custom ports not allowed")
+        
+        if parsed_uri.query or parsed_uri.fragment:
+            raise ValueError("Query parameters and fragments not allowed")
+        
+        if normalized_path != "/admin/callback":
+            raise ValueError("Invalid callback path")
+        
+        ALLOWED_HOSTS = {
+            "cheery-dango-2fd190.netlify.app"
+        }
+        
+        LOCALHOST_HOSTS = {
+            "localhost:3000",
+            "localhost:3001"
+        }
+        
+        PREVIEW_PATTERN = re.compile(r"^deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$")
+        
+        host_allowed = (
+            normalized_netloc in ALLOWED_HOSTS or 
+            normalized_netloc in LOCALHOST_HOSTS or
+            PREVIEW_PATTERN.match(normalized_netloc)
+        )
+        
+        if not host_allowed:
+            raise ValueError("Host not allowed")
+            
+    except (ValueError, UnicodeError) as e:
+        logging.warning({
+            "event": "admin_login_blocked",
+            "reason": "redirect_uri_validation_failed",
+            "redirect_uri": redirect_uri,
+            "error": str(e)
+        })
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "invalid_redirect_uri", "message": "Invalid redirect URI"}
+            detail={"code": "redirect_uri_not_allowed", "message": f"Redirect URI validation failed: {str(e)}"}
         )
     
-    from datetime import timedelta
-    admin_token = auth.create_access_token(
-        data={"sub": "admin@example.com"}, 
-        expires_delta=timedelta(minutes=15)
-    )
+    if not state:
+        state = secrets.token_urlsafe(32)
+    
+    state_exp = int(time.time()) + 900  # 15 minutes
+    state_data = f"{state}:{state_exp}"
+    
+    redirect_origin = f"{parsed_uri.scheme}://{normalized_netloc}"
+    hmac_input = f"{state_data}:{redirect_origin}".encode('utf-8')
+    state_sig = hmac.new(
+        auth.SECRET_KEY.encode('utf-8'), 
+        hmac_input, 
+        hashlib.sha256
+    ).hexdigest()
     
     from .time_utils import get_jst_time
     current_time = get_jst_time()
     exp_time = current_time + timedelta(minutes=15)
     
+    admin_token = auth.create_access_token(
+        data={
+            "sub": "admin@example.com",
+            "iss": "crowd-lunch-api",
+            "aud": "crowd-lunch-admin",
+            "role": "admin",
+            "iat": current_time.timestamp()
+        },
+        expires_delta=timedelta(minutes=15)
+    )
+    
     logging.info({
         "event": "admin_login_redirect",
-        "redirect_uri": redirect_uri,
-        "origin": origin,
+        "redirect_origin": redirect_origin,
         "sub": "admin",
-        "exp": exp_time.isoformat()
+        "exp": exp_time.isoformat(),
+        "state_exp": state_exp
     })
     
-    redirect_url = f"{redirect_uri}#token={admin_token}"
-    return RedirectResponse(url=redirect_url, status_code=302)
+    redirect_url = f"{redirect_uri}#token={admin_token}&state={state_data}&state_sig={state_sig}"
+    
+    return RedirectResponse(
+        url=redirect_url,
+        status_code=302,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
-@app.post("/auth/login")
-async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = crud.get_or_create_user(db, login_request.email)
-    access_token = auth.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 @app.get("/weekly-menus", response_model=List[schemas.WeeklyMenuResponse])
 async def get_weekly_menus(db: Session = Depends(get_db)):

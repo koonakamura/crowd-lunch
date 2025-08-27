@@ -1,0 +1,23 @@
+name: Check Auth Patterns
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  check-auth-patterns:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Check for forbidden POST /auth/login patterns
+      run: |
+        if grep -r "POST.*auth/login\|auth/login.*POST" . --exclude-dir=node_modules --exclude-dir=.git --exclude="*.yml" --exclude="*.yaml" --exclude="*test*.py" --exclude="*e2e*.py" --exclude="*debug*.py" --exclude="*documentation*.py"; then
+          echo "❌ Found forbidden POST /auth/login patterns in codebase"
+          echo "Use GET /auth/login for admin authentication instead"
+          exit 1
+        else
+          echo "✅ No forbidden POST /auth/login patterns found"
+        fi

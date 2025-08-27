@@ -117,7 +117,7 @@ class ApiClient {
   private token: string | null = null;
 
   constructor() {
-    this.token = localStorage.getItem('auth_token') || localStorage.getItem('adminToken');
+    this.token = localStorage.getItem('auth_token') || sessionStorage.getItem('adminToken');
   }
 
   setToken(token: string) {
@@ -127,17 +127,18 @@ class ApiClient {
 
   setAdminToken(token: string) {
     this.token = token;
-    localStorage.setItem('adminToken', token);
+    sessionStorage.setItem('adminToken', token);
+    localStorage.removeItem('adminToken');
   }
 
   clearToken() {
     this.token = null;
     localStorage.removeItem('auth_token');
-    localStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminToken');
   }
 
   getAdminToken(): string | null {
-    return localStorage.getItem('adminToken');
+    return sessionStorage.getItem('adminToken');
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -197,8 +198,13 @@ class ApiClient {
   }
 
   adminLogin(): void {
+    const state = crypto.getRandomValues(new Uint8Array(32))
+      .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    
+    sessionStorage.setItem('auth_state', state);
+    
     const redirectUri = `${window.location.origin}/admin/callback`;
-    const authUrl = `${API_BASE_URL}/auth/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const authUrl = `${API_BASE_URL}/auth/login?redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
     window.location.assign(authUrl);
   }
 
