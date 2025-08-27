@@ -96,6 +96,49 @@ async def get_server_time():
         headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
     )
 
+@app.get("/auth/login")
+async def login_redirect(redirect_uri: str):
+    import logging
+    from urllib.parse import urlparse
+    from fastapi.responses import RedirectResponse
+    
+    ALLOWED_REDIRECT_ORIGINS = [
+        "https://cheery-dango-2fd190.netlify.app",
+        "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ]
+    
+    parsed_uri = urlparse(redirect_uri)
+    origin = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+    
+    if origin not in ALLOWED_REDIRECT_ORIGINS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "invalid_redirect_uri", "message": "Invalid redirect URI"}
+        )
+    
+    from datetime import timedelta
+    admin_token = auth.create_access_token(
+        data={"sub": "admin@example.com"}, 
+        expires_delta=timedelta(minutes=15)
+    )
+    
+    from .time_utils import get_jst_time
+    current_time = get_jst_time()
+    exp_time = current_time + timedelta(minutes=15)
+    
+    logging.info({
+        "event": "admin_login_redirect",
+        "redirect_uri": redirect_uri,
+        "origin": origin,
+        "sub": "admin",
+        "exp": exp_time.isoformat()
+    })
+    
+    redirect_url = f"{redirect_uri}#token={admin_token}"
+    return RedirectResponse(url=redirect_url, status_code=302)
+
 @app.post("/auth/login")
 async def login(login_request: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = crud.get_or_create_user(db, login_request.email)
