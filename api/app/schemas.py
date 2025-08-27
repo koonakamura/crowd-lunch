@@ -58,6 +58,7 @@ class OrderBase(BaseModel):
     delivery_type: DeliveryType
     request_time: Optional[str] = None
     delivery_location: Optional[str] = None
+    pickup_at: Optional[datetime] = None
 
 class OrderCreate(OrderBase):
     items: List[OrderItemCreate]
@@ -78,6 +79,7 @@ class OrderCreateWithDepartmentName(BaseModel):
     department: str
     name: str
     items: List[OrderItemCreate]
+    pickup_at: Optional[datetime] = None
 
 class Order(OrderBase):
     id: int

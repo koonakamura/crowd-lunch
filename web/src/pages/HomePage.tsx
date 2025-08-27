@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { generateWeekdayDates } from '../lib/dateUtils'
-import { getAvailableTimeSlots, isCutoffTimeExpired } from '../utils/timeUtils'
+import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
   date: string;
@@ -88,6 +88,7 @@ export default function HomePage() {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [timeSlotError, setTimeSlotError] = useState<string>('')
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
@@ -154,6 +155,25 @@ export default function HomePage() {
     return hour >= 14
   }
 
+  const validateTimeSlot = (timeSlot: string) => {
+    if (isCutoffTimeExpired()) {
+      setTimeSlotError('18:14以降の注文受付は終了しております')
+      return false
+    }
+    
+    if (isCafeTime(timeSlot)) {
+      const selectedMenus = getSelectedMenus()
+      const invalidMenus = selectedMenus.filter(({ menu }) => !menu?.cafe_time_available)
+      if (invalidMenus.length > 0) {
+        setTimeSlotError('選択されたメニューはカフェタイムでは注文できません')
+        return false
+      }
+    }
+    
+    setTimeSlotError('')
+    return true
+  }
+
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
     const dayInfo = weekDays.find(day => day.formatted === selectedDay)
@@ -202,6 +222,15 @@ export default function HomePage() {
       return
     }
     
+    if (isCafeTime(deliveryTime)) {
+      const selectedMenus = getSelectedMenus();
+      const invalidMenus = selectedMenus.filter(({ menu }) => !menu?.cafe_time_available);
+      if (invalidMenus.length > 0) {
+        toast.error('選択されたメニューの一部はカフェタイムでは注文できません。')
+        return
+      }
+    }
+    
     setIsSubmitting(true)
     try {
       const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
@@ -209,18 +238,23 @@ export default function HomePage() {
         qty
       }))
 
+      const selectedDate = getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
+
       const orderPayload = {
-        serve_date: getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        serve_date: selectedDate,
         delivery_type: 'desk' as const,
         request_time: deliveryTime,
         delivery_location: deliveryLocation,
         department: department,
         name: customerName,
-        items: orderItems
+        items: orderItems,
+        pickup_at: pickupAt
       };
       
       console.log('DEBUG FRONTEND: About to send order payload:', orderPayload);
       console.log('DEBUG FRONTEND: delivery_location value:', deliveryLocation, 'type:', typeof deliveryLocation);
+      console.log('DEBUG FRONTEND: pickup_at value:', pickupAt);
       
       await apiClient.createGuestOrder(orderPayload)
 
@@ -524,7 +558,10 @@ export default function HomePage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">希望お届け時間</label>
-                <Select value={deliveryTime} onValueChange={setDeliveryTime}>
+                <Select value={deliveryTime} onValueChange={(value) => {
+                  setDeliveryTime(value)
+                  validateTimeSlot(value)
+                }}>
                   <SelectTrigger className="bg-white border-gray-300 text-black" data-testid="delivery-time">
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
@@ -541,6 +578,11 @@ export default function HomePage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {timeSlotError && (
+                  <div className="mt-2 text-sm text-red-400">
+                    {timeSlotError}
+                  </div>
+                )}
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
@@ -553,7 +595,7 @@ export default function HomePage() {
           <DialogFooter>
             <Button
               onClick={() => setShowConfirmationModal(true)}
-              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation}
+              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation || timeSlotError !== ''}
               className="w-full bg-primary hover:bg-primary/90 text-white"
               data-testid="submit-order"
             >
