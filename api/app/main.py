@@ -135,7 +135,10 @@ async def login_redirect(redirect_uri: str, state: str = None):
             raise ValueError("Invalid callback path")
         
         ALLOWED_HOSTS = {
-            "cheery-dango-2fd190.netlify.app",
+            "cheery-dango-2fd190.netlify.app"
+        }
+        
+        LOCALHOST_HOSTS = {
             "localhost:3000",
             "localhost:3001"
         }
@@ -144,6 +147,7 @@ async def login_redirect(redirect_uri: str, state: str = None):
         
         host_allowed = (
             normalized_netloc in ALLOWED_HOSTS or 
+            normalized_netloc in LOCALHOST_HOSTS or
             PREVIEW_PATTERN.match(normalized_netloc)
         )
         
