@@ -39,7 +39,7 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,  # Cookie方式なら True（その場合は * は不可）
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type"],
+    allow_headers=["authorization", "content-type", "cache-control"],
     max_age=600,
 )
 
