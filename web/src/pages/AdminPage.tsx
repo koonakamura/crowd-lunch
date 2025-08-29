@@ -669,7 +669,7 @@ export default function AdminPage() {
             
             {error && (
               <p className="text-red-500 text-sm mt-2">
-                {error}
+                {typeof error === 'string' ? error : JSON.stringify(error)}
               </p>
             )}
           </CardContent>
