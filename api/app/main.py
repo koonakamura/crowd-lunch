@@ -197,8 +197,8 @@ async def login_redirect(redirect_uri: str, state: str = None):
         data={
             "sub": "admin@example.com",
             "role": "admin",
-            "iss": "crowd-lunch",
-            "aud": "admin",
+            "iss": auth.JWT_ISS,
+            "aud": auth.JWT_AUD,
             "iat": now,
             "exp": now + 15*60,
         }
