@@ -18,6 +18,9 @@ SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+JWT_ISS = "crowd-lunch"
+JWT_AUD = "admin"
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 oauth2 = HTTPBearer(auto_error=False)
@@ -69,8 +72,8 @@ def get_current_admin(cred: HTTPAuthorizationCredentials = Depends(oauth2)):
         payload = jwt.decode(
             cred.credentials, SECRET_KEY,
             algorithms=["HS256"], 
-            audience="admin", 
-            issuer="crowd-lunch", 
+            audience=JWT_AUD, 
+            issuer=JWT_ISS, 
             options={"require": ["exp","iat","iss","aud"]}
         )
     except ExpiredSignatureError:
