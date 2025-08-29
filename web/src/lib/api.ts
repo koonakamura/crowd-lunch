@@ -505,6 +505,21 @@ export interface MenuSQLAlchemy {
   created_at: string;
 }
 
+export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
+  const res = await fetch(input, init);
+  const isJson = (res.headers.get("content-type") || "").includes("application/json");
+  if (!res.ok) {
+    const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
+    throw {
+      status: res.status,
+      code: body?.code || "unknown_error",
+      message: body?.message || body?.detail || body?.code || "リクエストに失敗しました",
+      raw: body,
+    };
+  }
+  return isJson ? res.json() : {};
+}
+
 export const apiClient = new ApiClient();
 
 export { DIAGNOSTIC_INFO };

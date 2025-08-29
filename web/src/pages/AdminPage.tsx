@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiClient, type MenuSQLAlchemy } from '../lib/api'
+import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
+
+interface ApiError {
+  status: number;
+  code: string;
+  message: string;
+  raw: unknown;
+}
+
+const API_BASE_URL = 'https://crowd-lunch.fly.dev';
 
 const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
@@ -81,7 +90,36 @@ export default function AdminPage() {
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(() => {
     return localStorage.getItem('adminNotificationEnabled') !== 'false'
   })
+  const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+
+  function toUserMessage(e: unknown): string {
+    if (!e) return "不明なエラーです";
+    if (typeof e === "string") return e;
+    
+    const isApiError = (obj: unknown): obj is ApiError => {
+      return typeof obj === 'object' && obj !== null && 
+             'code' in obj && 'message' in obj && 'status' in obj;
+    };
+    
+    if (isApiError(e)) {
+      const map: Record<string,string> = {
+        token_expired: "認証の有効期限が切れました。再ログインしてください。",
+        missing_token: "認証が必要です。ログインしてください。",
+        forbidden: "権限がありません。",
+        cafe_time_closed: "18:15以降は注文できません。",
+        menu_not_available: "この時間帯はカフェ対象メニューのみ注文可能です。",
+        invalid_timeslot: "選択した時間が無効です。",
+        aud_mismatch: "認証トークンの対象者が無効です。再ログインしてください。",
+        iss_mismatch: "認証トークンの発行者が無効です。再ログインしてください。",
+        invalid_token: "認証トークンが無効です。再ログインしてください。"
+      };
+      if (e.code && map[e.code]) return map[e.code];
+      return e.message;
+    }
+    
+    return JSON.stringify(e);
+  }
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
@@ -105,30 +143,40 @@ export default function AdminPage() {
         throw new Error('画像をアップロードするには、少なくとも1つのメニュー項目が必要です')
       }
       
-      const promises = validRows.map((row: MenuRow, index: number) => {
-        const imageToUpload = index === 0 ? selectedImage : null
+      const promises = validRows.map((row: MenuRow) => {
+        const payload = {
+          serve_date: formatDateForApi(selectedDate),
+          title: row.title,
+          price: row.price,
+          max_qty: row.max_qty,
+          cafe_time_available: row.cafe_time_available
+        };
         
         if (row.id) {
-          return apiClient.updateMenuSQLAlchemyWithImage(row.id, {
-            title: row.title,
-            price: row.price,
-            max_qty: row.max_qty,
-            cafe_time_available: row.cafe_time_available
-          }, imageToUpload)
+          return apiFetch(`${API_BASE_URL}/menus/${row.id}`, {
+            method: "PUT",
+            headers: {
+              "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
         } else {
-          return apiClient.createMenuSQLAlchemyWithImage({
-            serve_date: formatDateForApi(selectedDate),
-            title: row.title,
-            price: row.price,
-            max_qty: row.max_qty,
-            cafe_time_available: row.cafe_time_available
-          }, imageToUpload)
+          return apiFetch(`${API_BASE_URL}/menus`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
         }
-      })
+      });
       
-      return Promise.all(promises)
+      return Promise.all(promises);
     },
     onSuccess: () => {
+      setError(null);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
       toast({
@@ -136,12 +184,18 @@ export default function AdminPage() {
         description: "メニューが正常に保存されました",
       })
     },
-    onError: (error: Error) => {
-      toast({
-        title: "エラー",
-        description: `保存に失敗しました: ${error.message}`,
-        variant: "destructive",
-      })
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        setError(toUserMessage(e));
+        return;
+      }
+      setError(toUserMessage(e));
+      console.warn("save failed", e);
     }
   })
 
@@ -612,9 +666,9 @@ export default function AdminPage() {
               {saveMenusMutation.isPending ? '保存中...' : '保存'}
             </Button>
             
-            {saveMenusMutation.error && (
+            {error && (
               <p className="text-red-500 text-sm mt-2">
-                エラー: {saveMenusMutation.error.message}
+                {error}
               </p>
             )}
           </CardContent>
