@@ -1,17 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../lib/api';
 
 const JWT_ISS = (import.meta.env as { VITE_JWT_ISS?: string }).VITE_JWT_ISS || 'crowd-lunch';
 const JWT_AUD = (import.meta.env as { VITE_JWT_AUD?: string }).VITE_JWT_AUD || 'admin';
+const ALLOW_LEGACY_JWT = (import.meta.env as { VITE_ALLOW_LEGACY_JWT?: string }).VITE_ALLOW_LEGACY_JWT === 'true';
 const LEGACY_JWT_ISS = 'crowd-lunch-api';
 const LEGACY_JWT_AUD = 'crowd-lunch-admin';
 
 const AdminCallback = () => {
   const navigate = useNavigate();
   const [error, setError] = useState<string>('');
+  const hasRunRef = useRef(false);
 
   useEffect(() => {
+    if (hasRunRef.current) {
+      return;
+    }
+    hasRunRef.current = true;
     const extractTokenFromFragment = async () => {
       const fragment = window.location.hash;
       
@@ -82,8 +88,12 @@ const AdminCallback = () => {
             return;
           }
 
-          const validIss = payload.iss === JWT_ISS || payload.iss === LEGACY_JWT_ISS;
-          const validAud = payload.aud === JWT_AUD || payload.aud === LEGACY_JWT_AUD;
+          const validIss = payload.iss === JWT_ISS || (ALLOW_LEGACY_JWT && payload.iss === LEGACY_JWT_ISS);
+          const validAud = payload.aud === JWT_AUD || (ALLOW_LEGACY_JWT && payload.aud === LEGACY_JWT_AUD);
+          
+          if (ALLOW_LEGACY_JWT && (payload.iss === LEGACY_JWT_ISS || payload.aud === LEGACY_JWT_AUD)) {
+            console.info('deprecated_iss_aud_used');
+          }
           
           if (!validIss || !validAud) {
             console.warn('JWT iss/aud mismatch detected, attempting whoami fallback');
