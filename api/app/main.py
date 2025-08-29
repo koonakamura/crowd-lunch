@@ -29,7 +29,11 @@ async def validation_exception_handler(request, exc):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://cheery-dango-2fd190.netlify.app"],  # prod
+    allow_origins=[
+        "https://cheery-dango-2fd190.netlify.app",  # prod
+        "http://localhost:3000",  # local dev
+        "http://localhost:3001",  # local dev (vite fallback port)
+    ],
     allow_origin_regex=r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$",
     allow_methods=["GET","POST","PUT","DELETE","OPTIONS"],
     allow_headers=["authorization","content-type"],
