@@ -519,8 +519,8 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
       };
     }
     return isJson ? res.json() : {};
-  } catch (error: any) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'TypeError' && error.message.includes('fetch')) {
       throw {
         status: 0,
         code: "network_error",
