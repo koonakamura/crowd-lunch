@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +19,8 @@ from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
 
+app.router.redirect_slashes = False
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logging.exception("Validation error occurred: %s", exc)
@@ -28,18 +30,22 @@ async def validation_exception_handler(request, exc):
     )
 
 ALLOWED_ORIGINS = [
-    "https://cheery-dango-2fd190.netlify.app",              # Production
-    "https://deploy-preview-62--cheery-dango-2fd190.netlify.app",  # Preview
+    "https://cheery-dango-2fd190.netlify.app",  # prod
     "http://localhost:3000",
     "http://localhost:3001",
 ]
+ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
+
+logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
+logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=False,  # Cookie方式なら True（その場合は * は不可）
+    allow_origin_regex=ALLOW_ORIGIN_REGEX,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type", "cache-control"],
+    allow_headers=["authorization", "content-type", "accept"],
+    allow_credentials=False,
     max_age=600,
 )
 
@@ -47,6 +53,7 @@ app.add_middleware(
 async def add_security_headers(request, call_next):
     response = await call_next(request)
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-App-Commit"] = os.environ.get("FLY_MACHINE_VERSION", "dev")
     return response
 
 Base.metadata.create_all(bind=engine)
@@ -82,8 +89,7 @@ async def healthz():
     return {"status": "ok"}
 
 @app.options("/{path:path}")
-async def options_handler(path: str):
-    from fastapi import Response
+def _preflight_ok(path: str):
     return Response(status_code=204)
 
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
