@@ -506,18 +506,30 @@ export interface MenuSQLAlchemy {
 }
 
 export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
-  const res = await fetch(input, init);
-  const isJson = (res.headers.get("content-type") || "").includes("application/json");
-  if (!res.ok) {
-    const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
-    throw {
-      status: res.status,
-      code: body?.code || "unknown_error",
-      message: body?.message || body?.detail || body?.code || "リクエストに失敗しました",
-      raw: body,
-    };
+  try {
+    const res = await fetch(input, init);
+    const isJson = (res.headers.get("content-type") || "").includes("application/json");
+    if (!res.ok) {
+      const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
+      throw {
+        status: res.status,
+        code: body?.code || "unknown_error",
+        message: body?.message || body?.detail || body?.code || "リクエストに失敗しました",
+        raw: body,
+      };
+    }
+    return isJson ? res.json() : {};
+  } catch (error: any) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw {
+        status: 0,
+        code: "network_error",
+        message: "通信エラーまたはCORSエラーが発生しました",
+        raw: error,
+      };
+    }
+    throw error;
   }
-  return isJson ? res.json() : {};
 }
 
 export const apiClient = new ApiClient();
