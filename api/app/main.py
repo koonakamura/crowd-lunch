@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +19,8 @@ from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
 
+app.router.redirect_slashes = False
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     logging.exception("Validation error occurred: %s", exc)
@@ -27,16 +29,19 @@ async def validation_exception_handler(request, exc):
         content={"detail": "Validation error occurred"}
     )
 
+ALLOWED_ORIGINS = [
+    "https://cheery-dango-2fd190.netlify.app",  # prod
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cheery-dango-2fd190.netlify.app",
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ],
-    allow_origin_regex=r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$",
-    allow_methods=["GET","POST","PUT","DELETE","OPTIONS"],
-    allow_headers=["authorization","content-type"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOW_ORIGIN_REGEX,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["authorization", "content-type"],
     allow_credentials=False,
     max_age=600,
 )
@@ -80,8 +85,7 @@ async def healthz():
     return {"status": "ok"}
 
 @app.options("/{path:path}")
-async def options_handler(path: str):
-    from fastapi import Response
+def _preflight_ok(path: str):
     return Response(status_code=204)
 
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
