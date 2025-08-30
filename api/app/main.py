@@ -36,6 +36,9 @@ ALLOWED_ORIGINS = [
 ]
 ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
 
+logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
+logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -50,6 +53,7 @@ app.add_middleware(
 async def add_security_headers(request, call_next):
     response = await call_next(request)
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-App-Commit"] = os.environ.get("FLY_MACHINE_VERSION", "dev")
     return response
 
 Base.metadata.create_all(bind=engine)
