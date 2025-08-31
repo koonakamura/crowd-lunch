@@ -138,7 +138,7 @@ export default function AdminPage() {
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
-      const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '')
+      const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '');
       if (selectedImage && validRows.length === 0) {
         throw new Error('画像をアップロードするには、少なくとも1つのメニュー項目が必要です')
       }
@@ -151,32 +151,28 @@ export default function AdminPage() {
           max_qty: Number(row.max_qty),
           cafe_time_available: Boolean(row.cafe_time_available),
         };
+
+        const headers: HeadersInit = {
+          Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        };
         
-        if (row.id) {
-          return apiFetch(`${API_BASE_URL}/menus/${row.id}`, {
-            method: "PUT",
-            headers: {
-              "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
-        } else {
-          return apiFetch(`${API_BASE_URL}/menus`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify(payload),
-          });
-        }
+        const url = row.id
+          ? `${API_BASE_URL}/menus/${row.id}`
+          : `${API_BASE_URL}/menus`;
+        const method = row.id ? 'PUT' : 'POST';
+        
+        return apiFetch(url, {
+          method,
+          headers,
+          body: JSON.stringify(payload),
+        });  
       });
       
       return Promise.all(promises);
     },
+  });
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
