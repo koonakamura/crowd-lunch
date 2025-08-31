@@ -158,6 +158,7 @@ export default function AdminPage() {
             headers: {
               "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
               "Content-Type": "application/json",
+              "Accept": "application/json",
             },
             body: JSON.stringify(payload),
           });
@@ -167,6 +168,7 @@ export default function AdminPage() {
             headers: {
               "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
               "Content-Type": "application/json",
+              "Accept": "application/json",
             },
             body: JSON.stringify(payload),
           });
