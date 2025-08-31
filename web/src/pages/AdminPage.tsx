@@ -144,33 +144,34 @@ export default function AdminPage() {
       }
       
       const promises = validRows.map((row: MenuRow) => {
-        const payload = {
-          serve_date: formatDateForApi(selectedDate),
-          title: row.title,
-          price: row.price,
-          max_qty: row.max_qty,
-          cafe_time_available: row.cafe_time_available
-        };
+        const formData = new FormData();
+        formData.append('serve_date', formatDateForApi(selectedDate));
+        formData.append('title', row.title.trim());
+        formData.append('price', String(Number(row.price)));
+        formData.append('max_qty', String(Number(row.max_qty)));
+        formData.append('cafe_time_available', String(Boolean(row.cafe_time_available)));
+        
+        if (selectedImage) {
+          formData.append('image', selectedImage);
+        }
         
         if (row.id) {
           return apiFetch(`${API_BASE_URL}/menus/${row.id}`, {
             method: "PUT",
             headers: {
               "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
-              "Content-Type": "application/json",
               "Accept": "application/json",
             },
-            body: JSON.stringify(payload),
+            body: formData,
           });
         } else {
           return apiFetch(`${API_BASE_URL}/menus`, {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${sessionStorage.getItem("adminToken") ?? ""}`,
-              "Content-Type": "application/json",
               "Accept": "application/json",
             },
-            body: JSON.stringify(payload),
+            body: formData,
           });
         }
       });
