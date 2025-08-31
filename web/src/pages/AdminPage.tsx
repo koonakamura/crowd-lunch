@@ -146,7 +146,7 @@ export default function AdminPage() {
       const promises = validRows.map((row: MenuRow) => {
         const payload = {
           serve_date: formatDateForApi(selectedDate),
-          title: row.title,
+          title: row.title.trim(),
           price: Number(row.price),
           stock: Number(row.max_qty),
           cafe_time_available: Boolean(row.cafe_time_available),
