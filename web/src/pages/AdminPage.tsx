@@ -147,9 +147,9 @@ export default function AdminPage() {
         const payload = {
           serve_date: formatDateForApi(selectedDate),
           title: row.title,
-          price: row.price,
-          max_qty: row.max_qty,
-          cafe_time_available: row.cafe_time_available
+          price: Number(row.price),
+          stock: Number(row.max_qty),
+          cafe_time_available: Boolean(row.cafe_time_available),
         };
         
         if (row.id) {
