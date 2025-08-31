@@ -144,35 +144,29 @@ export default function AdminPage() {
       }
       
       const promises = validRows.map((row: MenuRow) => {
-        const payload = {
-          serve_date: formatDateForApi(selectedDate),
-          title: row.title.trim(),
-          price: Number(row.price),
-          max_qty: Number(row.max_qty),
-          cafe_time_available: Boolean(row.cafe_time_available),
-        };
+        const form = new FormData();
+        form.append('serve_date', formatDateForApi(selectedDate));
+        form.append('title', row.title.trim());
+        form.append('price', String(Number(row.price)));
+        form.append('max_qty', String(Number(row.max_qty)));
+        form.append('cafe_time_available', String(Boolean(row.cafe_time_available))); 
 
-        const headers: HeadersInit = {
-          Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        };
-        
-        const url = row.id
-          ? `${API_BASE_URL}/menus/${row.id}`
-          : `${API_BASE_URL}/menus`;
+        const url = row.id ? `${API_BASE_URL}/menus/${row.id}` : `${API_BASE_URL}/menus`;
         const method = row.id ? 'PUT' : 'POST';
         
         return apiFetch(url, {
           method,
-          headers,
-          body: JSON.stringify(payload),
-        });  
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
+            Accept: 'application/json',
+          // ← Content-Type は書かない！
+          },
+          body: form,
+        });
       });
-      
+
       return Promise.all(promises);
-    },
-  });
+
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
