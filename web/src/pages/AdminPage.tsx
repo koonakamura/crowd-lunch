@@ -148,7 +148,7 @@ export default function AdminPage() {
           serve_date: formatDateForApi(selectedDate),
           title: row.title.trim(),
           price: Number(row.price),
-          stock: Number(row.max_qty),
+          max_qty: Number(row.max_qty),
           cafe_time_available: Boolean(row.cafe_time_available),
         };
         
