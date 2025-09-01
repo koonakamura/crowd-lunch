@@ -149,7 +149,11 @@ export default function AdminPage() {
         form.append('title', row.title.trim());
         form.append('price', String(Number(row.price)));
         form.append('max_qty', String(Number(row.max_qty)));
-        form.append('cafe_time_available', String(Boolean(row.cafe_time_available))); 
+        form.append('cafe_time_available', String(Boolean(row.cafe_time_available)));
+        
+        if (selectedImage) {
+          form.append('image', selectedImage);
+        }
 
         const url = row.id ? `${API_BASE_URL}/menus/${row.id}` : `${API_BASE_URL}/menus`;
         const method = row.id ? 'PUT' : 'POST';
@@ -159,14 +163,13 @@ export default function AdminPage() {
           headers: {
             Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
             Accept: 'application/json',
-          // ← Content-Type は書かない！
           },
           body: form,
         });
       });
 
       return Promise.all(promises);
-
+    },
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })

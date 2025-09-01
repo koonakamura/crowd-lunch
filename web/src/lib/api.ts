@@ -507,7 +507,13 @@ export interface MenuSQLAlchemy {
 
 export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
   try {
-    const res = await fetch(input, init);
+    const body = init.body;
+    const hdrs = new Headers(init.headers);
+    if (body instanceof FormData) {
+      hdrs.delete('Content-Type');
+    }
+    
+    const res = await fetch(input, { ...init, headers: hdrs });
     const isJson = (res.headers.get("content-type") || "").includes("application/json");
     if (!res.ok) {
       const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };

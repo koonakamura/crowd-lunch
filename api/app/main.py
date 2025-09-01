@@ -26,7 +26,7 @@ async def validation_exception_handler(request, exc):
     logging.exception("Validation error occurred: %s", exc)
     return JSONResponse(
         status_code=422,
-        content={"detail": "Validation error occurred"}
+        content={"detail": exc.errors()}
     )
 
 ALLOWED_ORIGINS = [
