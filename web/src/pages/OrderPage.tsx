@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
+import { weekStartOf } from '../lib/dateUtils'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -27,7 +28,7 @@ export default function OrderPage() {
   const [department, setDepartment] = useState('')
 
   const { data: weeklyMenus } = useQuery({
-    queryKey: ['weeklyMenus'],
+    queryKey: ['weeklyMenus', weekStartOf(new Date())],
     queryFn: () => apiClient.getWeeklyMenus(),
   })
 

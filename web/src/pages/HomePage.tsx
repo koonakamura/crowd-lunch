@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates } from '../lib/dateUtils'
+import { generateWeekdayDates, weekStartOf } from '../lib/dateUtils'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
@@ -92,7 +92,7 @@ export default function HomePage() {
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['weeklyMenus'],
+    queryKey: ['weeklyMenus', weekStartOf(new Date())],
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
   })
@@ -278,7 +278,7 @@ export default function HomePage() {
       setTodayOrder(orderData);
 
       queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(new Date())] })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -304,7 +304,7 @@ export default function HomePage() {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
       queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(new Date())] })
     } finally {
       setIsSubmitting(false)
     }

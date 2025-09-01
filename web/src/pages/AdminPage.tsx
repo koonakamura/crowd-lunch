@@ -48,7 +48,7 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
+import { generateWeekdayDates, formatDateForApi, getTodayFormatted, weekStartOf } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -172,8 +172,9 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDate = formatDateForApi(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -199,11 +200,12 @@ export default function AdminPage() {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
     onSuccess: (_, menuId) => {
+      const serveDate = formatDateForApi(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
       setMenuRows(prevRows => prevRows.map(row => 
         row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
       ))
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
     },
     onError: () => {
     }
@@ -214,8 +216,9 @@ export default function AdminPage() {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDate = formatDateForApi(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
     },
     onError: () => {
     }
@@ -224,7 +227,8 @@ export default function AdminPage() {
   const toggleDeliveryMutation = useMutation({
     mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      const serveDate = formatDateForApi(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
       toast({
         title: "配達状況を更新しました",
         description: "配達完了状況が正常に更新されました。",
@@ -239,6 +243,11 @@ export default function AdminPage() {
     },
   })
 
+
+  useEffect(() => {
+    setMenuRows([])
+    setSelectedImage(null)
+  }, [selectedDate])
 
   useEffect(() => {
     if (sqlAlchemyMenus && sqlAlchemyMenus.length > 0) {
@@ -266,11 +275,8 @@ export default function AdminPage() {
       setMenuRows([])
       setBackgroundPreview(prev => prev && prev.startsWith('blob:') ? prev : null)
     }
-  }, [sqlAlchemyMenus])
+  }, [selectedDate, sqlAlchemyMenus])
 
-  useEffect(() => {
-    setSelectedImage(null)
-  }, [selectedDate])
 
   useEffect(() => {
     const audio = new Audio(new URL('../assets/sounds/notify.mp3', import.meta.url).href)
@@ -293,7 +299,8 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
+          const serveDate = formatDateForApi(selectedDate);
+          queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
         }
       } catch (error) {
         console.error('WebSocket message parsing error:', error)
