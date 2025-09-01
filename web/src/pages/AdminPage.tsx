@@ -147,11 +147,11 @@ export default function AdminPage() {
         const form = new FormData();
         form.append('serve_date', formatDateForApi(selectedDate));
         form.append('title', row.title.trim());
-        form.append('price', String(Number(row.price)));
-        form.append('max_qty', String(Number(row.max_qty)));
+        form.append('price', String(Number.isFinite(Number(row.price)) ? Number(row.price) : 0));
+        form.append('max_qty', String(Number.isFinite(Number(row.max_qty)) ? Number(row.max_qty) : 0));
         form.append('cafe_time_available', String(Boolean(row.cafe_time_available)));
         
-        if (selectedImage) {
+        if (selectedImage instanceof File) {
           form.append('image', selectedImage);
         }
 

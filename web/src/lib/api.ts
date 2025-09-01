@@ -509,6 +509,7 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
   try {
     const body = init.body;
     const hdrs = new Headers(init.headers);
+    
     if (body instanceof FormData) {
       hdrs.delete('Content-Type');
     }
