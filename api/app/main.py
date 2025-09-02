@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timedelta
-from typing import List
+from typing import List, Optional
 import json
 import os
 import uuid
@@ -258,6 +258,14 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     return result
 
 
+@app.get("/public/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
+async def get_public_menus_by_date(
+    date: date = None,
+    db: Session = Depends(get_db),
+):
+    menus = crud.get_menus_sqlalchemy(db, date)
+    return menus
+
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
     date: date = None,
@@ -484,11 +492,12 @@ async def get_today_orders(
         description="Retrieve orders for a specific date. **Authentication required**: Include Bearer token in Authorization header.")
 async def get_orders_by_date(
     date: date,
+    status: Optional[str] = None,
     admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
     
-    orders = crud.get_today_orders(db, date)
+    orders = crud.get_today_orders(db, date, status_filter=status)
     
     print(f"DEBUG ORDERS API: get_orders_by_date returning {len(orders)} orders for date {date}")
     for order in orders:

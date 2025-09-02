@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates, toServeDateKey, createPublicMenuQueryKey } from '../lib/dateUtils'
+import { toServeDateKey } from '../lib/dateUtils'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
@@ -41,7 +41,7 @@ const getTodayOrder = (): TodayOrderData | null => {
     if (!stored) return null;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -62,7 +62,7 @@ const clearOldOrders = (): void => {
     if (!stored) return;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -91,11 +91,12 @@ export default function HomePage() {
   const [timeSlotError, setTimeSlotError] = useState<string>('')
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
-  const serveDateKey = toServeDateKey();
+  
+  const serveDateKey = useMemo(() => toServeDateKey(serverTime || new Date()), [serverTime]);
   
   const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: createPublicMenuQueryKey(serveDateKey),
-    queryFn: () => apiClient.getWeeklyMenus(),
+    queryKey: ['menus', serveDateKey],
+    queryFn: () => apiClient.getPublicMenusSQLAlchemy(serveDateKey),
     refetchInterval: 30000,
     staleTime: 0,
   })
@@ -116,7 +117,6 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  const weekDays = generateWeekdayDates(new Date(), 7)
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
@@ -137,13 +137,12 @@ export default function HomePage() {
   const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
     if (!weeklyMenus || weeklyMenus.length === 0) return []
     
-    const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
-    const dateKey = format(date, 'yyyy-MM-dd')
-    const menus = menusByDate.get(dateKey) ?? []
+    const dateKey = toServeDateKey(date)
+    const menus = weeklyMenus.filter(menu => menu.serve_date === dateKey)
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
-      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
+      (serverTime && serverTime.getHours() >= 14 && toServeDateKey(date) === toServeDateKey(serverTime))
     
     if (shouldFilterForCafeTime) {
       return menus.filter(menu => menu.cafe_time_available === true)
@@ -179,8 +178,7 @@ export default function HomePage() {
 
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
-    const dayInfo = weekDays.find(day => day.formatted === selectedDay)
-    return dayInfo ? dayInfo.date : null
+    return serverTime || new Date()
   }
 
 
@@ -206,9 +204,8 @@ export default function HomePage() {
 
   const getSelectedMenus = () => {
     if (!weeklyMenus) return []
-    const allMenus = weeklyMenus.flatMap(day => day.menus || [])
     return Object.entries(cart).map(([menuId, qty]) => {
-      const menu = allMenus.find(m => m.id === parseInt(menuId))
+      const menu = weeklyMenus.find(m => m.id === parseInt(menuId))
       return { menu, qty }
     }).filter(item => item.menu)
   }
@@ -241,7 +238,7 @@ export default function HomePage() {
         qty
       }))
 
-      const selectedDate = getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
 
       const orderPayload = {
@@ -263,7 +260,7 @@ export default function HomePage() {
 
       const selectedMenus = getSelectedMenus();
       const orderData: TodayOrderData = {
-        date: serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        date: toServeDateKey(serverTime || new Date()),
         department: department,
         customerName: customerName,
         deliveryLocation: deliveryLocation,
@@ -280,8 +277,8 @@ export default function HomePage() {
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      const serveDateKey = serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-      queryClient.invalidateQueries({ queryKey: createPublicMenuQueryKey(serveDateKey), exact: true });
+      const currentServeDateKey = toServeDateKey(serverTime || new Date());
+      queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -306,8 +303,8 @@ export default function HomePage() {
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
-      const serveDateKey = serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-      queryClient.invalidateQueries({ queryKey: createPublicMenuQueryKey(serveDateKey), exact: true });
+      const currentServeDateKey = toServeDateKey(serverTime || new Date());
+      queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
     } finally {
       setIsSubmitting(false)
     }
@@ -421,16 +418,17 @@ export default function HomePage() {
       </header>
 
       <div className="pt-16">
-        {weekDays.map((dayInfo, index) => {
-          const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
+        {(() => {
+          const todayDate = serverTime || new Date();
+          const dayKey = format(todayDate, 'M/d');
+          const dayMenus = getMenusForDate(todayDate, selectedDay === dayKey ? deliveryTime : undefined);
           
           return (
             <section 
-              key={format(dayInfo.date, 'yyyy-MM-dd')}
+              key={toServeDateKey(todayDate)}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
-                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
+                backgroundImage: `url(${getBackgroundImage(0, dayMenus)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
@@ -442,7 +440,7 @@ export default function HomePage() {
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
-                  ({dayInfo.dayName})
+                  ({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][todayDate.getDay()]})
                 </p>
               </div>
               
@@ -452,7 +450,7 @@ export default function HomePage() {
                     <button
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
-                      disabled={(menu.remaining_qty || 0) <= 0}
+                      disabled={(menu.max_qty || 0) <= 0}
                       className={`p-4 rounded-3xl text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
@@ -463,7 +461,7 @@ export default function HomePage() {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{menu.title}</span>
-                          <span className="text-sm">({menu.remaining_qty})</span>
+                          <span className="text-sm">({menu.max_qty})</span>
                         </div>
                         <span className="text-lg font-bold">{menu.price}円</span>
                       </div>
@@ -484,7 +482,7 @@ export default function HomePage() {
               </div>
             </section>
           )
-        })}
+        })()}
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>

@@ -160,8 +160,13 @@ class ApiClient {
     if (!response.ok) {
       if (response.status === 401) {
         this.clearToken();
-        window.location.href = '/login';
-        throw new Error('認証が必要です。ログインしてください。');
+        if (location.pathname.startsWith('/admin')) {
+          location.replace('/admin');
+          throw new Error('UNAUTHORIZED_REDIRECT');
+        } else {
+          window.location.href = '/login';
+          throw new Error('認証が必要です。ログインしてください。');
+        }
       }
       
       const errorText = await response.text();
@@ -328,13 +333,19 @@ class ApiClient {
     return response.json();
   }
 
-  async getOrdersByDate(date: string): Promise<Order[]> {
-    return this.request(`/orders?date=${date}`);
+  async getOrdersByDate(date: string, status?: string): Promise<Order[]> {
+    const params = status ? `?date=${date}&status=${status}` : `?date=${date}`;
+    return this.request(`/orders${params}`);
   }
 
   async getMenusSQLAlchemy(date?: string): Promise<MenuSQLAlchemy[]> {
     const params = date ? `?date=${date}` : '';
     return this.request(`/menus${params}`);
+  }
+
+  async getPublicMenusSQLAlchemy(date?: string): Promise<MenuSQLAlchemy[]> {
+    const params = date ? `?date=${date}` : '';
+    return this.request(`/public/menus${params}`);
   }
 
   async createMenuSQLAlchemy(menu: {
@@ -471,8 +482,13 @@ class ApiClient {
     if (!response.ok) {
       if (response.status === 401) {
         this.clearToken();
-        window.location.href = '/login';
-        throw new Error('認証が必要です。ログインしてください。');
+        if (location.pathname.startsWith('/admin')) {
+          location.replace('/admin');
+          throw new Error('UNAUTHORIZED_REDIRECT');
+        } else {
+          window.location.href = '/login';
+          throw new Error('認証が必要です。ログインしてください。');
+        }
       }
       
       const errorText = await response.text();
@@ -510,6 +526,23 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
     const res = await fetch(input, init);
     const isJson = (res.headers.get("content-type") || "").includes("application/json");
     if (!res.ok) {
+      if (res.status === 401 && location.pathname.startsWith('/admin')) {
+        try {
+          const data = await res.clone().json();
+          const code = (data as any)?.detail?.code;
+          if (code === 'token_expired' || code === 'invalid_token') {
+            sessionStorage.removeItem('adminToken');
+            sessionStorage.setItem('admin-logout-reason', 'expired');
+            location.replace('/admin');
+            throw new Error('UNAUTHORIZED_REDIRECT');
+          }
+        } catch {
+          sessionStorage.removeItem('adminToken');
+          sessionStorage.setItem('admin-logout-reason', 'unauthorized');
+          location.replace('/admin');
+          throw new Error('UNAUTHORIZED_REDIRECT');
+        }
+      }
       const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
       throw {
         status: res.status,

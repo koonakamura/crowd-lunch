@@ -48,7 +48,7 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
+import { generateWeekdayDates, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -141,6 +141,13 @@ export default function AdminPage() {
     staleTime: 0,
   })
 
+  const { data: confirmedOrders } = useQuery<Order[]>({
+    queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'],
+    queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
+    enabled: user?.email === 'admin@example.com' && showConfirmedOnly,
+    staleTime: 0,
+  })
+
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
@@ -151,7 +158,7 @@ export default function AdminPage() {
       
       const promises = validRows.map((row: MenuRow) => {
         const form = new FormData();
-        form.append('serve_date', formatDateForApi(selectedDate));
+        form.append('serve_date', toServeDateKey(selectedDate));
         form.append('title', row.title.trim());
         form.append('price', String(Number(row.price)));
         form.append('max_qty', String(Number(row.max_qty)));
@@ -736,8 +743,8 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(showConfirmedOnly ? orders?.filter(order => order.status !== 'new') : orders)?.length ? (
-                    (showConfirmedOnly ? orders?.filter(order => order.status !== 'new') : orders)?.map((order: Order) => (
+                  {(showConfirmedOnly ? confirmedOrders : orders)?.length ? (
+                    (showConfirmedOnly ? confirmedOrders : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2">{formatJSTTime(order.created_at)}</td>

@@ -99,10 +99,21 @@ def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
         db.refresh(order)
     return order
 
-def get_today_orders(db: Session, serve_date: date):
-    return db.query(models.OrderSQLAlchemy).filter(
-        models.OrderSQLAlchemy.serve_date == serve_date
-    ).order_by(models.OrderSQLAlchemy.created_at.asc()).all()
+def get_today_orders(db: Session, serve_date: date, status_filter: Optional[str] = None):
+    from sqlalchemy.orm import joinedload
+    
+    query = db.query(models.OrderSQLAlchemy).options(
+        joinedload(models.OrderSQLAlchemy.user),
+        joinedload(models.OrderSQLAlchemy.items).joinedload(models.OrderItem.menu)
+    ).filter(models.OrderSQLAlchemy.serve_date == serve_date)
+    
+    if status_filter:
+        if status_filter == 'confirmed':
+            query = query.filter(models.OrderSQLAlchemy.status != 'new')
+        else:
+            query = query.filter(models.OrderSQLAlchemy.status == status_filter)
+    
+    return query.order_by(models.OrderSQLAlchemy.created_at.asc()).all()
 
 def create_sample_menus(db: Session):
     """Create sample menu data for testing"""
