@@ -93,6 +93,24 @@ export default function AdminPage() {
   const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
 
+  useEffect(() => {
+    const checkAdminAuth = async () => {
+      const adminToken = sessionStorage.getItem('adminToken');
+      if (adminToken) {
+        try {
+          await apiClient.whoami();
+        } catch (error: any) {
+          if (error?.status === 401) {
+            sessionStorage.removeItem('adminToken');
+            setError('認証が無効です。再ログインしてください。');
+          }
+        }
+      }
+    };
+    
+    checkAdminAuth();
+  }, []);
+
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
     if (typeof e === "string") return e;
@@ -158,14 +176,13 @@ export default function AdminPage() {
         const url = row.id ? `${API_BASE_URL}/menus/${row.id}` : `${API_BASE_URL}/menus`;
         const method = row.id ? 'PUT' : 'POST';
         
-        return apiFetch(url, {
-          method,
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
-            Accept: 'application/json',
-          },
-          body: form,
-        });
+        const token = apiClient.getAdminToken();
+        const headers: HeadersInit = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Accept: 'application/json',
+        };
+
+        return apiFetch(url, { method, headers, body: form });
       });
 
       return Promise.all(promises);
@@ -424,8 +441,45 @@ export default function AdminPage() {
     }
   }
 
+  useEffect(() => {
+    setValidationErrors({})
+  }, [selectedDate])
+
+  useEffect(() => {
+    const hasValidData = menuRows.some(row => row.title.trim() !== '' && row.price > 0 && row.max_qty > 0)
+    if (hasValidData) {
+      const newErrors: Record<string, string> = {}
+      menuRows.forEach((row, index) => {
+        const priceError = validateMenuRow('price', row.price.toString())
+        const qtyError = validateMenuRow('max_qty', row.max_qty.toString())
+        
+        if (priceError) newErrors[`${index}-price`] = priceError
+        if (qtyError) newErrors[`${index}-max_qty`] = qtyError
+      })
+      setValidationErrors(newErrors)
+    }
+  }, [menuRows])
+
   const handleSave = () => {
-    saveMenusMutation.mutate()
+    console.log('=== HANDLE SAVE CALLED ===');
+    console.log('Current menuRows:', menuRows);
+    console.log('Current validationErrors:', validationErrors);
+    console.log('Validation errors keys:', Object.keys(validationErrors));
+    console.log('Validation errors with content:', Object.keys(validationErrors).filter(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== ''));
+    
+    const hasValidMenus = menuRows.some(row => row.title.trim() !== '');
+    const hasActualErrors = Object.keys(validationErrors).some(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== '');
+    
+    console.log('Has valid menus:', hasValidMenus);
+    console.log('Has actual errors:', hasActualErrors);
+    console.log('Should save:', hasValidMenus && !hasActualErrors);
+    
+    if (hasValidMenus && !hasActualErrors) {
+      console.log('Calling saveMenusMutation.mutate()...');
+      saveMenusMutation.mutate();
+    } else {
+      console.log('Save blocked by validation errors');
+    }
   }
 
   const generateCSV = (orders: Order[]): string => {
@@ -662,7 +716,7 @@ export default function AdminPage() {
             {/* Save Button */}
             <Button 
               onClick={handleSave}
-              disabled={saveMenusMutation.isPending || Object.keys(validationErrors).length > 0}
+              disabled={saveMenusMutation.isPending || (menuRows.some(row => row.title.trim() !== '') && Object.keys(validationErrors).some(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== ''))}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
               {saveMenusMutation.isPending ? '保存中...' : '保存'}
