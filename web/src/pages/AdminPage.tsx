@@ -100,8 +100,8 @@ export default function AdminPage() {
       if (adminToken) {
         try {
           await apiClient.whoami();
-        } catch (error: any) {
-          if (error?.status === 401) {
+        } catch (error: unknown) {
+          if ((error as { status?: number })?.status === 401) {
             sessionStorage.removeItem('adminToken');
             setError('認証が無効です。再ログインしてください。');
           }
@@ -343,7 +343,26 @@ export default function AdminPage() {
     return () => {
       ws.close()
     }
-  }, [user, isNotificationEnabled, audioElement, queryClient])
+  }, [user, isNotificationEnabled, audioElement, queryClient, selectedDate])
+
+  useEffect(() => {
+    setValidationErrors({})
+  }, [selectedDate])
+
+  useEffect(() => {
+    const hasValidData = menuRows.some(row => row.title.trim() !== '' && row.price > 0 && row.max_qty > 0)
+    if (hasValidData) {
+      const newErrors: Record<string, string> = {}
+      menuRows.forEach((row, index) => {
+        const priceError = validateMenuRow('price', row.price.toString())
+        const qtyError = validateMenuRow('max_qty', row.max_qty.toString())
+        
+        if (priceError) newErrors[`${index}-price`] = priceError
+        if (qtyError) newErrors[`${index}-max_qty`] = qtyError
+      })
+      setValidationErrors(newErrors)
+    }
+  }, [menuRows])
 
   const adminToken = apiClient.getAdminToken();
   
@@ -457,24 +476,6 @@ export default function AdminPage() {
     }
   }
 
-  useEffect(() => {
-    setValidationErrors({})
-  }, [selectedDate])
-
-  useEffect(() => {
-    const hasValidData = menuRows.some(row => row.title.trim() !== '' && row.price > 0 && row.max_qty > 0)
-    if (hasValidData) {
-      const newErrors: Record<string, string> = {}
-      menuRows.forEach((row, index) => {
-        const priceError = validateMenuRow('price', row.price.toString())
-        const qtyError = validateMenuRow('max_qty', row.max_qty.toString())
-        
-        if (priceError) newErrors[`${index}-price`] = priceError
-        if (qtyError) newErrors[`${index}-max_qty`] = qtyError
-      })
-      setValidationErrors(newErrors)
-    }
-  }, [menuRows])
 
   const handleSave = () => {
     console.log('=== HANDLE SAVE CALLED ===');
