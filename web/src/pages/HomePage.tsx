@@ -92,6 +92,7 @@ export default function HomePage() {
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   
+  // Server time policy: General screen uses server time for consistent date handling across users
   const serveDateKey = useMemo(() => toServeDateKey(serverTime || new Date()), [serverTime]);
   
   const { data: weeklyMenus, isLoading } = useQuery({

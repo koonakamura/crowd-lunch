@@ -48,7 +48,7 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
+import { generateWeekdayDates, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, createCommonInvalidateHandler } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -125,6 +125,7 @@ export default function AdminPage() {
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
+  // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = toServeDateKey(selectedDate);
 
   const { data: orders } = useQuery<Order[]>({
@@ -326,7 +327,8 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
+          const invalidateHandler = createCommonInvalidateHandler(queryClient, serveDateKey);
+          invalidateHandler.invalidateOrders();
         }
       } catch (error) {
         console.error('WebSocket message parsing error:', error)

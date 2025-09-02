@@ -521,6 +521,12 @@ export interface MenuSQLAlchemy {
   created_at: string;
 }
 
+/**
+ * API fetch wrapper with 401 error handling
+ * 
+ * @note For Sentry/error monitoring: Filter out 'UNAUTHORIZED_REDIRECT' errors
+ * as they are intentional redirects, not actual application errors
+ */
 export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
   try {
     const res = await fetch(input, init);
