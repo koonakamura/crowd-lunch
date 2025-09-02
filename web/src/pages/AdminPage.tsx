@@ -746,6 +746,22 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
+        {/* Confirmed Orders Section */}
+        {confirmedOrders && confirmedOrders.length > 0 && (
+          <Card className="shadow-sm mb-6">
+            <CardHeader>
+              <CardTitle className="text-green-700">確定済み注文 ({confirmedOrders.length}件)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="text-sm text-green-800">
+                  配達完了済みの注文が {confirmedOrders.length} 件あります。
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Order List Section */}
         <Card className="shadow-sm">
           <CardHeader>
