@@ -9,7 +9,8 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates } from '../lib/dateUtils'
+import { generateWeekdayDates, weekStartOf } from '../lib/dateUtils'
+import { toServeDateKey } from '../utils/serveDate'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
@@ -41,7 +42,7 @@ const getTodayOrder = (): TodayOrderData | null => {
     if (!stored) return null;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -62,7 +63,7 @@ const clearOldOrders = (): void => {
     if (!stored) return;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -92,7 +93,7 @@ export default function HomePage() {
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['weeklyMenus'],
+    queryKey: ['weeklyMenus', weekStartOf(new Date())],
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
   })
@@ -135,12 +136,12 @@ export default function HomePage() {
     if (!weeklyMenus || weeklyMenus.length === 0) return []
     
     const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
-    const dateKey = format(date, 'yyyy-MM-dd')
+    const dateKey = toServeDateKey(date)
     const menus = menusByDate.get(dateKey) ?? []
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
-      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
+      (serverTime && serverTime.getHours() >= 14 && toServeDateKey(date) === toServeDateKey(serverTime))
     
     if (shouldFilterForCafeTime) {
       return menus.filter(menu => menu.cafe_time_available === true)
@@ -238,7 +239,7 @@ export default function HomePage() {
         qty
       }))
 
-      const selectedDate = getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
 
       const orderPayload = {
@@ -260,7 +261,7 @@ export default function HomePage() {
 
       const selectedMenus = getSelectedMenus();
       const orderData: TodayOrderData = {
-        date: serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        date: serverTime ? toServeDateKey(serverTime) : toServeDateKey(new Date()),
         department: department,
         customerName: customerName,
         deliveryLocation: deliveryLocation,
@@ -277,8 +278,8 @@ export default function HomePage() {
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? toServeDateKey(serverTime) : toServeDateKey(new Date())] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(new Date())] })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -303,8 +304,8 @@ export default function HomePage() {
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? toServeDateKey(serverTime) : toServeDateKey(new Date())] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(new Date())] })
     } finally {
       setIsSubmitting(false)
     }
@@ -424,7 +425,7 @@ export default function HomePage() {
           
           return (
             <section 
-              key={format(dayInfo.date, 'yyyy-MM-dd')}
+              key={toServeDateKey(dayInfo.date)}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
                 backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,

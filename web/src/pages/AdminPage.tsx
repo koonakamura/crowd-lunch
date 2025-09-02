@@ -48,7 +48,8 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
+import { generateWeekdayDates, getTodayFormatted, weekStartOf } from '../lib/dateUtils'
+import { toServeDateKey } from '../utils/serveDate'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -93,6 +94,24 @@ export default function AdminPage() {
   const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
 
+  useEffect(() => {
+    const checkAdminAuth = async () => {
+      const adminToken = sessionStorage.getItem('adminToken');
+      if (adminToken) {
+        try {
+          await apiClient.whoami();
+        } catch (error: unknown) {
+          if ((error as { status?: number })?.status === 401) {
+            sessionStorage.removeItem('adminToken');
+            setError('認証が無効です。再ログインしてください。');
+          }
+        }
+      }
+    };
+    
+    checkAdminAuth();
+  }, []);
+
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
     if (typeof e === "string") return e;
@@ -124,14 +143,22 @@ export default function AdminPage() {
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
   const { data: orders } = useQuery<Order[]>({
-    queryKey: ['orders', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
+    queryKey: ['orders', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getOrdersByDate(toServeDateKey(selectedDate)),
+    enabled: user?.email === 'admin@example.com',
+  })
+
+  const { data: confirmedOrders } = useQuery<Order[]>({
+    queryKey: ['confirmed-orders', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getOrdersByDate(toServeDateKey(selectedDate)).then(orders => 
+      orders.filter(order => order.status === 'delivered')
+    ),
     enabled: user?.email === 'admin@example.com',
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
-    queryKey: ['menus-sqlalchemy', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getMenusSQLAlchemy(formatDateForApi(selectedDate)),
+    queryKey: ['menus-sqlalchemy', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getMenusSQLAlchemy(toServeDateKey(selectedDate)),
     enabled: user?.email === 'admin@example.com',
   })
 
@@ -145,32 +172,37 @@ export default function AdminPage() {
       
       const promises = validRows.map((row: MenuRow) => {
         const form = new FormData();
-        form.append('serve_date', formatDateForApi(selectedDate));
+        form.append('serve_date', toServeDateKey(selectedDate));
         form.append('title', row.title.trim());
-        form.append('price', String(Number(row.price)));
-        form.append('max_qty', String(Number(row.max_qty)));
-        form.append('cafe_time_available', String(Boolean(row.cafe_time_available))); 
+        form.append('price', String(Number.isFinite(Number(row.price)) ? Number(row.price) : 0));
+        form.append('max_qty', String(Number.isFinite(Number(row.max_qty)) ? Number(row.max_qty) : 0));
+        form.append('cafe_time_available', String(Boolean(row.cafe_time_available)));
+        
+        if (selectedImage instanceof File) {
+          form.append('image', selectedImage);
+        }
 
         const url = row.id ? `${API_BASE_URL}/menus/${row.id}` : `${API_BASE_URL}/menus`;
         const method = row.id ? 'PUT' : 'POST';
         
-        return apiFetch(url, {
-          method,
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem('adminToken') ?? ''}`,
-            Accept: 'application/json',
-          // ← Content-Type は書かない！
-          },
-          body: form,
-        });
+        const token = apiClient.getAdminToken();
+        const headers: HeadersInit = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Accept: 'application/json',
+        };
+
+        return apiFetch(url, { method, headers, body: form });
       });
 
       return Promise.all(promises);
-
+    },
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDate = toServeDateKey(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -196,11 +228,14 @@ export default function AdminPage() {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
     onSuccess: (_, menuId) => {
+      const serveDate = toServeDateKey(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       setMenuRows(prevRows => prevRows.map(row => 
         row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
       ))
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
     },
     onError: () => {
     }
@@ -211,8 +246,11 @@ export default function AdminPage() {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDate = toServeDateKey(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
     },
     onError: () => {
     }
@@ -221,7 +259,9 @@ export default function AdminPage() {
   const toggleDeliveryMutation = useMutation({
     mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      const serveDate = toServeDateKey(selectedDate);
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       toast({
         title: "配達状況を更新しました",
         description: "配達完了状況が正常に更新されました。",
@@ -236,6 +276,11 @@ export default function AdminPage() {
     },
   })
 
+
+  useEffect(() => {
+    setMenuRows([])
+    setSelectedImage(null)
+  }, [selectedDate])
 
   useEffect(() => {
     if (sqlAlchemyMenus && sqlAlchemyMenus.length > 0) {
@@ -263,11 +308,8 @@ export default function AdminPage() {
       setMenuRows([])
       setBackgroundPreview(prev => prev && prev.startsWith('blob:') ? prev : null)
     }
-  }, [sqlAlchemyMenus])
+  }, [selectedDate, sqlAlchemyMenus])
 
-  useEffect(() => {
-    setSelectedImage(null)
-  }, [selectedDate])
 
   useEffect(() => {
     const audio = new Audio(new URL('../assets/sounds/notify.mp3', import.meta.url).href)
@@ -290,7 +332,8 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
+          const serveDate = toServeDateKey(selectedDate);
+          queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
         }
       } catch (error) {
         console.error('WebSocket message parsing error:', error)
@@ -300,7 +343,26 @@ export default function AdminPage() {
     return () => {
       ws.close()
     }
-  }, [user, isNotificationEnabled, audioElement, queryClient])
+  }, [user, isNotificationEnabled, audioElement, queryClient, selectedDate])
+
+  useEffect(() => {
+    setValidationErrors({})
+  }, [selectedDate])
+
+  useEffect(() => {
+    const hasValidData = menuRows.some(row => row.title.trim() !== '' && row.price > 0 && row.max_qty > 0)
+    if (hasValidData) {
+      const newErrors: Record<string, string> = {}
+      menuRows.forEach((row, index) => {
+        const priceError = validateMenuRow('price', row.price.toString())
+        const qtyError = validateMenuRow('max_qty', row.max_qty.toString())
+        
+        if (priceError) newErrors[`${index}-price`] = priceError
+        if (qtyError) newErrors[`${index}-max_qty`] = qtyError
+      })
+      setValidationErrors(newErrors)
+    }
+  }, [menuRows])
 
   const adminToken = apiClient.getAdminToken();
   
@@ -414,8 +476,27 @@ export default function AdminPage() {
     }
   }
 
+
   const handleSave = () => {
-    saveMenusMutation.mutate()
+    console.log('=== HANDLE SAVE CALLED ===');
+    console.log('Current menuRows:', menuRows);
+    console.log('Current validationErrors:', validationErrors);
+    console.log('Validation errors keys:', Object.keys(validationErrors));
+    console.log('Validation errors with content:', Object.keys(validationErrors).filter(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== ''));
+    
+    const hasValidMenus = menuRows.some(row => row.title.trim() !== '');
+    const hasActualErrors = Object.keys(validationErrors).some(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== '');
+    
+    console.log('Has valid menus:', hasValidMenus);
+    console.log('Has actual errors:', hasActualErrors);
+    console.log('Should save:', hasValidMenus && !hasActualErrors);
+    
+    if (hasValidMenus && !hasActualErrors) {
+      console.log('Calling saveMenusMutation.mutate()...');
+      saveMenusMutation.mutate();
+    } else {
+      console.log('Save blocked by validation errors');
+    }
   }
 
   const generateCSV = (orders: Order[]): string => {
@@ -652,7 +733,7 @@ export default function AdminPage() {
             {/* Save Button */}
             <Button 
               onClick={handleSave}
-              disabled={saveMenusMutation.isPending || Object.keys(validationErrors).length > 0}
+              disabled={saveMenusMutation.isPending || (menuRows.some(row => row.title.trim() !== '') && Object.keys(validationErrors).some(key => validationErrors[key] && validationErrors[key].trim && validationErrors[key].trim() !== ''))}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
               {saveMenusMutation.isPending ? '保存中...' : '保存'}
@@ -665,6 +746,22 @@ export default function AdminPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Confirmed Orders Section */}
+        {confirmedOrders && confirmedOrders.length > 0 && (
+          <Card className="shadow-sm mb-6">
+            <CardHeader>
+              <CardTitle className="text-green-700">確定済み注文 ({confirmedOrders.length}件)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="text-sm text-green-800">
+                  配達完了済みの注文が {confirmedOrders.length} 件あります。
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Order List Section */}
         <Card className="shadow-sm">

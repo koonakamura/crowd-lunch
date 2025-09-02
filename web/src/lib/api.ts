@@ -138,7 +138,12 @@ class ApiClient {
   }
 
   getAdminToken(): string | null {
-    return sessionStorage.getItem('adminToken');
+    const raw = sessionStorage.getItem('adminToken');
+    if (!raw) return null;
+    const v = raw.trim();
+    if (!v || v === 'null' || v === 'undefined') return null;
+    if (!/^eyJ[\w-]*\.[\w-]+\.[\w-]+/.test(v)) return null;
+    return v;
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -492,6 +497,10 @@ class ApiClient {
   async getServerTime(): Promise<{ current_time: string; timezone: string }> {
     return this.request('/server-time');
   }
+
+  async whoami(): Promise<{ user: User }> {
+    return this.request('/auth/whoami');
+  }
 }
 
 export interface MenuSQLAlchemy {
@@ -505,31 +514,37 @@ export interface MenuSQLAlchemy {
   created_at: string;
 }
 
-export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
-  try {
-    const res = await fetch(input, init);
-    const isJson = (res.headers.get("content-type") || "").includes("application/json");
-    if (!res.ok) {
-      const body = isJson ? await res.json().catch(() => ({})) : { message: await res.text().catch(() => "") };
-      throw {
-        status: res.status,
-        code: body?.code || "unknown_error",
-        message: body?.message || body?.detail || body?.code || "リクエストに失敗しました",
-        raw: body,
-      };
-    }
-    return isJson ? res.json() : {};
-  } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw {
-        status: 0,
-        code: "network_error",
-        message: "通信エラーまたはCORSエラーが発生しました",
-        raw: error,
-      };
-    }
-    throw error;
+export async function apiFetch(url: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers ?? {});
+
+  if (init.body instanceof FormData) {
+    headers.delete('Content-Type');
+  } else if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
+
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+
+  const res = await fetch(url, { ...init, headers, mode: 'cors' });
+
+  if (res.status === 401 && location.pathname.startsWith('/admin')) {
+    try {
+      const data = await res.clone().json();
+      const code = (data as { detail?: { code?: string } })?.detail?.code;
+      if (code === 'token_expired' || code === 'invalid_token') {
+        sessionStorage.removeItem('adminToken');
+        sessionStorage.setItem('admin-logout-reason', 'expired');
+        location.replace('/admin');
+        return res;
+      }
+    } catch {
+      sessionStorage.removeItem('adminToken');
+      sessionStorage.setItem('admin-logout-reason', 'unauthorized');
+      location.replace('/admin');
+      return res;
+    }
+  }
+  return res;
 }
 
 export const apiClient = new ApiClient();
