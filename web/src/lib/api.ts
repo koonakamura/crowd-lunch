@@ -348,6 +348,13 @@ class ApiClient {
     return this.request(`/public/menus${params}`);
   }
 
+  async getPublicMenusRange(startDate: string, endDate: string): Promise<{
+    range: { start: string; end: string; tz: string };
+    days: Record<string, MenuSQLAlchemy[]>;
+  }> {
+    return this.request(`/public/menus-range?start=${startDate}&end=${endDate}`);
+  }
+
   async createMenuSQLAlchemy(menu: {
     serve_date: string;
     title: string;

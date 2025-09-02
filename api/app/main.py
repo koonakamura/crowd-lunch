@@ -266,6 +266,45 @@ async def get_public_menus_by_date(
     menus = crud.get_menus_sqlalchemy(db, date)
     return menus
 
+
+@app.get("/public/menus-range")
+async def get_public_menus_range(
+    start: date,
+    end: date,
+    db: Session = Depends(get_db),
+):
+    """Get menus for a date range (inclusive boundaries)"""
+    from datetime import timezone, timedelta as td
+    
+    if (end - start).days > 14:
+        raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
+    
+    if start > end:
+        raise HTTPException(status_code=400, detail="Start date must be before or equal to end date")
+    
+    menus = crud.get_weekly_menus(db, start, end)
+    
+    days = {}
+    current_date = start
+    while current_date <= end:
+        date_str = current_date.strftime('%Y-%m-%d')
+        days[date_str] = []
+        current_date += timedelta(days=1)
+    
+    for menu in menus:
+        serve_date = menu['serve_date']
+        if serve_date in days:
+            days[serve_date].append(menu)
+    
+    return {
+        "range": {
+            "start": start.strftime('%Y-%m-%d'),
+            "end": end.strftime('%Y-%m-%d'),
+            "tz": "Asia/Tokyo"
+        },
+        "days": days
+    }
+
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
     date: date = None,

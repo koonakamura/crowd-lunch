@@ -9,8 +9,18 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { toServeDateKey } from '../lib/dateUtils'
+import { generateWeekdayDates, toServeDateKey, createWeeklyMenuQueryKey } from '../lib/dateUtils'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
+
+interface MenuSQLAlchemy {
+  id: number;
+  title: string;
+  price: number;
+  max_qty: number;
+  cafe_time_available: boolean;
+  serve_date: string;
+  img_url?: string;
+}
 
 interface TodayOrderData {
   date: string;
@@ -18,13 +28,10 @@ interface TodayOrderData {
   customerName: string;
   deliveryLocation: string;
   deliveryTime: string;
-  items: Array<{
-    title: string;
-    price: number;
+  selectedMenus: Array<{
+    menu: MenuSQLAlchemy;
     qty: number;
   }>;
-  totalPrice: number;
-  timestamp: number;
 }
 
 const saveTodayOrder = (orderData: TodayOrderData): void => {
@@ -93,11 +100,13 @@ export default function HomePage() {
   const [serverTime, setServerTime] = useState<Date | null>(null)
   
   // Server time policy: General screen uses server time for consistent date handling across users
-  const serveDateKey = useMemo(() => toServeDateKey(serverTime || new Date()), [serverTime]);
-  
-  const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['menus', serveDateKey],
-    queryFn: () => apiClient.getPublicMenusSQLAlchemy(serveDateKey),
+  const weekdayDates = useMemo(() => generateWeekdayDates(serverTime || new Date(), 10), [serverTime]);
+  const startKey = weekdayDates[0] ? toServeDateKey(weekdayDates[0].date) : toServeDateKey(new Date());
+  const endKey = weekdayDates[weekdayDates.length - 1] ? toServeDateKey(weekdayDates[weekdayDates.length - 1].date) : toServeDateKey(new Date());
+
+  const { data: weeklyMenusData, isLoading } = useQuery({
+    queryKey: createWeeklyMenuQueryKey(startKey, endKey),
+    queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
     refetchInterval: 30000,
     staleTime: 0,
   })
@@ -136,14 +145,14 @@ export default function HomePage() {
   }
 
   const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
-    if (!weeklyMenus || weeklyMenus.length === 0) return []
+    if (!weeklyMenusData?.days) return []
     
-    const dateKey = toServeDateKey(date)
-    const menus = weeklyMenus.filter(menu => menu.serve_date === dateKey)
+    const dateKey = format(date, 'yyyy-MM-dd')
+    const menus = weeklyMenusData.days[dateKey] || []
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
-      (serverTime && serverTime.getHours() >= 14 && toServeDateKey(date) === toServeDateKey(serverTime))
+      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
     
     if (shouldFilterForCafeTime) {
       return menus.filter(menu => menu.cafe_time_available === true)
@@ -179,7 +188,8 @@ export default function HomePage() {
 
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
-    return serverTime || new Date()
+    const dayInfo = weekdayDates.find(day => format(day.date, 'M/d') === selectedDay)
+    return dayInfo ? dayInfo.date : null
   }
 
 
@@ -204,10 +214,11 @@ export default function HomePage() {
   }
 
   const getSelectedMenus = () => {
-    if (!weeklyMenus) return []
+    if (!weeklyMenusData?.days) return []
+    const allMenus = Object.values(weeklyMenusData.days).flat()
     return Object.entries(cart).map(([menuId, qty]) => {
-      const menu = weeklyMenus.find(m => m.id === parseInt(menuId))
-      return { menu, qty }
+      const menu = allMenus.find((m: MenuSQLAlchemy) => m.id === parseInt(menuId))
+      return { menu: menu!, qty }
     }).filter(item => item.menu)
   }
 
@@ -266,13 +277,7 @@ export default function HomePage() {
         customerName: customerName,
         deliveryLocation: deliveryLocation,
         deliveryTime: deliveryTime,
-        items: selectedMenus.map(({ menu, qty }) => ({
-          title: menu!.title,
-          price: menu!.price,
-          qty: qty
-        })),
-        totalPrice: getTotalPrice(),
-        timestamp: Date.now()
+        selectedMenus: selectedMenus
       };
 
       saveTodayOrder(orderData);
@@ -280,6 +285,14 @@ export default function HomePage() {
 
       const currentServeDateKey = toServeDateKey(serverTime || new Date());
       queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
+          q.queryKey.length === 3 &&
+          typeof q.queryKey[1] === 'string' && 
+          typeof q.queryKey[2] === 'string' &&
+          q.queryKey[1] <= currentServeDateKey && 
+          currentServeDateKey <= q.queryKey[2]
+      });
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -306,6 +319,14 @@ export default function HomePage() {
       }
       const currentServeDateKey = toServeDateKey(serverTime || new Date());
       queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
+          q.queryKey.length === 3 &&
+          typeof q.queryKey[1] === 'string' && 
+          typeof q.queryKey[2] === 'string' &&
+          q.queryKey[1] <= currentServeDateKey && 
+          currentServeDateKey <= q.queryKey[2]
+      });
     } finally {
       setIsSubmitting(false)
     }
@@ -393,14 +414,14 @@ export default function HomePage() {
               <div className="text-xs text-gray-600 mt-1">
                 <div className="font-medium">本日の注文履歴</div>
                 <div className="flex flex-wrap gap-1 items-center">
-                  {todayOrder.items.map((item, index) => (
+                  {todayOrder.selectedMenus.map((item, index) => (
                     <span key={index} className="text-gray-700">
-                      {item.title} × {item.qty}
-                      {index < todayOrder.items.length - 1 && ', '}
+                      {item.menu?.title} × {item.qty}
+                      {index < todayOrder.selectedMenus.length - 1 && ', '}
                     </span>
                   ))}
                   <span className="font-medium text-gray-800">
-                    ¥{todayOrder.totalPrice.toLocaleString()}
+                    ¥{todayOrder.selectedMenus.reduce((sum, item) => sum + (item.menu?.price || 0) * item.qty, 0).toLocaleString()}
                   </span>
                   <span className="text-gray-600">
                     {todayOrder.deliveryLocation} {todayOrder.deliveryTime}
@@ -419,35 +440,32 @@ export default function HomePage() {
       </header>
 
       <div className="pt-16">
-        {(() => {
-          const todayDate = serverTime || new Date();
-          const dayKey = format(todayDate, 'M/d');
-          const dayMenus = getMenusForDate(todayDate, selectedDay === dayKey ? deliveryTime : undefined);
+        {weekdayDates.map((dayInfo, index) => {
+          const dayKey = format(dayInfo.date, 'M/d')
+          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
           
           return (
             <section 
-              key={toServeDateKey(todayDate)}
+              key={format(dayInfo.date, 'yyyy-MM-dd')}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
-                backgroundImage: `url(${getBackgroundImage(0, dayMenus)})`,
+                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
             >
-              <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-              
-              <div className="relative z-10 text-center mb-8">
-                <h2 className="text-8xl font-bold text-white font-crimson">
+              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
+                <h2 className="text-6xl font-bold text-white drop-shadow-lg">
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
-                  ({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][todayDate.getDay()]})
+                  ({dayInfo.dayName})
                 </p>
               </div>
               
-              <div className="relative z-10 w-full max-w-xl">
-                <div className="flex flex-col gap-2 mb-8">
-                  {dayMenus.map((menu) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
+                {dayMenus.length > 0 ? (
+                  dayMenus.map((menu) => (
                     <button
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
@@ -455,9 +473,10 @@ export default function HomePage() {
                       className={`p-4 rounded-3xl text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
-                          : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
+                          : (menu.max_qty || 0) <= 0 
+                            ? 'bg-gray-500 cursor-not-allowed' 
+                            : 'bg-black/50 hover:bg-black/70 border-2 border-white/30'
                       }`}
-                      data-testid="menu-item"
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -466,24 +485,33 @@ export default function HomePage() {
                         </div>
                         <span className="text-lg font-bold">{menu.price}円</span>
                       </div>
+                      {cart[menu.id] > 0 && (
+                        <div className="mt-2 text-sm">
+                          選択済み: {cart[menu.id]}個
+                        </div>
+                      )}
                     </button>
-                  ))}
-                </div>
-                
-                {getTotalItems() > 0 && selectedDay === dayKey && (
-                  <div className="text-center">
-                    <Button 
-                      onClick={handleProceedToOrder}
-                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                    >
-                      注文
-                    </Button>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center text-white text-xl">
+                    本日のメニューはありません
                   </div>
                 )}
               </div>
+              
+              {getTotalItems() > 0 && selectedDay === dayKey && (
+                <div className="text-center mt-8">
+                  <Button 
+                    onClick={handleProceedToOrder}
+                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
+                  >
+                    注文
+                  </Button>
+                </div>
+              )}
             </section>
           )
-        })()}
+        })}
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>

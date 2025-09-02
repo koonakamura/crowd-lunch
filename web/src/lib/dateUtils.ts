@@ -1,6 +1,5 @@
 import { addDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import type { QueryClient } from '@tanstack/react-query';
 
 export function generateWeekdayDates(startDate: Date, count: number): Array<{ date: Date; formatted: string; dayName: string }> {
   const dates: Array<{ date: Date; formatted: string; dayName: string }> = [];
@@ -42,14 +41,18 @@ export const createPublicMenuQueryKey = (serveDateKey: string) => ['publicMenus'
 export const createOrdersQueryKey = (serveDateKey: string) => ['orders', serveDateKey] as const;
 
 /**
- * Common invalidation handler for WebSocket/server push events
- * Supports future menu update notifications and other real-time events
+ * Check if a date falls within a range (inclusive)
+ * @param startKey - Start date in YYYY-MM-DD format
+ * @param endKey - End date in YYYY-MM-DD format  
+ * @param dateKey - Date to check in YYYY-MM-DD format
+ * @returns true if dateKey is within [startKey, endKey]
  */
-export const createCommonInvalidateHandler = (queryClient: QueryClient, serveDateKey: string) => ({
-  invalidateMenus: () => queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true }),
-  invalidateOrders: () => queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true }),
-  invalidateAll: () => {
-    queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-    queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
-  }
-});
+export const rangeContains = (startKey: string, endKey: string, dateKey: string): boolean => {
+  return dateKey >= startKey && dateKey <= endKey;
+};
+
+/**
+ * Create weekly menu query key with date range
+ */
+export const createWeeklyMenuQueryKey = (startKey: string, endKey: string) => 
+  ['weeklyMenus', startKey, endKey] as const;
