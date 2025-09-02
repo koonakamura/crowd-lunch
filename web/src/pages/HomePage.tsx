@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates } from '../lib/dateUtils'
+import { generateWeekdayDates, toServeDateKey, createPublicMenuQueryKey } from '../lib/dateUtils'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface TodayOrderData {
@@ -91,10 +91,13 @@ export default function HomePage() {
   const [timeSlotError, setTimeSlotError] = useState<string>('')
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
+  const serveDateKey = toServeDateKey();
+  
   const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['weeklyMenus'],
+    queryKey: createPublicMenuQueryKey(serveDateKey),
     queryFn: () => apiClient.getWeeklyMenus(),
     refetchInterval: 30000,
+    staleTime: 0,
   })
 
   useEffect(() => {
@@ -277,8 +280,8 @@ export default function HomePage() {
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDateKey = serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      queryClient.invalidateQueries({ queryKey: createPublicMenuQueryKey(serveDateKey), exact: true });
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -303,8 +306,8 @@ export default function HomePage() {
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const serveDateKey = serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      queryClient.invalidateQueries({ queryKey: createPublicMenuQueryKey(serveDateKey), exact: true });
     } finally {
       setIsSubmitting(false)
     }

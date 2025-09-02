@@ -48,15 +48,15 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
+import { generateWeekdayDates, formatDateForApi, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
   id: number
   user_id: number
   total_price: number
-  status: string
   created_at: string
+  serve_date: string
   request_time?: string
   delivery_location?: string
   user: { name: string }
@@ -65,6 +65,7 @@ interface Order {
   delivered_at?: string
   department?: string
   customer_name?: string
+  status: string
 }
 
 interface OrderItem {
@@ -92,6 +93,7 @@ export default function AdminPage() {
   })
   const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+  const [showConfirmedOnly, setShowConfirmedOnly] = useState(false)
 
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
@@ -123,16 +125,20 @@ export default function AdminPage() {
 
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
+  const serveDateKey = toServeDateKey(selectedDate);
+
   const { data: orders } = useQuery<Order[]>({
-    queryKey: ['orders', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
+    queryKey: createOrdersQueryKey(serveDateKey),
+    queryFn: () => apiClient.getOrdersByDate(serveDateKey),
     enabled: user?.email === 'admin@example.com',
+    staleTime: 0,
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
-    queryKey: ['menus-sqlalchemy', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getMenusSQLAlchemy(formatDateForApi(selectedDate)),
+    queryKey: createMenuQueryKey(serveDateKey),
+    queryFn: () => apiClient.getMenusSQLAlchemy(serveDateKey),
     enabled: user?.email === 'admin@example.com',
+    staleTime: 0,
   })
 
 
@@ -166,11 +172,10 @@ export default function AdminPage() {
       });
 
       return Promise.all(promises);
-
+    },
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -184,7 +189,8 @@ export default function AdminPage() {
       
       if (isApiError(e) && e.status === 401) {
         setError(toUserMessage(e));
-        return;
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
       }
       setError(toUserMessage(e));
       console.warn("save failed", e);
@@ -195,14 +201,19 @@ export default function AdminPage() {
     mutationFn: async (menuId: number) => {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
-    onSuccess: (_, menuId) => {
-      setMenuRows(prevRows => prevRows.map(row => 
-        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
-      ))
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
     },
-    onError: () => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
     }
   })
 
@@ -211,26 +222,44 @@ export default function AdminPage() {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
     },
-    onError: () => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
     }
   })
 
   const toggleDeliveryMutation = useMutation({
     mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
       toast({
         title: "配達状況を更新しました",
         description: "配達完了状況が正常に更新されました。",
       })
     },
-    onError: (error) => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
+      
       toast({
         title: "エラー",
-        description: `配達状況の更新に失敗しました: ${error.message}`,
+        description: "配達状況の更新に失敗しました",
         variant: "destructive",
       })
     },
@@ -290,7 +319,7 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
+          queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
         }
       } catch (error) {
         console.error('WebSocket message parsing error:', error)
@@ -671,15 +700,24 @@ export default function AdminPage() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>注文一覧</CardTitle>
-              <Button 
-                onClick={downloadCSV}
-                variant="outline"
-                size="sm"
-                className="bg-white text-black border-gray-300 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                ダウンロード
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowConfirmedOnly(!showConfirmedOnly)}
+                  variant={showConfirmedOnly ? "default" : "outline"}
+                  size="sm"
+                >
+                  {showConfirmedOnly ? "全て表示" : "確定済みのみ"}
+                </Button>
+                <Button 
+                  onClick={downloadCSV}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white text-black border-gray-300 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  ダウンロード
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -698,8 +736,8 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders?.length ? (
-                    orders.map((order: Order) => (
+                  {(showConfirmedOnly ? orders?.filter(order => order.status !== 'new') : orders)?.length ? (
+                    (showConfirmedOnly ? orders?.filter(order => order.status !== 'new') : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2">{formatJSTTime(order.created_at)}</td>
