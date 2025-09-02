@@ -336,7 +336,7 @@ export default function AdminPage() {
     return () => {
       ws.close()
     }
-  }, [user, isNotificationEnabled, audioElement, queryClient])
+  }, [user, isNotificationEnabled, audioElement, queryClient, serveDateKey])
 
   const adminToken = apiClient.getAdminToken();
   

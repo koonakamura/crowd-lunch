@@ -529,7 +529,7 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
       if (res.status === 401 && location.pathname.startsWith('/admin')) {
         try {
           const data = await res.clone().json();
-          const code = (data as any)?.detail?.code;
+          const code = data?.detail?.code;
           if (code === 'token_expired' || code === 'invalid_token') {
             sessionStorage.removeItem('adminToken');
             sessionStorage.setItem('admin-logout-reason', 'expired');
