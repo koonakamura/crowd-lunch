@@ -48,7 +48,8 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted, weekStartOf } from '../lib/dateUtils'
+import { generateWeekdayDates, getTodayFormatted, weekStartOf } from '../lib/dateUtils'
+import { toServeDateKey } from '../utils/serveDate'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -142,14 +143,22 @@ export default function AdminPage() {
   const weekdayDates = generateWeekdayDates(new Date(), 10)
 
   const { data: orders } = useQuery<Order[]>({
-    queryKey: ['orders', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
+    queryKey: ['orders', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getOrdersByDate(toServeDateKey(selectedDate)),
+    enabled: user?.email === 'admin@example.com',
+  })
+
+  const { data: confirmedOrders } = useQuery<Order[]>({
+    queryKey: ['confirmed-orders', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getOrdersByDate(toServeDateKey(selectedDate)).then(orders => 
+      orders.filter(order => order.status === 'delivered')
+    ),
     enabled: user?.email === 'admin@example.com',
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
-    queryKey: ['menus-sqlalchemy', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getMenusSQLAlchemy(formatDateForApi(selectedDate)),
+    queryKey: ['menus-sqlalchemy', toServeDateKey(selectedDate)],
+    queryFn: () => apiClient.getMenusSQLAlchemy(toServeDateKey(selectedDate)),
     enabled: user?.email === 'admin@example.com',
   })
 
@@ -163,7 +172,7 @@ export default function AdminPage() {
       
       const promises = validRows.map((row: MenuRow) => {
         const form = new FormData();
-        form.append('serve_date', formatDateForApi(selectedDate));
+        form.append('serve_date', toServeDateKey(selectedDate));
         form.append('title', row.title.trim());
         form.append('price', String(Number.isFinite(Number(row.price)) ? Number(row.price) : 0));
         form.append('max_qty', String(Number.isFinite(Number(row.max_qty)) ? Number(row.max_qty) : 0));
@@ -189,9 +198,11 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       setError(null);
-      const serveDate = formatDateForApi(selectedDate);
+      const serveDate = toServeDateKey(selectedDate);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -217,9 +228,11 @@ export default function AdminPage() {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
     onSuccess: (_, menuId) => {
-      const serveDate = formatDateForApi(selectedDate);
+      const serveDate = toServeDateKey(selectedDate);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       setMenuRows(prevRows => prevRows.map(row => 
         row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
       ))
@@ -233,9 +246,11 @@ export default function AdminPage() {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
-      const serveDate = formatDateForApi(selectedDate);
+      const serveDate = toServeDateKey(selectedDate);
       queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy', serveDate] })
       queryClient.invalidateQueries({ queryKey: ['weeklyMenus', weekStartOf(selectedDate)] })
+      queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
     },
     onError: () => {
     }
@@ -244,8 +259,9 @@ export default function AdminPage() {
   const toggleDeliveryMutation = useMutation({
     mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
     onSuccess: () => {
-      const serveDate = formatDateForApi(selectedDate);
+      const serveDate = toServeDateKey(selectedDate);
       queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
+      queryClient.invalidateQueries({ queryKey: ['confirmed-orders', serveDate] })
       toast({
         title: "配達状況を更新しました",
         description: "配達完了状況が正常に更新されました。",
@@ -316,7 +332,7 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          const serveDate = formatDateForApi(selectedDate);
+          const serveDate = toServeDateKey(selectedDate);
           queryClient.invalidateQueries({ queryKey: ['orders', serveDate] })
         }
       } catch (error) {
