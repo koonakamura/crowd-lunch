@@ -104,7 +104,7 @@ def get_today_orders(db: Session, serve_date: date, status_filter: Optional[str]
     
     query = db.query(models.OrderSQLAlchemy).options(
         joinedload(models.OrderSQLAlchemy.user),
-        joinedload(models.OrderSQLAlchemy.items).joinedload(models.OrderItem.menu)
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu)
     ).filter(models.OrderSQLAlchemy.serve_date == serve_date)
     
     if status_filter:
