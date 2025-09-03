@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
 
@@ -47,16 +48,18 @@ interface MenuRow {
   cafe_time_available: boolean;
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
+import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, formatDateForApi, getTodayFormatted } from '../lib/dateUtils'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
+import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
   id: number
   user_id: number
   total_price: number
-  status: string
   created_at: string
+  serve_date: string
   request_time?: string
   delivery_location?: string
   user: { name: string }
@@ -65,6 +68,7 @@ interface Order {
   delivered_at?: string
   department?: string
   customer_name?: string
+  status: string
 }
 
 interface OrderItem {
@@ -80,7 +84,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST())
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -92,6 +96,7 @@ export default function AdminPage() {
   })
   const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+  const [showConfirmedOnly, setShowConfirmedOnly] = useState(false)
 
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
@@ -121,18 +126,43 @@ export default function AdminPage() {
     return JSON.stringify(e);
   }
 
-  const weekdayDates = generateWeekdayDates(new Date(), 10)
+  const tabDates = useMemo(
+    () => makeTodayWindow(undefined, 7), // serverTime would go here if available
+    [] // serverTime dependency would go here if available
+  );
+
+  const onClickTab = (d: Date) => setSelectedDate(d);
+
+  useEffect(() => {
+    const win = makeTodayWindow(undefined, 7); // serverTime would go here if available
+    const first = win[0], last = win[win.length - 1];
+    if (selectedDate < first || selectedDate > last) {
+      setSelectedDate(first);
+    }
+  }, [selectedDate]); // serverTime dependency would go here if available
+
+  // Server time policy: Admin screen uses UI-selected date for manual date control
+  const serveDateKey = toServeDateKey(selectedDate);
 
   const { data: orders } = useQuery<Order[]>({
-    queryKey: ['orders', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getOrdersByDate(formatDateForApi(selectedDate)),
+    queryKey: createOrdersQueryKey(serveDateKey),
+    queryFn: () => apiClient.getOrdersByDate(serveDateKey),
     enabled: user?.email === 'admin@example.com',
+    staleTime: 0,
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
-    queryKey: ['menus-sqlalchemy', formatDateForApi(selectedDate)],
-    queryFn: () => apiClient.getMenusSQLAlchemy(formatDateForApi(selectedDate)),
+    queryKey: createMenuQueryKey(serveDateKey),
+    queryFn: () => apiClient.getMenusSQLAlchemy(serveDateKey),
     enabled: user?.email === 'admin@example.com',
+    staleTime: 0,
+  })
+
+  const { data: confirmedOrders } = useQuery<Order[]>({
+    queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
+    queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
+    enabled: user?.email === 'admin@example.com' && showConfirmedOnly,
+    staleTime: 0,
   })
 
 
@@ -145,7 +175,7 @@ export default function AdminPage() {
       
       const promises = validRows.map((row: MenuRow) => {
         const form = new FormData();
-        form.append('serve_date', formatDateForApi(selectedDate));
+        form.append('serve_date', toServeDateKey(selectedDate));
         form.append('title', row.title.trim());
         form.append('price', String(Number(row.price)));
         form.append('max_qty', String(Number(row.max_qty)));
@@ -166,11 +196,15 @@ export default function AdminPage() {
       });
 
       return Promise.all(promises);
-
+    },
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -184,7 +218,8 @@ export default function AdminPage() {
       
       if (isApiError(e) && e.status === 401) {
         setError(toUserMessage(e));
-        return;
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
       }
       setError(toUserMessage(e));
       console.warn("save failed", e);
@@ -195,14 +230,27 @@ export default function AdminPage() {
     mutationFn: async (menuId: number) => {
       return apiClient.deleteMenuSQLAlchemy(menuId)
     },
-    onSuccess: (_, menuId) => {
-      setMenuRows(prevRows => prevRows.map(row => 
-        row.id === menuId ? { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false } : row
-      ))
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
+          q.queryKey.length === 3 &&
+          typeof q.queryKey[1] === 'string' && 
+          typeof q.queryKey[2] === 'string' &&
+          q.queryKey[1] <= serveDateKey && 
+          serveDateKey <= q.queryKey[2]
+      });
     },
-    onError: () => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
     }
   })
 
@@ -211,26 +259,52 @@ export default function AdminPage() {
       return apiClient.updateMenuSQLAlchemy(menuId, menuData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus-sqlalchemy'] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
+          q.queryKey.length === 3 &&
+          typeof q.queryKey[1] === 'string' && 
+          typeof q.queryKey[2] === 'string' &&
+          q.queryKey[1] <= serveDateKey && 
+          serveDateKey <= q.queryKey[2]
+      });
     },
-    onError: () => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
     }
   })
 
   const toggleDeliveryMutation = useMutation({
     mutationFn: (orderId: number) => apiClient.toggleDeliveryCompletion(orderId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
       toast({
         title: "配達状況を更新しました",
         description: "配達完了状況が正常に更新されました。",
       })
     },
-    onError: (error) => {
+    onError: (e: unknown) => {
+      const isApiError = (obj: unknown): obj is ApiError => {
+        return typeof obj === 'object' && obj !== null && 
+               'code' in obj && 'message' in obj && 'status' in obj;
+      };
+      
+      if (isApiError(e) && e.status === 401) {
+        window.location.replace('/admin');
+        throw new Error('UNAUTHORIZED_REDIRECT');
+      }
+      
       toast({
         title: "エラー",
-        description: `配達状況の更新に失敗しました: ${error.message}`,
+        description: "配達状況の更新に失敗しました",
         variant: "destructive",
       })
     },
@@ -290,7 +364,7 @@ export default function AdminPage() {
         const data = JSON.parse(event.data)
         if (data.type === 'order_created' && isNotificationEnabled && audioElement) {
           audioElement.play().catch(console.error)
-          queryClient.invalidateQueries({ queryKey: ['orders'] })
+          queryClient.invalidateQueries({ queryKey: createOrdersQueryKey(serveDateKey), exact: true });
         }
       } catch (error) {
         console.error('WebSocket message parsing error:', error)
@@ -300,7 +374,7 @@ export default function AdminPage() {
     return () => {
       ws.close()
     }
-  }, [user, isNotificationEnabled, audioElement, queryClient])
+  }, [user, isNotificationEnabled, audioElement, queryClient, serveDateKey])
 
   const adminToken = apiClient.getAdminToken();
   
@@ -481,7 +555,7 @@ export default function AdminPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-lato">
+          <h1 className="text-xl font-sans">
             <span className="font-bold">CROWD LUNCH</span>
             <span className="font-light"> Order sheet</span>
           </h1>
@@ -505,18 +579,18 @@ export default function AdminPage() {
       <div className="p-4 space-y-6">
         {/* Date Selection - Round Buttons */}
         <div className="flex flex-wrap gap-2 pb-2">
-          {weekdayDates.map((dateInfo, index) => (
+          {tabDates.map((date, index) => (
             <Button
               key={index}
-              variant={selectedDate.toDateString() === dateInfo.date.toDateString() ? "default" : "outline"}
+              variant={selectedDate.toDateString() === date.toDateString() ? "default" : "outline"}
               className={`rounded-3xl ${
-                selectedDate.toDateString() === dateInfo.date.toDateString() 
+                selectedDate.toDateString() === date.toDateString() 
                   ? 'bg-black text-white hover:bg-gray-800' 
                   : 'bg-white text-black border-gray-300 hover:bg-gray-50'
               }`}
-              onClick={() => setSelectedDate(dateInfo.date)}
+              onClick={() => onClickTab(date)}
             >
-              {dateInfo.formatted}({dateInfo.dayName})
+              {format(date, 'M/d')}({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]})
             </Button>
           ))}
         </div>
@@ -671,15 +745,24 @@ export default function AdminPage() {
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle>注文一覧</CardTitle>
-              <Button 
-                onClick={downloadCSV}
-                variant="outline"
-                size="sm"
-                className="bg-white text-black border-gray-300 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                ダウンロード
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowConfirmedOnly(!showConfirmedOnly)}
+                  variant={showConfirmedOnly ? "default" : "outline"}
+                  size="sm"
+                >
+                  {showConfirmedOnly ? "全て表示" : "確定済みのみ"}
+                </Button>
+                <Button 
+                  onClick={downloadCSV}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white text-black border-gray-300 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  ダウンロード
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -698,8 +781,8 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders?.length ? (
-                    orders.map((order: Order) => (
+                  {(showConfirmedOnly ? confirmedOrders : orders)?.length ? (
+                    (showConfirmedOnly ? confirmedOrders : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2">{formatJSTTime(order.created_at)}</td>

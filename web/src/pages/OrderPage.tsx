@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { toServeDateKey } from '../lib/dateUtils'
 import { apiClient } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -84,7 +84,7 @@ export default function OrderPage() {
     }
 
     const orderData = {
-      serve_date: format(new Date(), 'yyyy-MM-dd'),
+      serve_date: toServeDateKey(new Date()),
       delivery_type: deliveryType as "pickup" | "desk",
       request_time: deliveryType === 'desk' ? requestTime : undefined,
       department: department.trim(),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -9,8 +9,19 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates } from '../lib/dateUtils'
+import { toServeDateKey, rangeContains } from '../lib/dateUtils'
+import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
+
+interface MenuSQLAlchemy {
+  id: number;
+  title: string;
+  price: number;
+  max_qty: number;
+  cafe_time_available: boolean;
+  serve_date: string;
+  img_url?: string;
+}
 
 interface TodayOrderData {
   date: string;
@@ -18,13 +29,10 @@ interface TodayOrderData {
   customerName: string;
   deliveryLocation: string;
   deliveryTime: string;
-  items: Array<{
-    title: string;
-    price: number;
+  selectedMenus: Array<{
+    menu: MenuSQLAlchemy;
     qty: number;
   }>;
-  totalPrice: number;
-  timestamp: number;
 }
 
 const saveTodayOrder = (orderData: TodayOrderData): void => {
@@ -41,7 +49,7 @@ const getTodayOrder = (): TodayOrderData | null => {
     if (!stored) return null;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -62,7 +70,7 @@ const clearOldOrders = (): void => {
     if (!stored) return;
     
     const orderData = JSON.parse(stored) as TodayOrderData;
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = toServeDateKey(new Date());
     
     if (orderData.date !== today) {
       localStorage.removeItem('todayOrder');
@@ -78,6 +86,7 @@ export default function HomePage() {
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -91,10 +100,16 @@ export default function HomePage() {
   const [timeSlotError, setTimeSlotError] = useState<string>('')
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
-  const { data: weeklyMenus, isLoading } = useQuery({
-    queryKey: ['weeklyMenus'],
-    queryFn: () => apiClient.getWeeklyMenus(),
+  
+  const windowDates = useMemo(() => makeTodayWindow(serverTime || undefined, 7), [serverTime]);
+  const startKey = toServeDateKey(windowDates[0]);
+  const endKey = toServeDateKey(windowDates[6]);
+
+  const { data: weeklyMenusData, isLoading } = useQuery({
+    queryKey: ['weeklyMenus', startKey, endKey] as const,
+    queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
     refetchInterval: 30000,
+    staleTime: 0,
   })
 
   useEffect(() => {
@@ -113,7 +128,14 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [])
 
-  const weekDays = generateWeekdayDates(new Date(), 7)
+  useEffect(() => {
+    const win = makeTodayWindow(serverTime || undefined, 7);
+    const first = win[0], last = win[win.length - 1];
+    if (selectedDate < first || selectedDate > last) {
+      setSelectedDate(first);
+    }
+  }, [serverTime, selectedDate]);
+
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
@@ -132,11 +154,10 @@ export default function HomePage() {
   }
 
   const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
-    if (!weeklyMenus || weeklyMenus.length === 0) return []
+    if (!weeklyMenusData?.days) return []
     
-    const menusByDate = new Map(weeklyMenus.map(g => [g.date, g.menus]))
     const dateKey = format(date, 'yyyy-MM-dd')
-    const menus = menusByDate.get(dateKey) ?? []
+    const menus = weeklyMenusData.days[dateKey] || []
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
@@ -176,8 +197,8 @@ export default function HomePage() {
 
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
-    const dayInfo = weekDays.find(day => day.formatted === selectedDay)
-    return dayInfo ? dayInfo.date : null
+    const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
+    return dayInfo || null
   }
 
 
@@ -186,6 +207,10 @@ export default function HomePage() {
       setCart({})
     }
     setSelectedDay(dayKey)
+    const clickedDate = windowDates.find(d => format(d, 'M/d') === dayKey)
+    if (clickedDate) {
+      setSelectedDate(clickedDate)
+    }
     setCart(prev => ({
       ...prev,
       [menuId]: prev[menuId] > 0 ? 0 : 1
@@ -202,11 +227,11 @@ export default function HomePage() {
   }
 
   const getSelectedMenus = () => {
-    if (!weeklyMenus) return []
-    const allMenus = weeklyMenus.flatMap(day => day.menus || [])
+    if (!weeklyMenusData?.days) return []
+    const allMenus = Object.values(weeklyMenusData.days).flat()
     return Object.entries(cart).map(([menuId, qty]) => {
-      const menu = allMenus.find(m => m.id === parseInt(menuId))
-      return { menu, qty }
+      const menu = allMenus.find((m: MenuSQLAlchemy) => m.id === parseInt(menuId))
+      return { menu: menu!, qty }
     }).filter(item => item.menu)
   }
 
@@ -238,7 +263,7 @@ export default function HomePage() {
         qty
       }))
 
-      const selectedDate = getSelectedDate() ? format(getSelectedDate()!, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+      const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
 
       const orderPayload = {
@@ -260,25 +285,27 @@ export default function HomePage() {
 
       const selectedMenus = getSelectedMenus();
       const orderData: TodayOrderData = {
-        date: serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        date: toServeDateKey(serverTime || new Date()),
         department: department,
         customerName: customerName,
         deliveryLocation: deliveryLocation,
         deliveryTime: deliveryTime,
-        items: selectedMenus.map(({ menu, qty }) => ({
-          title: menu!.title,
-          price: menu!.price,
-          qty: qty
-        })),
-        totalPrice: getTotalPrice(),
-        timestamp: Date.now()
+        selectedMenus: selectedMenus
       };
 
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
+      })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -303,8 +330,16 @@ export default function HomePage() {
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
-      queryClient.invalidateQueries({ queryKey: ['orders', serverTime ? format(serverTime, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')] })
-      queryClient.invalidateQueries({ queryKey: ['weeklyMenus'] })
+      const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -373,7 +408,7 @@ export default function HomePage() {
         onClick={handleLandingClick}
       >
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-black tracking-wider font-lato">
+          <h1 className="text-6xl font-bold text-black tracking-wider font-sans">
             CROWD LUNCH
           </h1>
         </div>
@@ -387,19 +422,19 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 right-0 z-20 bg-white shadow-sm p-4">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-black font-lato">CROWD LUNCH</h1>
+            <h1 className="text-xl font-bold text-black font-sans">CROWD LUNCH</h1>
             {todayOrder && (
               <div className="text-xs text-gray-600 mt-1">
                 <div className="font-medium">本日の注文履歴</div>
                 <div className="flex flex-wrap gap-1 items-center">
-                  {todayOrder.items.map((item, index) => (
+                  {todayOrder.selectedMenus.map((item, index) => (
                     <span key={index} className="text-gray-700">
-                      {item.title} × {item.qty}
-                      {index < todayOrder.items.length - 1 && ', '}
+                      {item.menu?.title} × {item.qty}
+                      {index < todayOrder.selectedMenus.length - 1 && ', '}
                     </span>
                   ))}
                   <span className="font-medium text-gray-800">
-                    ¥{todayOrder.totalPrice.toLocaleString()}
+                    ¥{todayOrder.selectedMenus.reduce((sum, item) => sum + (item.menu?.price || 0) * item.qty, 0).toLocaleString()}
                   </span>
                   <span className="text-gray-600">
                     {todayOrder.deliveryLocation} {todayOrder.deliveryTime}
@@ -418,13 +453,15 @@ export default function HomePage() {
       </header>
 
       <div className="pt-16">
-        {weekDays.map((dayInfo, index) => {
-          const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
+        {windowDates.map((date, index) => {
+          const dayKey = format(date, 'M/d')
+          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
+          
+          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           
           return (
             <section 
-              key={format(dayInfo.date, 'yyyy-MM-dd')}
+              key={format(date, 'yyyy-MM-dd')}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
                 backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
@@ -432,53 +469,59 @@ export default function HomePage() {
                 backgroundPosition: 'center'
               }}
             >
-              <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-              
-              <div className="relative z-10 text-center mb-8">
-                <h2 className="text-8xl font-bold text-white font-crimson">
+              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
+                <h2 className="text-6xl font-bold text-white drop-shadow-lg">
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
-                  ({dayInfo.dayName})
+                  ({dayName})
                 </p>
               </div>
               
-              <div className="relative z-10 w-full max-w-xl">
-                <div className="flex flex-col gap-2 mb-8">
-                  {dayMenus.map((menu) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
+                {dayMenus.length > 0 ? (
+                  dayMenus.map((menu) => (
                     <button
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
-                      disabled={(menu.remaining_qty || 0) <= 0}
+                      disabled={(menu.max_qty || 0) <= 0}
                       className={`p-4 rounded-3xl text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border-2 border-primary' 
-                          : 'bg-black bg-opacity-60 border-2 border-transparent hover:bg-primary hover:bg-opacity-80'
+                          : (menu.max_qty || 0) <= 0 
+                            ? 'bg-gray-500 cursor-not-allowed' 
+                            : 'bg-black/50 hover:bg-black/70 border-2 border-white/30'
                       }`}
-                      data-testid="menu-item"
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{menu.title}</span>
-                          <span className="text-sm">({menu.remaining_qty})</span>
+                          <span className="text-sm">({menu.max_qty})</span>
                         </div>
                         <span className="text-lg font-bold">{menu.price}円</span>
                       </div>
+                      {cart[menu.id] > 0 && (
+                        <div className="mt-2 text-sm">
+                          選択済み: {cart[menu.id]}個
+                        </div>
+                      )}
                     </button>
-                  ))}
-                </div>
-                
-                {getTotalItems() > 0 && selectedDay === dayKey && (
-                  <div className="text-center">
-                    <Button 
-                      onClick={handleProceedToOrder}
-                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                    >
-                      注文
-                    </Button>
-                  </div>
+                  ))
+                ) : (
+                  <div className="col-span-full"></div>
                 )}
               </div>
+              
+              {getTotalItems() > 0 && selectedDay === dayKey && (
+                <div className="text-center mt-8">
+                  <Button 
+                    onClick={handleProceedToOrder}
+                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
+                  >
+                    注文
+                  </Button>
+                </div>
+              )}
             </section>
           )
         })}
