@@ -48,10 +48,10 @@ interface MenuRow {
   cafe_time_available: boolean;
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
-import { format, addDays, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
-import { todayJST, makeWindowStartingAt } from '../lib/dateWindow'
+import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -84,18 +84,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [windowStart, setWindowStart] = useState(() => todayJST())
-  const [selectedDate, setSelectedDate] = useState(() => todayJST())
-  
-  useEffect(() => {
-    const t = todayJST();
-    if (toServeDateKey(windowStart) !== toServeDateKey(t)) {
-      setWindowStart(t);
-    }
-    if (toServeDateKey(selectedDate) !== toServeDateKey(t)) {
-      setSelectedDate(t);
-    }
-  }, [windowStart, selectedDate])
+  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST())
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -137,24 +126,20 @@ export default function AdminPage() {
     return JSON.stringify(e);
   }
 
-  const tabDates = useMemo(() => makeWindowStartingAt(windowStart, 10), [windowStart]);
+  const tabDates = useMemo(
+    () => makeTodayWindow(undefined, 7), // serverTime would go here if available
+    [] // serverTime dependency would go here if available
+  );
 
   const onClickTab = (d: Date) => setSelectedDate(d);
-  const goPrev = () => setWindowStart((prev: Date) => subDays(prev, 10));
-  const goNext = () => setWindowStart((prev: Date) => addDays(prev, 10));
-  const goToday = () => { const t = todayJST(); setWindowStart(t); setSelectedDate(t); };
-
-  const atToday = toServeDateKey(windowStart) === toServeDateKey(todayJST());
 
   useEffect(() => {
-    const t = todayJST();
-    if (toServeDateKey(windowStart) !== toServeDateKey(t)) {
-      setWindowStart(t);
+    const win = makeTodayWindow(undefined, 7); // serverTime would go here if available
+    const first = win[0], last = win[win.length - 1];
+    if (selectedDate < first || selectedDate > last) {
+      setSelectedDate(first);
     }
-    if (toServeDateKey(selectedDate) !== toServeDateKey(t)) {
-      setSelectedDate(t);
-    }
-  }, []); // Note: serverTime dependency would go here if available
+  }, []); // serverTime dependency would go here if available
 
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = toServeDateKey(selectedDate);
@@ -592,19 +577,6 @@ export default function AdminPage() {
       </header>
 
       <div className="p-4 space-y-6">
-        {/* Date Navigation Controls */}
-        <div className="flex items-center gap-4 mb-4">
-          <Button onClick={goPrev} variant="outline" size="sm">
-            ← Prev
-          </Button>
-          <Button onClick={goToday} variant="outline" size="sm">
-            今日へ
-          </Button>
-          <Button onClick={goNext} variant="outline" size="sm" disabled={atToday}>
-            Next →
-          </Button>
-        </div>
-
         {/* Date Selection - Round Buttons */}
         <div className="flex flex-wrap gap-2 pb-2">
           {tabDates.map((date, index) => (
