@@ -9,7 +9,8 @@ import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
-import { generateWeekdayDates, toServeDateKey, createWeeklyMenuQueryKey } from '../lib/dateUtils'
+import { toServeDateKey, rangeContains } from '../lib/dateUtils'
+import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface MenuSQLAlchemy {
@@ -85,6 +86,7 @@ export default function HomePage() {
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
@@ -99,13 +101,12 @@ export default function HomePage() {
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   
-  // Server time policy: General screen uses server time for consistent date handling across users
-  const weekdayDates = useMemo(() => generateWeekdayDates(serverTime || new Date(), 10), [serverTime]);
-  const startKey = weekdayDates[0] ? toServeDateKey(weekdayDates[0].date) : toServeDateKey(new Date());
-  const endKey = weekdayDates[weekdayDates.length - 1] ? toServeDateKey(weekdayDates[weekdayDates.length - 1].date) : toServeDateKey(new Date());
+  const windowDates = useMemo(() => makeTodayWindow(serverTime || undefined, 7), [serverTime]);
+  const startKey = toServeDateKey(windowDates[0]);
+  const endKey = toServeDateKey(windowDates[6]);
 
   const { data: weeklyMenusData, isLoading } = useQuery({
-    queryKey: createWeeklyMenuQueryKey(startKey, endKey),
+    queryKey: ['weeklyMenus', startKey, endKey] as const,
     queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
     refetchInterval: 30000,
     staleTime: 0,
@@ -126,6 +127,14 @@ export default function HomePage() {
     
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    const win = makeTodayWindow(serverTime || undefined, 7);
+    const first = win[0], last = win[win.length - 1];
+    if (selectedDate < first || selectedDate > last) {
+      setSelectedDate(first);
+    }
+  }, [serverTime, selectedDate]);
 
 
   const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
@@ -188,8 +197,8 @@ export default function HomePage() {
 
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
-    const dayInfo = weekdayDates.find(day => format(day.date, 'M/d') === selectedDay)
-    return dayInfo ? dayInfo.date : null
+    const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
+    return dayInfo || null
   }
 
 
@@ -198,6 +207,10 @@ export default function HomePage() {
       setCart({})
     }
     setSelectedDay(dayKey)
+    const clickedDate = windowDates.find(d => format(d, 'M/d') === dayKey)
+    if (clickedDate) {
+      setSelectedDate(clickedDate)
+    }
     setCart(prev => ({
       ...prev,
       [menuId]: prev[menuId] > 0 ? 0 : 1
@@ -283,16 +296,16 @@ export default function HomePage() {
       saveTodayOrder(orderData);
       setTodayOrder(orderData);
 
-      const currentServeDateKey = toServeDateKey(serverTime || new Date());
-      queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
+      const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      
       queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= currentServeDateKey && 
-          currentServeDateKey <= q.queryKey[2]
-      });
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
+      })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -317,16 +330,16 @@ export default function HomePage() {
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
-      const currentServeDateKey = toServeDateKey(serverTime || new Date());
-      queryClient.invalidateQueries({ queryKey: ['menus', currentServeDateKey], exact: true });
+      const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      
       queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= currentServeDateKey && 
-          currentServeDateKey <= q.queryKey[2]
-      });
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -440,13 +453,15 @@ export default function HomePage() {
       </header>
 
       <div className="pt-16">
-        {weekdayDates.map((dayInfo, index) => {
-          const dayKey = format(dayInfo.date, 'M/d')
-          const dayMenus = getMenusForDate(dayInfo.date, selectedDay === dayKey ? deliveryTime : undefined)
+        {windowDates.map((date, index) => {
+          const dayKey = format(date, 'M/d')
+          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
+          
+          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           
           return (
             <section 
-              key={format(dayInfo.date, 'yyyy-MM-dd')}
+              key={format(date, 'yyyy-MM-dd')}
               className="min-h-screen relative flex flex-col justify-center items-center p-8"
               style={{
                 backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
@@ -459,7 +474,7 @@ export default function HomePage() {
                   {dayKey}
                 </h2>
                 <p className="text-2xl text-white mt-2">
-                  ({dayInfo.dayName})
+                  ({dayName})
                 </p>
               </div>
               
