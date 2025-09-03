@@ -47,10 +47,7 @@ export default {
   			}
   		},
   		fontFamily: {
-  			sans: ['Inter', 'system-ui', 'sans-serif'],
-  			lato: ['Lato', 'sans-serif'],
-  			baskerville: ['Libre Baskerville', 'Baskerville', 'serif'],
-  			crimson: ['Crimson Text', 'serif'],
+  			sans: ['Noto Sans JP', 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
   		},
   		keyframes: {
   			'accordion-down': {

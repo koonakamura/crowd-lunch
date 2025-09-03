@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
 
@@ -47,8 +48,10 @@ interface MenuRow {
   cafe_time_available: boolean;
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
+import { format, addDays, subDays } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
-import { generateWeekdayDates, getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
+import { todayJST, makeWindowStartingAt } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
 interface Order {
@@ -81,7 +84,8 @@ export default function AdminPage() {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [windowStart, setWindowStart] = useState(() => todayJST())
+  const [selectedDate, setSelectedDate] = useState(() => todayJST())
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -123,9 +127,15 @@ export default function AdminPage() {
     return JSON.stringify(e);
   }
 
+  const tabDates = useMemo(() => makeWindowStartingAt(windowStart, 10), [windowStart]);
+
+  const onClickTab = (d: Date) => setSelectedDate(d);
+  const goPrev = () => setWindowStart((prev: Date) => subDays(prev, 10));
+  const goNext = () => setWindowStart((prev: Date) => addDays(prev, 10));
+  const goToday = () => { const t = todayJST(); setWindowStart(t); setSelectedDate(t); };
+
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = toServeDateKey(selectedDate);
-  const weekdayDates = generateWeekdayDates(selectedDate, 10);
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: createOrdersQueryKey(serveDateKey),
@@ -184,12 +194,9 @@ export default function AdminPage() {
       setError(null);
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= serveDateKey && 
-          serveDateKey <= q.queryKey[2]
+        predicate: (q) =>
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
       });
       toast({
         title: "成功",
@@ -563,20 +570,33 @@ export default function AdminPage() {
       </header>
 
       <div className="p-4 space-y-6">
+        {/* Date Navigation Controls */}
+        <div className="flex items-center gap-4 mb-4">
+          <Button onClick={goPrev} variant="outline" size="sm">
+            ← Prev
+          </Button>
+          <Button onClick={goToday} variant="outline" size="sm">
+            今日へ
+          </Button>
+          <Button onClick={goNext} variant="outline" size="sm">
+            Next →
+          </Button>
+        </div>
+
         {/* Date Selection - Round Buttons */}
         <div className="flex flex-wrap gap-2 pb-2">
-          {weekdayDates.map((dateInfo, index) => (
+          {tabDates.map((date, index) => (
             <Button
               key={index}
-              variant={selectedDate.toDateString() === dateInfo.date.toDateString() ? "default" : "outline"}
+              variant={selectedDate.toDateString() === date.toDateString() ? "default" : "outline"}
               className={`rounded-3xl ${
-                selectedDate.toDateString() === dateInfo.date.toDateString() 
+                selectedDate.toDateString() === date.toDateString() 
                   ? 'bg-black text-white hover:bg-gray-800' 
                   : 'bg-white text-black border-gray-300 hover:bg-gray-50'
               }`}
-              onClick={() => setSelectedDate(dateInfo.date)}
+              onClick={() => onClickTab(date)}
             >
-              {dateInfo.formatted}({dateInfo.dayName})
+              {format(date, 'M/d')}({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]})
             </Button>
           ))}
         </div>

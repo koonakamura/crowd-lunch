@@ -52,6 +52,20 @@ export const rangeContains = (startKey: string, endKey: string, dateKey: string)
 };
 
 /**
+ * Create common invalidation handler for coordinating daily and weekly cache invalidation
+ */
+export const createCommonInvalidateHandler = (queryClient: unknown, dateKey: string) => ({
+  invalidateWeeklyMenus: () => {
+    (queryClient as { invalidateQueries: (options: { predicate: (q: unknown) => boolean }) => void }).invalidateQueries({
+      predicate: (q: unknown) =>
+        Array.isArray((q as { queryKey: unknown[] }).queryKey) &&
+        (q as { queryKey: unknown[] }).queryKey[0] === 'weeklyMenus' &&
+        rangeContains((q as { queryKey: string[] }).queryKey[1], (q as { queryKey: string[] }).queryKey[2], dateKey)
+    });
+  }
+});
+
+/**
  * Create weekly menu query key with date range
  */
 export const createWeeklyMenuQueryKey = (startKey: string, endKey: string) => 

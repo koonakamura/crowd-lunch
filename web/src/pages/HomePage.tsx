@@ -493,9 +493,7 @@ export default function HomePage() {
                     </button>
                   ))
                 ) : (
-                  <div className="col-span-full text-center text-white text-xl">
-                    本日のメニューはありません
-                  </div>
+                  <div className="col-span-full"></div>
                 )}
               </div>
               
