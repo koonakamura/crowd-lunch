@@ -49,8 +49,8 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { format } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
-import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, parseJSTDateKey } from '../lib/dateUtils'
 import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
@@ -81,10 +81,21 @@ interface OrderItem {
 export default function AdminPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST())
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const params = new URLSearchParams(location.search);
+    const urlDate = params.get('date');
+    if (urlDate) {
+      try {
+        return parseJSTDateKey(urlDate);
+      } catch {
+      }
+    }
+    return todayJST();
+  })
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -131,7 +142,11 @@ export default function AdminPage() {
     [] // serverTime dependency would go here if available
   );
 
-  const onClickTab = (d: Date) => setSelectedDate(d);
+  const onClickTab = (d: Date) => {
+    setSelectedDate(d);
+    const key = toServeDateKey(d);
+    navigate({ search: `?date=${key}` }, { replace: true });
+  };
 
   useEffect(() => {
     const win = makeTodayWindow(undefined, 7); // serverTime would go here if available
@@ -200,11 +215,10 @@ export default function AdminPage() {
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) =>
-          q.queryKey[0] === 'weeklyMenus' &&
-          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
-      });
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      
+      navigate({ search: `?date=${serveDateKey}` }, { replace: true });
+      
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -232,14 +246,6 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= serveDateKey && 
-          serveDateKey <= q.queryKey[2]
-      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -260,14 +266,6 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= serveDateKey && 
-          serveDateKey <= q.queryKey[2]
-      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {

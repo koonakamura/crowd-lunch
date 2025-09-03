@@ -70,3 +70,14 @@ export const createCommonInvalidateHandler = (queryClient: unknown, dateKey: str
  */
 export const createWeeklyMenuQueryKey = (startKey: string, endKey: string) => 
   ['weeklyMenus', startKey, endKey] as const;
+
+/**
+ * Parse JST date string (YYYY-MM-DD) back to Date object
+ * @param dateKey - Date string in YYYY-MM-DD format
+ * @returns Date object in JST timezone
+ */
+export function parseJSTDateKey(dateKey: string): Date {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const tokyoTime = toZonedTime(new Date(year, month - 1, day), 'Asia/Tokyo');
+  return tokyoTime;
+}
