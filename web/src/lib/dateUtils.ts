@@ -48,7 +48,7 @@ export const createOrdersQueryKey = (serveDateKey: string) => ['orders', serveDa
  * @returns true if dateKey is within [startKey, endKey]
  */
 export const rangeContains = (startKey: string, endKey: string, dateKey: string): boolean => {
-  return dateKey >= startKey && dateKey <= endKey;
+  return startKey <= dateKey && dateKey <= endKey;
 };
 
 /**

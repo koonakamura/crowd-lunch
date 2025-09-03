@@ -86,6 +86,16 @@ export default function AdminPage() {
   
   const [windowStart, setWindowStart] = useState(() => todayJST())
   const [selectedDate, setSelectedDate] = useState(() => todayJST())
+  
+  useEffect(() => {
+    const t = todayJST();
+    if (toServeDateKey(windowStart) !== toServeDateKey(t)) {
+      setWindowStart(t);
+    }
+    if (toServeDateKey(selectedDate) !== toServeDateKey(t)) {
+      setSelectedDate(t);
+    }
+  }, [windowStart, selectedDate])
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -134,6 +144,18 @@ export default function AdminPage() {
   const goNext = () => setWindowStart((prev: Date) => addDays(prev, 10));
   const goToday = () => { const t = todayJST(); setWindowStart(t); setSelectedDate(t); };
 
+  const atToday = toServeDateKey(windowStart) === toServeDateKey(todayJST());
+
+  useEffect(() => {
+    const t = todayJST();
+    if (toServeDateKey(windowStart) !== toServeDateKey(t)) {
+      setWindowStart(t);
+    }
+    if (toServeDateKey(selectedDate) !== toServeDateKey(t)) {
+      setSelectedDate(t);
+    }
+  }, []); // Note: serverTime dependency would go here if available
+
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = toServeDateKey(selectedDate);
 
@@ -152,7 +174,7 @@ export default function AdminPage() {
   })
 
   const { data: confirmedOrders } = useQuery<Order[]>({
-    queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'],
+    queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
     enabled: user?.email === 'admin@example.com' && showConfirmedOnly,
     staleTime: 0,
@@ -548,7 +570,7 @@ export default function AdminPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-lato">
+          <h1 className="text-xl font-sans">
             <span className="font-bold">CROWD LUNCH</span>
             <span className="font-light"> Order sheet</span>
           </h1>
@@ -578,7 +600,7 @@ export default function AdminPage() {
           <Button onClick={goToday} variant="outline" size="sm">
             今日へ
           </Button>
-          <Button onClick={goNext} variant="outline" size="sm">
+          <Button onClick={goNext} variant="outline" size="sm" disabled={atToday}>
             Next →
           </Button>
         </div>
