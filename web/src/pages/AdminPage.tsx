@@ -139,7 +139,7 @@ export default function AdminPage() {
     if (selectedDate < first || selectedDate > last) {
       setSelectedDate(first);
     }
-  }, []); // serverTime dependency would go here if available
+  }, [selectedDate]); // serverTime dependency would go here if available
 
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = toServeDateKey(selectedDate);
