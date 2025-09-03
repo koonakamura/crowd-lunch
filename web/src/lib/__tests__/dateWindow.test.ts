@@ -14,6 +14,17 @@ describe('dateWindow', () => {
       const result = toServeDateKey(jstEndOfDay);
       expect(result).toBe('2025-01-01');
     });
+
+    it('should handle JST midnight transition edge cases', () => {
+      const beforeMidnight = new Date('2025-01-01T14:59:59.999Z');
+      expect(toServeDateKey(beforeMidnight)).toBe('2025-01-01');
+      
+      const exactMidnight = new Date('2025-01-01T15:00:00.000Z');
+      expect(toServeDateKey(exactMidnight)).toBe('2025-01-02');
+      
+      const afterMidnight = new Date('2025-01-01T15:00:01.000Z');
+      expect(toServeDateKey(afterMidnight)).toBe('2025-01-02');
+    });
   });
 
   describe('todayJST', () => {
@@ -28,10 +39,22 @@ describe('dateWindow', () => {
       const result = todayJST();
       expect(result).toBeInstanceOf(Date);
     });
+
+    it('should handle serverTime as string', () => {
+      const serverTimeString = '2025-01-01T15:00:00.000Z';
+      const result = todayJST(serverTimeString);
+      expect(toServeDateKey(result)).toBe('2025-01-02');
+    });
+
+    it('should handle serverTime as number', () => {
+      const serverTimeNumber = new Date('2025-01-01T15:00:00.000Z').getTime();
+      const result = todayJST(serverTimeNumber);
+      expect(toServeDateKey(result)).toBe('2025-01-02');
+    });
   });
 
   describe('rangeContains', () => {
-    it('should handle inclusive boundaries correctly', () => {
+    it('should handle inclusive boundaries correctly (start<=d<=end)', () => {
       expect(rangeContains('2025-01-01', '2025-01-05', '2025-01-01')).toBe(true);
       
       expect(rangeContains('2025-01-01', '2025-01-05', '2025-01-05')).toBe(true);
@@ -46,6 +69,16 @@ describe('dateWindow', () => {
     it('should handle single day range', () => {
       expect(rangeContains('2025-01-01', '2025-01-01', '2025-01-01')).toBe(true);
       expect(rangeContains('2025-01-01', '2025-01-01', '2025-01-02')).toBe(false);
+      expect(rangeContains('2025-01-01', '2025-01-01', '2024-12-31')).toBe(false);
+    });
+
+    it('should handle YYYY-MM-DD string comparison edge cases', () => {
+      expect(rangeContains('2025-01-01', '2025-12-31', '2025-06-15')).toBe(true);
+      expect(rangeContains('2025-01-01', '2025-01-31', '2025-02-01')).toBe(false);
+      expect(rangeContains('2024-12-01', '2025-01-31', '2025-01-01')).toBe(true);
+      
+      expect(rangeContains('2024-12-25', '2025-01-05', '2024-12-31')).toBe(true);
+      expect(rangeContains('2024-12-25', '2025-01-05', '2025-01-01')).toBe(true);
     });
   });
 });

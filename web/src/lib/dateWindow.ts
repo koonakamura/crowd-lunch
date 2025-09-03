@@ -20,6 +20,13 @@ export const makeTodayWindow = (serverTime?: Date | string | number, len = 7) =>
 export const makeWindowStartingAt = (start: Date, len = 10) =>
   eachDayOfInterval({ start, end: addDays(start, len - 1) });
 
+/**
+ * Check if a date falls within a range (inclusive)
+ * @param startKey - Start date in YYYY-MM-DD format
+ * @param endKey - End date in YYYY-MM-DD format  
+ * @param dateKey - Date to check in YYYY-MM-DD format
+ * @returns true if dateKey is within [startKey, endKey] (YYYY-MM-DD string comparison)
+ */
 export const rangeContains = (startKey: string, endKey: string, dateKey: string): boolean => {
-  return startKey <= dateKey && dateKey <= endKey;
+  return startKey <= dateKey && dateKey <= endKey; // YYYY-MM-DD 文字列比較
 };
