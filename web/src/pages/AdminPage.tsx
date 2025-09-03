@@ -101,8 +101,7 @@ export default function AdminPage() {
     const p = new URLSearchParams(location.search);
     const u = p.get('date');
     const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-    const base = (u && DATE_RE.test(u)) ? u : toServeDateKey(todayJST(undefined));
-    return clampToWindow(base, windowKeys);
+    return (u && DATE_RE.test(u)) ? u : toServeDateKey(todayJST(undefined));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 初回のみ
 
