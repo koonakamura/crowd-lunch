@@ -91,7 +91,8 @@ export default function AdminPage() {
     if (urlDate) {
       try {
         return parseJSTDateKey(urlDate);
-      } catch {
+      } catch (error) {
+        console.warn('Failed to parse date from URL:', urlDate, error);
       }
     }
     return todayJST();
