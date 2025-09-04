@@ -49,8 +49,8 @@ interface MenuRow {
 }
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { format } from 'date-fns'
-import { useNavigate } from 'react-router-dom'
-import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
 import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
@@ -78,13 +78,34 @@ interface OrderItem {
   menu_item_name?: string
 }
 
+const clampToWindow = (key: string, windowKeys: string[]) => {
+  const first = windowKeys[0], last = windowKeys[windowKeys.length - 1];
+  if (key < first) return first;
+  if (key > last) return last;
+  return key;
+};
+
 export default function AdminPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST())
+  const windowKeys = useMemo(() => {
+    const dates = makeTodayWindow(undefined, 7); // serverTime would go here if available
+    return dates.map(d => toServeDateKey(d));
+  }, []); // serverTime dependency would go here if available
+
+  const initialKey = useMemo(() => {
+    const p = new URLSearchParams(location.search);
+    const u = p.get('date');
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    return (u && DATE_RE.test(u)) ? u : toServeDateKey(todayJST(undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 初回のみ
+
+  const [selectedDateKey, setSelectedDateKey] = useState<string>(initialKey);
   const [menuRows, setMenuRows] = useState<MenuRow[]>([])
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [backgroundPreview, setBackgroundPreview] = useState<string | null>(null)
@@ -126,43 +147,50 @@ export default function AdminPage() {
     return JSON.stringify(e);
   }
 
-  const tabDates = useMemo(
-    () => makeTodayWindow(undefined, 7), // serverTime would go here if available
-    [] // serverTime dependency would go here if available
-  );
+  const windowDates = useMemo(() => makeTodayWindow(undefined, 7), []); // serverTime dependency would go here if available
 
-  const onClickTab = (d: Date) => setSelectedDate(d);
+  const onClickTab = (d: Date) => {
+    const k = toServeDateKey(d);
+    setSelectedDateKey(k);
+    navigate({ search: `?date=${k}` }, { replace: true });
+  };
 
   useEffect(() => {
-    const win = makeTodayWindow(undefined, 7); // serverTime would go here if available
-    const first = win[0], last = win[win.length - 1];
-    if (selectedDate < first || selectedDate > last) {
-      setSelectedDate(first);
-    }
-  }, [selectedDate]); // serverTime dependency would go here if available
+    setSelectedDateKey(prev => clampToWindow(prev, windowKeys));
+  }, [windowKeys]);
 
   // Server time policy: Admin screen uses UI-selected date for manual date control
-  const serveDateKey = toServeDateKey(selectedDate);
+  const serveDateKey = selectedDateKey;
+  const token = apiClient.getAdminToken();
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: createOrdersQueryKey(serveDateKey),
     queryFn: () => apiClient.getOrdersByDate(serveDateKey),
-    enabled: user?.email === 'admin@example.com',
+    enabled: !!selectedDateKey && !!token,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
     queryKey: createMenuQueryKey(serveDateKey),
     queryFn: () => apiClient.getMenusSQLAlchemy(serveDateKey),
-    enabled: user?.email === 'admin@example.com',
+    enabled: !!selectedDateKey && !!token,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
   const { data: confirmedOrders } = useQuery<Order[]>({
     queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
-    enabled: user?.email === 'admin@example.com' && showConfirmedOnly,
+    enabled: !!selectedDateKey && !!token && showConfirmedOnly,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
 
@@ -175,7 +203,7 @@ export default function AdminPage() {
       
       const promises = validRows.map((row: MenuRow) => {
         const form = new FormData();
-        form.append('serve_date', toServeDateKey(selectedDate));
+        form.append('serve_date', selectedDateKey);
         form.append('title', row.title.trim());
         form.append('price', String(Number(row.price)));
         form.append('max_qty', String(Number(row.max_qty)));
@@ -197,14 +225,14 @@ export default function AdminPage() {
 
       return Promise.all(promises);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) =>
-          q.queryKey[0] === 'weeklyMenus' &&
-          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
-      });
+      
+      await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      
+      navigate({ search: `?date=${serveDateKey}` }, { replace: true });
+      
       toast({
         title: "成功",
         description: "メニューが正常に保存されました",
@@ -232,14 +260,6 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= serveDateKey && 
-          serveDateKey <= q.queryKey[2]
-      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -260,14 +280,6 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({
-        predicate: (q) => q.queryKey[0] === 'weeklyMenus' && 
-          q.queryKey.length === 3 &&
-          typeof q.queryKey[1] === 'string' && 
-          typeof q.queryKey[2] === 'string' &&
-          q.queryKey[1] <= serveDateKey && 
-          serveDateKey <= q.queryKey[2]
-      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -341,7 +353,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     setSelectedImage(null)
-  }, [selectedDate])
+  }, [selectedDateKey])
 
   useEffect(() => {
     const audio = new Audio(new URL('../assets/sounds/notify.mp3', import.meta.url).href)
@@ -354,7 +366,7 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (user?.email !== 'admin@example.com') return
+    if (!token) return
     
     const wsUrl = (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws')
     const ws = new WebSocket(`${wsUrl}/ws/orders`)
@@ -378,7 +390,7 @@ export default function AdminPage() {
 
   const adminToken = apiClient.getAdminToken();
   
-  if (user?.email !== 'admin@example.com' && !adminToken) {
+  if (!adminToken) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -579,12 +591,12 @@ export default function AdminPage() {
       <div className="p-4 space-y-6">
         {/* Date Selection - Round Buttons */}
         <div className="flex flex-wrap gap-2 pb-2">
-          {tabDates.map((date, index) => (
+          {windowDates.map((date, index) => (
             <Button
               key={index}
-              variant={selectedDate.toDateString() === date.toDateString() ? "default" : "outline"}
+              variant={selectedDateKey === toServeDateKey(date) ? "default" : "outline"}
               className={`rounded-3xl ${
-                selectedDate.toDateString() === date.toDateString() 
+                selectedDateKey === toServeDateKey(date)
                   ? 'bg-black text-white hover:bg-gray-800' 
                   : 'bg-white text-black border-gray-300 hover:bg-gray-50'
               }`}

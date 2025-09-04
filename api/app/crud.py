@@ -306,10 +306,15 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
 
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     """Get MenuSQLAlchemy menus with optional date filter"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     query = db.query(models.MenuSQLAlchemy)
     if date_filter:
         query = query.filter(models.MenuSQLAlchemy.serve_date == date_filter)
     menus = query.all()
+    
+    logger.info(f"FETCH serve_date={date_filter} count={len(menus)}")
     
     for menu in menus:
         if not hasattr(menu, 'cafe_time_available') or menu.cafe_time_available is None:
@@ -319,6 +324,9 @@ def get_menus_sqlalchemy(db: Session, date_filter: date = None):
 
 def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     """Create a new MenuSQLAlchemy menu"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     cafe_time_available = getattr(menu, 'cafe_time_available', False)
     if cafe_time_available is None:
         cafe_time_available = False
@@ -334,6 +342,9 @@ def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     db.add(db_menu)
     db.commit()
     db.refresh(db_menu)
+    
+    logger.info(f"SAVED id={db_menu.id} serve_date={db_menu.serve_date}")
+    
     return db_menu
 
 def update_menu_sqlalchemy(db: Session, menu_id: int, menu_update: schemas.MenuSQLAlchemyUpdate):
