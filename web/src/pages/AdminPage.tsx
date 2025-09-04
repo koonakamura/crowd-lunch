@@ -161,26 +161,36 @@ export default function AdminPage() {
 
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = selectedDateKey;
+  const token = apiClient.getAdminToken();
 
   const { data: orders } = useQuery<Order[]>({
     queryKey: createOrdersQueryKey(serveDateKey),
     queryFn: () => apiClient.getOrdersByDate(serveDateKey),
-    enabled: user?.email === 'admin@example.com' && !!selectedDateKey,
+    enabled: !!selectedDateKey && !!token,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
   const { data: sqlAlchemyMenus } = useQuery<MenuSQLAlchemy[]>({
     queryKey: createMenuQueryKey(serveDateKey),
     queryFn: () => apiClient.getMenusSQLAlchemy(serveDateKey),
-    enabled: user?.email === 'admin@example.com' && !!selectedDateKey,
+    enabled: !!selectedDateKey && !!token,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
   const { data: confirmedOrders } = useQuery<Order[]>({
     queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
-    enabled: user?.email === 'admin@example.com' && showConfirmedOnly && !!selectedDateKey,
+    enabled: !!selectedDateKey && !!token && showConfirmedOnly,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: false,
   })
 
 
@@ -215,10 +225,11 @@ export default function AdminPage() {
 
       return Promise.all(promises);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      
+      await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
       navigate({ search: `?date=${serveDateKey}` }, { replace: true });
       
