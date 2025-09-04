@@ -50,7 +50,7 @@ interface MenuRow {
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { format } from 'date-fns'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
 import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
@@ -231,6 +231,15 @@ export default function AdminPage() {
       await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
+      
       navigate({ search: `?date=${serveDateKey}` }, { replace: true });
       
       toast({
@@ -260,6 +269,15 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -280,6 +298,15 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {

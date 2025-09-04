@@ -263,8 +263,37 @@ async def get_public_menus_by_date(
     date: date = None,
     db: Session = Depends(get_db),
 ):
+    from fastapi.responses import JSONResponse
+    import os
+    
     menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
+    
+    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    
+    if is_preview:
+        headers = {
+            "Cache-Control": "no-store",
+        }
+    else:
+        headers = {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+        }
+    
+    menu_data = []
+    for menu in menus:
+        menu_dict = {
+            "id": menu.id,
+            "name": menu.name,
+            "price": menu.price,
+            "quantity": menu.quantity,
+            "serve_date": menu.serve_date.isoformat() if menu.serve_date else None,
+            "is_cafe": menu.is_cafe,
+            "created_at": menu.created_at.isoformat() if menu.created_at else None,
+            "updated_at": menu.updated_at.isoformat() if menu.updated_at else None
+        }
+        menu_data.append(menu_dict)
+    
+    return JSONResponse(content=menu_data, headers=headers)
 
 
 @app.get("/public/menus-range")
@@ -275,6 +304,8 @@ async def get_public_menus_range(
 ):
     """Get menus for a date range (inclusive boundaries)"""
     from datetime import timezone, timedelta as td
+    from fastapi.responses import JSONResponse
+    import os
     
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
@@ -296,7 +327,7 @@ async def get_public_menus_range(
         if serve_date in days:
             days[serve_date].append(menu)
     
-    return {
+    response_data = {
         "range": {
             "start": start.strftime('%Y-%m-%d'),
             "end": end.strftime('%Y-%m-%d'),
@@ -304,6 +335,19 @@ async def get_public_menus_range(
         },
         "days": days
     }
+    
+    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    
+    if is_preview:
+        headers = {
+            "Cache-Control": "no-store",
+        }
+    else:
+        headers = {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+        }
+    
+    return JSONResponse(content=response_data, headers=headers)
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(

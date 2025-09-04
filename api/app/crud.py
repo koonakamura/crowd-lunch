@@ -29,8 +29,9 @@ def get_menus_by_date(db: Session, serve_date: date):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
+    from sqlalchemy import cast, Date
     menus = db.query(models.MenuSQLAlchemy).filter(
-        and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
+        and_(cast(models.MenuSQLAlchemy.serve_date, Date) >= start_date, cast(models.MenuSQLAlchemy.serve_date, Date) <= end_date)
     ).all()
     
     menu_with_remaining = []
@@ -307,11 +308,12 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     """Get MenuSQLAlchemy menus with optional date filter"""
     import logging
+    from sqlalchemy import cast, Date
     logger = logging.getLogger(__name__)
     
     query = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        query = query.filter(models.MenuSQLAlchemy.serve_date == date_filter)
+        query = query.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     menus = query.all()
     
     logger.info(f"FETCH serve_date={date_filter} count={len(menus)}")
