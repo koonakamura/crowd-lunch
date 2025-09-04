@@ -283,13 +283,13 @@ async def get_public_menus_by_date(
     for menu in menus:
         menu_dict = {
             "id": menu.id,
-            "name": menu.name,
+            "title": menu.title,
             "price": menu.price,
-            "quantity": menu.quantity,
+            "max_qty": menu.max_qty,
             "serve_date": menu.serve_date.isoformat() if menu.serve_date else None,
-            "is_cafe": menu.is_cafe,
+            "cafe_time_available": menu.cafe_time_available,
             "created_at": menu.created_at.isoformat() if menu.created_at else None,
-            "updated_at": menu.updated_at.isoformat() if menu.updated_at else None
+            "img_url": menu.img_url
         }
         menu_data.append(menu_dict)
     

@@ -158,10 +158,14 @@ export default function HomePage() {
   }
 
   const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
-    if (!weeklyMenusData?.days) return []
-    
     const dateKey = format(date, 'yyyy-MM-dd')
-    const menus = weeklyMenusData.days[dateKey] || []
+    
+    let menus: MenuSQLAlchemy[] = []
+    if (dateKey === selectedDateKey && singleDayMenuData) {
+      menus = singleDayMenuData
+    } else if (weeklyMenusData?.days) {
+      menus = weeklyMenusData.days[dateKey] || []
+    }
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
@@ -244,10 +248,21 @@ export default function HomePage() {
   }
 
   const getSelectedMenus = () => {
-    if (!weeklyMenusData?.days) return []
-    const allMenus = Object.values(weeklyMenusData.days).flat()
+    let allMenus: MenuSQLAlchemy[] = []
+    if (singleDayMenuData) {
+      allMenus = [...singleDayMenuData]
+    }
+    if (weeklyMenusData?.days) {
+      const weeklyMenus = Object.values(weeklyMenusData.days).flat()
+      allMenus = [...allMenus, ...weeklyMenus]
+    }
+    
+    const uniqueMenus = allMenus.filter((menu, index, self) => 
+      index === self.findIndex(m => m.id === menu.id)
+    )
+    
     return Object.entries(cart).map(([menuId, qty]) => {
-      const menu = allMenus.find((m: MenuSQLAlchemy) => m.id === parseInt(menuId))
+      const menu = uniqueMenus.find((m: MenuSQLAlchemy) => m.id === parseInt(menuId))
       return { menu: menu!, qty }
     }).filter(item => item.menu)
   }
