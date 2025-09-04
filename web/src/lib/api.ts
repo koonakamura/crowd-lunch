@@ -138,17 +138,25 @@ class ApiClient {
   }
 
   getAdminToken(): string | null {
-    return sessionStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
+    if (!token || token === 'null' || token === 'undefined' || token === '') {
+      return null;
+    }
+    if (!token.match(/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/)) {
+      return null;
+    }
+    return token;
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
+    const isServerTime = endpoint === '/server-time';
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
     };
 
-    if (this.token) {
+    if (this.token && !isServerTime) {
       (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
