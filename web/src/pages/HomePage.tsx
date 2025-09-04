@@ -206,7 +206,8 @@ export default function HomePage() {
   }
 
   const selectedDateKey = toServeDateKey(getSelectedDate() || new Date())
-  const { data: _singleDayMenuData } = useQuery({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { data: singleDayMenuData } = useQuery({
     queryKey: ['publicMenus', selectedDateKey] as const,
     queryFn: () => apiClient.getPublicMenusSQLAlchemy(selectedDateKey),
     staleTime: 0,
