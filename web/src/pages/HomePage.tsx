@@ -206,7 +206,6 @@ export default function HomePage() {
   }
 
   const selectedDateKey = toServeDateKey(getSelectedDate() || new Date())
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: singleDayMenuData } = useQuery({
     queryKey: ['publicMenus', selectedDateKey] as const,
     queryFn: () => apiClient.getPublicMenusSQLAlchemy(selectedDateKey),
@@ -216,6 +215,8 @@ export default function HomePage() {
     refetchOnWindowFocus: true,
     refetchInterval: 15000,
   })
+  
+  console.log('Single day menu data available:', !!singleDayMenuData)
 
 
   const addToCart = (menuId: number, dayKey: string) => {
