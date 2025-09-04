@@ -115,6 +115,7 @@ export default function HomePage() {
     refetchInterval: 15000,
   })
 
+
   useEffect(() => {
     const fetchServerTime = async () => {
       try {
@@ -203,6 +204,17 @@ export default function HomePage() {
     const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
     return dayInfo || null
   }
+
+  const selectedDateKey = toServeDateKey(getSelectedDate() || new Date())
+  const { data: singleDayMenuData } = useQuery({
+    queryKey: ['publicMenus', selectedDateKey] as const,
+    queryFn: () => apiClient.getPublicMenusSQLAlchemy(selectedDateKey),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+  })
 
 
   const addToCart = (menuId: number, dayKey: string) => {
@@ -301,7 +313,7 @@ export default function HomePage() {
 
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -335,7 +347,7 @@ export default function HomePage() {
       }
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>

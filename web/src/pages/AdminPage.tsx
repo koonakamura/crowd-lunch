@@ -232,6 +232,7 @@ export default function AdminPage() {
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
       queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -271,6 +272,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
       queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -300,6 +302,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
       queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
