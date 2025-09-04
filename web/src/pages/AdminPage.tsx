@@ -366,7 +366,7 @@ export default function AdminPage() {
   }, [])
 
   useEffect(() => {
-    if (user?.email !== 'admin@example.com') return
+    if (!token) return
     
     const wsUrl = (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws')
     const ws = new WebSocket(`${wsUrl}/ws/orders`)
@@ -390,7 +390,7 @@ export default function AdminPage() {
 
   const adminToken = apiClient.getAdminToken();
   
-  if (user?.email !== 'admin@example.com' && !adminToken) {
+  if (!adminToken) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
