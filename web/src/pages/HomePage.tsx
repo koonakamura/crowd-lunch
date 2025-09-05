@@ -118,7 +118,6 @@ export default function HomePage() {
 
   const selectedDateKey = selectedDate ? toServeDateKey(selectedDate) : null
   const currentKey = selectedDateKey ?? toServeDateKey(todayJST(serverTime || undefined))
-  console.debug('[weeklyMenus]', { startKey, endKey, currentKey, count: weeklyMenusData?.days?.[currentKey]?.length })
 
   useEffect(() => {
     const fetchServerTime = async () => {
@@ -463,7 +462,20 @@ export default function HomePage() {
       <div className="pt-16">
         {windowDates.map((date, index) => {
           const dayKey = format(date, 'M/d')
-          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
+          const dateKey = format(date, 'yyyy-MM-dd')
+          const isSelectedDate = dateKey === currentKey
+          const dayMenus = isSelectedDate 
+            ? (weeklyMenusData?.days?.[currentKey] ?? []).filter(menu => {
+                const shouldFilterForCafeTime = selectedDay === dayKey && deliveryTime ? 
+                  isCafeTime(deliveryTime) : 
+                  (serverTime && serverTime.getHours() >= 14 && dateKey === format(serverTime, 'yyyy-MM-dd'))
+                
+                if (shouldFilterForCafeTime) {
+                  return menu.cafe_time_available === true
+                }
+                return true
+              })
+            : getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
           
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           
