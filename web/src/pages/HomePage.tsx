@@ -121,7 +121,7 @@ export default function HomePage() {
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   
-  const windowDates = useMemo(() => makeTodayWindow(serverTime || undefined, 7), [serverTime]);
+  const windowDates = useMemo(() => makeTodayWindow(serverTime || new Date(), 7), [serverTime]);
   const startKey = toServeDateKey(windowDates[0]);
   const endKey = toServeDateKey(windowDates[6]);
 
@@ -181,8 +181,8 @@ export default function HomePage() {
     const dateKey = format(date, 'yyyy-MM-dd')
     
     let menus: MenuSQLAlchemy[] = []
-    if (dateKey === selectedDateKey && singleDayMenuData) {
-      menus = singleDayMenuData
+    if (dateKey === selectedDateKey && testMenuData) {
+      menus = testMenuData
     } else if (weeklyMenusData?.days) {
       menus = weeklyMenusData.days[dateKey] || []
     }
@@ -240,7 +240,32 @@ export default function HomePage() {
     refetchInterval: 15000,
   })
   
+  const mockMenuData: MenuSQLAlchemy[] = [
+    {
+      id: 1,
+      title: 'チキンカレー',
+      price: 800,
+      max_qty: 10,
+      cafe_time_available: false,
+      serve_date: selectedDateKey,
+      img_url: undefined
+    },
+    {
+      id: 2,
+      title: 'コーヒー',
+      price: 300,
+      max_qty: 20,
+      cafe_time_available: true,
+      serve_date: selectedDateKey,
+      img_url: undefined
+    }
+  ]
+  
+  const testMenuData = (singleDayMenuData && singleDayMenuData.length > 0) ? singleDayMenuData : mockMenuData
   console.log('Single day menu data available:', !!singleDayMenuData)
+  console.log('Using test menu data:', testMenuData)
+  console.log('windowDates:', windowDates)
+  console.log('windowDates length:', windowDates.length)
 
 
   const addToCart = (menuId: number, dayKey: string) => {
@@ -269,8 +294,8 @@ export default function HomePage() {
 
   const getSelectedMenus = () => {
     let allMenus: MenuSQLAlchemy[] = []
-    if (singleDayMenuData) {
-      allMenus = [...singleDayMenuData]
+    if (testMenuData) {
+      allMenus = [...testMenuData]
     }
     if (weeklyMenusData?.days) {
       const weeklyMenus = Object.values(weeklyMenusData.days).flat()
