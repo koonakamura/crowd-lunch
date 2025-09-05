@@ -6,6 +6,7 @@
     --font-sans: "Noto Sans JP","Inter","Hiragino Sans","Hiragino Kaku Gothic ProN",
                  "Yu Gothic UI",Meiryo,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     --radius: 0.5rem;
+    font-synthesis: none;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
