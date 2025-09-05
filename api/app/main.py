@@ -31,6 +31,7 @@ async def validation_exception_handler(request, exc):
 
 ALLOWED_ORIGINS = [
     "https://cheery-dango-2fd190.netlify.app",  # prod
+    "https://deploy-preview-77--cheery-dango-2fd190.netlify.app",  # current preview
     "http://localhost:3000",
     "http://localhost:3001",
 ]
