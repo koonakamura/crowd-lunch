@@ -115,6 +115,9 @@ export default function HomePage() {
     refetchInterval: 15000,
   })
 
+  const todayKey = toServeDateKey(todayJST(serverTime || undefined))
+  console.debug('[weeklyMenus]', { startKey, endKey, todayKey, dayCount: weeklyMenusData?.days?.[todayKey]?.length })
+
   useEffect(() => {
     const fetchServerTime = async () => {
       try {
