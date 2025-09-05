@@ -108,6 +108,7 @@ export default function HomePage() {
   const { data: weeklyMenusData, isLoading } = useQuery({
     queryKey: ['weeklyMenus', startKey, endKey] as const,
     queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
+    enabled: Boolean(startKey && endKey),
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnReconnect: true,
@@ -115,8 +116,9 @@ export default function HomePage() {
     refetchInterval: 15000,
   })
 
-  const todayKey = toServeDateKey(todayJST(serverTime || undefined))
-  console.debug('[weeklyMenus]', { startKey, endKey, todayKey, dayCount: weeklyMenusData?.days?.[todayKey]?.length })
+  const selectedDateKey = selectedDate ? toServeDateKey(selectedDate) : null
+  const currentKey = selectedDateKey ?? toServeDateKey(todayJST(serverTime || undefined))
+  console.debug('[weeklyMenus]', { startKey, endKey, currentKey, count: weeklyMenusData?.days?.[currentKey]?.length })
 
   useEffect(() => {
     const fetchServerTime = async () => {
