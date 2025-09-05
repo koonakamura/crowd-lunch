@@ -478,7 +478,7 @@ export default function HomePage() {
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
+              <div className="grid grid-cols-1 gap-6 max-w-6xl w-full">
                 {dayMenus.length > 0 ? (
                   dayMenus.map((menu) => (
                     <button
@@ -628,9 +628,10 @@ export default function HomePage() {
                 )}
               </div>
 
-              <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
+              <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded space-y-1">
                 <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。</p>
                 <p>当日11時までの予約注文は、時間通りのお届けがしやすくなりますので事前のご予約をお願いします。</p>
+                <p>カフェタイムメニューは14時以降のお届けが可能です。ぜひご利用ください。</p>
               </div>
             </div>
           </div>
