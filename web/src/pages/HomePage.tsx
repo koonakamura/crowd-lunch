@@ -117,7 +117,7 @@ export default function HomePage() {
   })
 
   const selectedDateKey = selectedDate ? toServeDateKey(selectedDate) : null
-  const currentKey = selectedDateKey ?? toServeDateKey(todayJST(serverTime || undefined))
+  const currentKey = selectedDateKey ?? toServeDateKey(todayJST(serverTime ?? undefined))
 
   useEffect(() => {
     const fetchServerTime = async () => {
