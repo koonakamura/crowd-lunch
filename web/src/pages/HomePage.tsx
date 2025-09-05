@@ -20,10 +20,10 @@ interface PriceWithCafeProps {
 
 function PriceWithCafe({ price, isCafe }: PriceWithCafeProps) {
   return (
-    <span className="inline-flex items-center gap-1 tabular-nums leading-none text-lg font-bold">
+    <span className="inline-flex items-center gap-1 tabular-nums whitespace-nowrap leading-none text-lg font-bold">
       <span
         aria-hidden="true"
-        className={`w-4 h-4 flex-none ${isCafe ? "" : "opacity-0"}`}
+        className={`w-4 h-4 flex-none shrink-0 ${isCafe ? "" : "invisible"}`}
       >
         <Coffee className="w-4 h-4" />
       </span>
