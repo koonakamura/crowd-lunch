@@ -117,17 +117,20 @@ export default function HomePage() {
   })
 
   const selectedDateKey = selectedDate ? toServeDateKey(selectedDate) : null
-  const currentKey = selectedDateKey ?? toServeDateKey(todayJST(serverTime ?? undefined))
+  const today = todayJST(serverTime ?? undefined)
+  const currentKey = selectedDateKey ?? toServeDateKey(today)
 
   useEffect(() => {
     const fetchServerTime = async () => {
+      let serverTime: Date | null = null;
       try {
         const response = await apiClient.getServerTime()
-        setServerTime(new Date(response.current_time))
+        serverTime = new Date(response.current_time)
       } catch (error) {
         console.warn('[server-time] fallback to client time', error)
-        setServerTime(new Date())
+        serverTime = new Date()
       }
+      setServerTime(serverTime)
     }
     
     fetchServerTime()
