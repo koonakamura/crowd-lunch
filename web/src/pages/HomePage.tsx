@@ -498,7 +498,17 @@ export default function HomePage() {
 
 
   return (
-    <div className="min-h-screen">
+    <main className="relative min-h-screen">
+      {/* Fixed background image for entire page */}
+      <img
+        src={getBackgroundImage(0, getMenusForDate(windowDates[0]))}
+        alt=""
+        className="fixed inset-0 -z-10 w-full h-full object-cover pointer-events-none select-none"
+        loading="eager"
+      />
+      {/* Readability overlay */}
+      <div className="fixed inset-0 -z-10 bg-black/15" />
+
       <header className="fixed top-0 left-0 right-0 z-20 bg-white shadow-sm p-4">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
@@ -532,84 +542,85 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="pt-16">
+      {/* Date overlay section (fixed height) */}
+      <section className="relative z-10 pt-16 h-48 sm:h-56 md:h-64 lg:h-72 flex flex-col items-center justify-center">
+        {windowDates.length > 0 && (
+          <>
+            <div className="text-[56px] sm:text-[72px] md:text-[88px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
+              {format(windowDates[0], 'M/d')}
+            </div>
+            <div className="mt-2 text-xl sm:text-2xl font-libre tracking-wide text-white">
+              ({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][windowDates[0].getDay()]})
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Menu section (normal flow with padding-top) */}
+      <section className="relative z-10 px-4 sm:px-6 md:px-8 space-y-3 pb-16">
         {windowDates.map((date, index) => {
           const dayKey = format(date, 'M/d')
           const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
           
-          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
-          
           return (
-            <section key={format(date, 'yyyy-MM-dd')} className="relative w-full">
-              {/* Background image: covers entire section */}
-              <img
-                src={getBackgroundImage(index, dayMenus)}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover z-0"
-                loading="eager"
-              />
-              {/* Gradient overlay for better readability */}
-              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/0 z-0" />
-
-              {/* Date overlay (fixed height at top) */}
-              <div className="absolute left-0 right-0 top-0 z-10 h-48 sm:h-56 md:h-64 lg:h-72 flex flex-col items-center justify-center">
-                <div className="text-[56px] sm:text-[72px] md:text-[88px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
-                  {dayKey}
-                </div>
-                <div className="mt-2 text-xl sm:text-2xl font-libre tracking-wide text-white">
-                  ({dayName})
-                </div>
-              </div>
-
-              {/* Menu list (offset by date overlay height) */}
-              <div className="relative z-10 pt-48 sm:pt-56 md:pt-64 lg:pt-72 px-4 sm:px-6 md:px-8 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-                  {dayMenus.length > 0 ? (
-                    dayMenus.map((menu) => (
-                      <button
-                        key={menu.id}
-                        onClick={() => addToCart(menu.id, dayKey)}
-                        disabled={(menu.max_qty || 0) <= 0}
-                        className={`h-12 md:h-14 px-5 md:px-6 rounded-full text-white font-semibold transition-colors w-full flex items-center focus-visible:ring-2 focus-visible:ring-white/50 ${
-                          cart[menu.id] > 0 
-                            ? 'bg-primary border border-primary' 
-                            : (menu.max_qty || 0) <= 0 
-                              ? 'bg-gray-500 cursor-not-allowed border border-gray-400/40' 
-                              : 'bg-black/50 hover:bg-black/70 border border-gray-400/40'
-                        }`}
-                      >
-                        <div className="flex justify-between items-center w-full gap-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-lg truncate">{menu.title}</span>
-                            <span className="text-sm opacity-80">({menu.max_qty})</span>
-                          </div>
-                          <PriceWithCafe 
-                            price={menu.price} 
-                            isCafe={!!(menu.cafe_time_available ?? false)} 
-                          />
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="col-span-full"></div>
-                  )}
-                </div>
-                
-                {getTotalItems() > 0 && selectedDay === dayKey && (
-                  <div className="text-center mt-8">
-                    <Button 
-                      onClick={handleProceedToOrder}
-                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                    >
-                      注文
-                    </Button>
+            <div key={format(date, 'yyyy-MM-dd')} className="space-y-3">
+              {index > 0 && (
+                <div className="text-center py-8">
+                  <div className="text-[40px] sm:text-[48px] md:text-[56px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
+                    {dayKey}
                   </div>
+                  <div className="mt-2 text-lg sm:text-xl font-libre tracking-wide text-white">
+                    ({['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]})
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                {dayMenus.length > 0 ? (
+                  dayMenus.map((menu) => (
+                    <button
+                      key={menu.id}
+                      onClick={() => addToCart(menu.id, dayKey)}
+                      disabled={(menu.max_qty || 0) <= 0}
+                      className={`h-12 md:h-14 px-5 md:px-6 rounded-full text-white font-semibold transition-colors w-full flex items-center focus-visible:ring-2 focus-visible:ring-white/50 ${
+                        cart[menu.id] > 0 
+                          ? 'bg-primary border border-primary' 
+                          : (menu.max_qty || 0) <= 0 
+                            ? 'bg-gray-500 cursor-not-allowed border border-gray-400/40' 
+                            : 'bg-black/50 hover:bg-black/70 border border-gray-400/40'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center w-full gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg truncate">{menu.title}</span>
+                          <span className="text-sm opacity-80">({menu.max_qty})</span>
+                        </div>
+                        <PriceWithCafe 
+                          price={menu.price} 
+                          isCafe={!!(menu.cafe_time_available ?? false)} 
+                        />
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="col-span-full"></div>
                 )}
               </div>
-            </section>
+              
+              {getTotalItems() > 0 && selectedDay === dayKey && (
+                <div className="text-center mt-8">
+                  <Button 
+                    onClick={handleProceedToOrder}
+                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
+                  >
+                    注文
+                  </Button>
+                </div>
+              )}
+            </div>
           )
         })}
-      </div>
+      </section>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
         <DialogContent className="bg-black border-primary border-2 text-white max-w-md rounded-3xl">
@@ -812,6 +823,6 @@ export default function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   )
 }
