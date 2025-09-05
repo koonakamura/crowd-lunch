@@ -565,15 +565,15 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.max_qty || 0) <= 0}
-                      className={`p-4 rounded-full text-white font-semibold transition-colors w-full ${
+                      className={`h-10 px-4 rounded-full text-white font-semibold transition-colors w-full flex items-center focus-visible:ring-2 focus-visible:ring-white/50 ${
                         cart[menu.id] > 0 
                           ? 'bg-primary border border-primary' 
                           : (menu.max_qty || 0) <= 0 
-                            ? 'bg-gray-500 cursor-not-allowed' 
-                            : 'bg-black/50 hover:bg-black/70 border border-white/30'
+                            ? 'bg-gray-500 cursor-not-allowed border border-gray-400/40' 
+                            : 'bg-black/50 hover:bg-black/70 border border-gray-400/40'
                       }`}
                     >
-                      <div className="flex justify-between items-center">
+                      <div className="flex justify-between items-center w-full">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">{menu.title}</span>
                           <span className="text-sm">({menu.max_qty})</span>
