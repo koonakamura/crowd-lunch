@@ -29,25 +29,16 @@ async def validation_exception_handler(request, exc):
         content={"detail": "Validation error occurred"}
     )
 
-ALLOWED_ORIGINS = [
-    "https://cheery-dango-2fd190.netlify.app",  # prod
-    "https://deploy-preview-77--cheery-dango-2fd190.netlify.app",  # current preview
-    "http://localhost:3000",
-    "http://localhost:3001",
-]
-ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
-
-logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
-logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=ALLOW_ORIGIN_REGEX,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type", "accept"],
-    allow_credentials=False,
-    max_age=600,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://cheery-dango-2fd190.netlify.app",  # 本番
+    ],
+    allow_origin_regex=r"https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app",
+    allow_methods=["*"],
+    allow_headers=["accept", "content-type", "authorization"],
+    allow_credentials=False,  # Cookie未使用なら False
 )
 
 @app.middleware("http")
