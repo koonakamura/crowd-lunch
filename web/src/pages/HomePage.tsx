@@ -540,31 +540,29 @@ export default function HomePage() {
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           
           return (
-            <div key={format(date, 'yyyy-MM-dd')}>
-              {/* Date Hero Section */}
-              <section className="relative w-full h-48 sm:h-56 md:h-64 lg:h-72">
-                <img
-                  src={getBackgroundImage(index, dayMenus)}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover z-0"
-                  loading="eager"
-                />
-                {/* Optional gradient overlay for better readability */}
-                <div className="absolute inset-0 bg-black/10" />
-                
-                {/* Date overlay (centered) */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                  <div className="text-[56px] sm:text-[72px] md:text-[88px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
-                    {dayKey}
-                  </div>
-                  <div className="mt-2 text-xl sm:text-2xl font-libre tracking-wide text-white">
-                    ({dayName})
-                  </div>
-                </div>
-              </section>
+            <section key={format(date, 'yyyy-MM-dd')} className="relative w-full">
+              {/* Background image: covers entire section */}
+              <img
+                src={getBackgroundImage(index, dayMenus)}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover z-0"
+                loading="eager"
+              />
+              {/* Gradient overlay for better readability */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/10 to-black/0 z-0" />
 
-              {/* Menu List Section */}
-              <section className="px-4 sm:px-6 md:px-8 mt-4">
+              {/* Date overlay (fixed height at top) */}
+              <div className="absolute left-0 right-0 top-0 z-10 h-48 sm:h-56 md:h-64 lg:h-72 flex flex-col items-center justify-center">
+                <div className="text-[56px] sm:text-[72px] md:text-[88px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
+                  {dayKey}
+                </div>
+                <div className="mt-2 text-xl sm:text-2xl font-libre tracking-wide text-white">
+                  ({dayName})
+                </div>
+              </div>
+
+              {/* Menu list (offset by date overlay height) */}
+              <div className="relative z-10 pt-48 sm:pt-56 md:pt-64 lg:pt-72 px-4 sm:px-6 md:px-8 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                   {dayMenus.length > 0 ? (
                     dayMenus.map((menu) => (
@@ -607,8 +605,8 @@ export default function HomePage() {
                     </Button>
                   </div>
                 )}
-              </section>
-            </div>
+              </div>
+            </section>
           )
         })}
       </div>
