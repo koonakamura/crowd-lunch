@@ -7,11 +7,31 @@ import { Button } from '../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog'
 import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { User } from 'lucide-react'
+import { User, Coffee } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { toServeDateKey, rangeContains } from '../lib/dateUtils'
 import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
+
+interface PriceWithCafeProps {
+  menu: MenuSQLAlchemy;
+}
+
+function PriceWithCafe({ menu }: PriceWithCafeProps) {
+  const isCafe = menu.cafe_time_available ?? false;
+  
+  return (
+    <span className="inline-flex items-center gap-1 text-lg font-bold tabular-nums">
+      {isCafe && (
+        <>
+          <Coffee size={16} aria-hidden="true" />
+          <span className="sr-only">カフェ</span>
+        </>
+      )}
+      {menu.price}円
+    </span>
+  );
+}
 
 interface MenuSQLAlchemy {
   id: number;
@@ -530,13 +550,8 @@ export default function HomePage() {
                           <span className="text-lg">{menu.title}</span>
                           <span className="text-sm">({menu.max_qty})</span>
                         </div>
-                        <span className="text-lg font-bold">{menu.price}円</span>
+                        <PriceWithCafe menu={menu} />
                       </div>
-                      {cart[menu.id] > 0 && (
-                        <div className="mt-2 text-sm">
-                          選択済み: {cart[menu.id]}個
-                        </div>
-                      )}
                     </button>
                   ))
                 ) : (

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
@@ -543,33 +543,12 @@ export default function AdminPage() {
     }
   }
 
-  const saveButtonRef = useRef<HTMLButtonElement>(null)
-
-  const handleSave = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleSave = () => {
     console.log('handleSave called - triggering saveMenusMutation')
+    console.log('menuRows state:', menuRows)
+    console.log('menuRows length:', menuRows.length)
     saveMenusMutation.mutate()
-  }, [saveMenusMutation])
-
-  useEffect(() => {
-    const saveButton = saveButtonRef.current;
-    if (saveButton) {
-      const newButton = saveButton.cloneNode(true) as HTMLButtonElement;
-      saveButton.parentNode?.replaceChild(newButton, saveButton);
-      
-      newButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Direct click handler - triggering saveMenusMutation');
-        if (!saveMenusMutation.isPending) {
-          saveMenusMutation.mutate();
-        }
-      });
-      
-      (saveButtonRef as any).current = newButton;
-    }
-  }, [saveMenusMutation]);
+  }
 
   const generateCSV = (orders: Order[]): string => {
     const BOM = '\uFEFF';
@@ -804,9 +783,7 @@ export default function AdminPage() {
 
             {/* Save Button - No keepPreviousData or manual merging allowed, replacement only */}
             <Button 
-              ref={saveButtonRef}
               onClick={handleSave}
-              data-save-button="true"
               disabled={saveMenusMutation.isPending}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
