@@ -125,7 +125,8 @@ export default function HomePage() {
         const response = await apiClient.getServerTime()
         setServerTime(new Date(response.current_time))
       } catch (error) {
-        console.error('Failed to fetch server time:', error)
+        console.warn('[server-time] fallback to client time', error)
+        setServerTime(new Date())
       }
     }
     
