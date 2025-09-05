@@ -50,7 +50,7 @@ interface MenuRow {
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { format } from 'date-fns'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
 import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
@@ -232,11 +232,14 @@ export default function AdminPage() {
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
       const k = serveDateKey;
+      
       queryClient.invalidateQueries({ queryKey: ['menus', k] as const, exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', k] as const, exact: true });
       
       queryClient.invalidateQueries({
         predicate: q => q.queryKey[0] === 'weeklyMenus'
-          && rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, k)
+          && (q.queryKey[1] as string) <= k && k <= (q.queryKey[2] as string)
       });
       
       navigate({ search: `?date=${serveDateKey}` }, { replace: true });
