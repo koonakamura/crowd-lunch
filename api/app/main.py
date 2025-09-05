@@ -18,8 +18,22 @@ from . import crud, schemas, auth, models
 from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
-
 app.router.redirect_slashes = False
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://cheery-dango-2fd190.netlify.app",  # 本番
+    ],
+    # Netlify Preview を包括許可
+    allow_origin_regex=r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$",
+    allow_methods=["*"],
+    allow_headers=["accept", "content-type", "authorization"],
+    allow_credentials=False,
+    # max_age=600,  # 任意
+)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
@@ -28,26 +42,6 @@ async def validation_exception_handler(request, exc):
         status_code=422,
         content={"detail": "Validation error occurred"}
     )
-
-ALLOWED_ORIGINS = [
-    "https://cheery-dango-2fd190.netlify.app",  # prod
-    "http://localhost:3000",
-    "http://localhost:3001",
-]
-ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
-
-logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
-logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=ALLOW_ORIGIN_REGEX,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type", "accept"],
-    allow_credentials=False,
-    max_age=600,
-)
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -95,7 +89,6 @@ def _preflight_ok(path: str):
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
 async def get_server_time():
     from .time_utils import get_jst_time
-    from fastapi import Response
     import json
     
     current_jst = get_jst_time()
@@ -264,7 +257,19 @@ async def get_public_menus_by_date(
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
+    return JSONResponse(
+        content=[{
+            "id": menu.id,
+            "serve_date": menu.serve_date.strftime('%Y-%m-%d'),
+            "title": menu.title,
+            "price": menu.price,
+            "max_qty": menu.max_qty,
+            "img_url": menu.img_url,
+            "cafe_time_available": menu.cafe_time_available,
+            "created_at": menu.created_at.isoformat()
+        } for menu in menus],
+        headers={"Cache-Control": "no-store"}
+    )
 
 
 @app.get("/public/menus-range")
@@ -296,14 +301,17 @@ async def get_public_menus_range(
         if serve_date in days:
             days[serve_date].append(menu)
     
-    return {
-        "range": {
-            "start": start.strftime('%Y-%m-%d'),
-            "end": end.strftime('%Y-%m-%d'),
-            "tz": "Asia/Tokyo"
+    return JSONResponse(
+        content={
+            "range": {
+                "start": start.strftime('%Y-%m-%d'),
+                "end": end.strftime('%Y-%m-%d'),
+                "tz": "Asia/Tokyo"
+            },
+            "days": days
         },
-        "days": days
-    }
+        headers={"Cache-Control": "no-store"}
+    )
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(

@@ -108,18 +108,29 @@ export default function HomePage() {
   const { data: weeklyMenusData, isLoading } = useQuery({
     queryKey: ['weeklyMenus', startKey, endKey] as const,
     queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
-    refetchInterval: 30000,
+    enabled: Boolean(startKey && endKey),
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
   })
+
+  const selectedDateKey = selectedDate ? toServeDateKey(selectedDate) : null
+  const today = todayJST(serverTime ?? undefined)
+  const currentKey = selectedDateKey ?? toServeDateKey(today)
 
   useEffect(() => {
     const fetchServerTime = async () => {
+      let serverTime: Date | null = null;
       try {
         const response = await apiClient.getServerTime()
-        setServerTime(new Date(response.current_time))
+        serverTime = new Date(response.current_time)
       } catch (error) {
-        console.error('Failed to fetch server time:', error)
+        console.warn('[server-time] fallback to client time', error)
+        serverTime = new Date()
       }
+      setServerTime(serverTime)
     }
     
     fetchServerTime()
@@ -298,7 +309,7 @@ export default function HomePage() {
 
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -332,7 +343,7 @@ export default function HomePage() {
       }
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -455,7 +466,20 @@ export default function HomePage() {
       <div className="pt-16">
         {windowDates.map((date, index) => {
           const dayKey = format(date, 'M/d')
-          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
+          const dateKey = format(date, 'yyyy-MM-dd')
+          const isSelectedDate = dateKey === currentKey
+          const dayMenus = isSelectedDate 
+            ? (weeklyMenusData?.days?.[currentKey] ?? []).filter(menu => {
+                const shouldFilterForCafeTime = selectedDay === dayKey && deliveryTime ? 
+                  isCafeTime(deliveryTime) : 
+                  (serverTime && serverTime.getHours() >= 14 && dateKey === format(serverTime, 'yyyy-MM-dd'))
+                
+                if (shouldFilterForCafeTime) {
+                  return menu.cafe_time_available === true
+                }
+                return true
+              })
+            : getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
           
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           

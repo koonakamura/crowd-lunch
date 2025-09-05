@@ -231,6 +231,17 @@ export default function AdminPage() {
       await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
+      const k = serveDateKey;
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', k] as const, exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', k] as const, exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: q => q.queryKey[0] === 'weeklyMenus'
+          && (q.queryKey[1] as string) <= k && k <= (q.queryKey[2] as string)
+      });
+      
       navigate({ search: `?date=${serveDateKey}` }, { replace: true });
       
       toast({

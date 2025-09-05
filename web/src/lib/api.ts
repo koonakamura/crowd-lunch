@@ -151,12 +151,13 @@ class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const isServerTime = endpoint === '/server-time';
+    const isPublicEndpoint = endpoint.startsWith('/public/');
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
     };
 
-    if (this.token && !isServerTime) {
+    if (this.token && !isServerTime && !isPublicEndpoint) {
       (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
