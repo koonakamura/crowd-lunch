@@ -540,67 +540,75 @@ export default function HomePage() {
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
           
           return (
-            <section 
-              key={format(date, 'yyyy-MM-dd')}
-              className="min-h-screen relative flex flex-col justify-center items-center p-8"
-              style={{
-                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
-            >
-              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
-                <h2 className="text-6xl font-bold text-white drop-shadow-lg font-libre">
-                  {dayKey}
-                </h2>
-                <p className="text-2xl text-white mt-2 font-libre">
-                  ({dayName})
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
-                {dayMenus.length > 0 ? (
-                  dayMenus.map((menu) => (
-                    <button
-                      key={menu.id}
-                      onClick={() => addToCart(menu.id, dayKey)}
-                      disabled={(menu.max_qty || 0) <= 0}
-                      className={`h-10 px-4 rounded-full text-white font-semibold transition-colors w-full flex items-center focus-visible:ring-2 focus-visible:ring-white/50 ${
-                        cart[menu.id] > 0 
-                          ? 'bg-primary border border-primary' 
-                          : (menu.max_qty || 0) <= 0 
-                            ? 'bg-gray-500 cursor-not-allowed border border-gray-400/40' 
-                            : 'bg-black/50 hover:bg-black/70 border border-gray-400/40'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center w-full">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{menu.title}</span>
-                          <span className="text-sm">({menu.max_qty})</span>
-                        </div>
-                        <PriceWithCafe 
-                          price={menu.price} 
-                          isCafe={!!(menu.cafe_time_available ?? false)} 
-                        />
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="col-span-full"></div>
-                )}
-              </div>
-              
-              {getTotalItems() > 0 && selectedDay === dayKey && (
-                <div className="text-center mt-8">
-                  <Button 
-                    onClick={handleProceedToOrder}
-                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                  >
-                    注文
-                  </Button>
+            <div key={format(date, 'yyyy-MM-dd')}>
+              {/* Date Hero Section */}
+              <section className="relative w-full h-48 sm:h-56 md:h-64 lg:h-72">
+                <img
+                  src={getBackgroundImage(index, dayMenus)}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover z-0"
+                  loading="eager"
+                />
+                {/* Optional gradient overlay for better readability */}
+                <div className="absolute inset-0 bg-black/10" />
+                
+                {/* Date overlay (centered) */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+                  <div className="text-[56px] sm:text-[72px] md:text-[88px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
+                    {dayKey}
+                  </div>
+                  <div className="mt-2 text-xl sm:text-2xl font-libre tracking-wide text-white">
+                    ({dayName})
+                  </div>
                 </div>
-              )}
-            </section>
+              </section>
+
+              {/* Menu List Section */}
+              <section className="px-4 sm:px-6 md:px-8 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                  {dayMenus.length > 0 ? (
+                    dayMenus.map((menu) => (
+                      <button
+                        key={menu.id}
+                        onClick={() => addToCart(menu.id, dayKey)}
+                        disabled={(menu.max_qty || 0) <= 0}
+                        className={`h-10 px-4 rounded-full text-white font-semibold transition-colors w-full flex items-center focus-visible:ring-2 focus-visible:ring-white/50 ${
+                          cart[menu.id] > 0 
+                            ? 'bg-primary border border-primary' 
+                            : (menu.max_qty || 0) <= 0 
+                              ? 'bg-gray-500 cursor-not-allowed border border-gray-400/40' 
+                              : 'bg-black/50 hover:bg-black/70 border border-gray-400/40'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{menu.title}</span>
+                            <span className="text-sm">({menu.max_qty})</span>
+                          </div>
+                          <PriceWithCafe 
+                            price={menu.price} 
+                            isCafe={!!(menu.cafe_time_available ?? false)} 
+                          />
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="col-span-full"></div>
+                  )}
+                </div>
+                
+                {getTotalItems() > 0 && selectedDay === dayKey && (
+                  <div className="text-center mt-8">
+                    <Button 
+                      onClick={handleProceedToOrder}
+                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
+                    >
+                      注文
+                    </Button>
+                  </div>
+                )}
+              </section>
+            </div>
           )
         })}
       </div>
