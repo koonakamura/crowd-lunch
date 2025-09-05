@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
@@ -159,6 +159,14 @@ export default function AdminPage() {
     setSelectedDateKey(prev => clampToWindow(prev, windowKeys));
   }, [windowKeys]);
 
+  useEffect(() => {
+    const adminToken = sessionStorage.getItem('adminToken');
+    if (adminToken && apiClient.getAdminToken() !== adminToken) {
+      apiClient.setAdminToken(adminToken);
+      console.log('Admin token set in apiClient');
+    }
+  }, []);
+
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = selectedDateKey;
   const token = apiClient.getAdminToken();
@@ -196,7 +204,12 @@ export default function AdminPage() {
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
+      console.log('=== SAVE MUTATION DEBUG ===');
+      console.log('menuRows state:', menuRows);
+      console.log('menuRows length:', menuRows.length);
       const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '');
+      console.log('validRows after filter:', validRows);
+      console.log('validRows length:', validRows.length);
       if (selectedImage && validRows.length === 0) {
         throw new Error('画像をアップロードするには、少なくとも1つのメニュー項目が必要です')
       }
@@ -231,8 +244,8 @@ export default function AdminPage() {
       await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
-      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -271,8 +284,8 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
-      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -301,8 +314,8 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
-      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey], exact: true });
-      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey], exact: true });
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -530,9 +543,33 @@ export default function AdminPage() {
     }
   }
 
-  const handleSave = () => {
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
+
+  const handleSave = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('handleSave called - triggering saveMenusMutation')
     saveMenusMutation.mutate()
-  }
+  }, [saveMenusMutation])
+
+  useEffect(() => {
+    const saveButton = saveButtonRef.current;
+    if (saveButton) {
+      const newButton = saveButton.cloneNode(true) as HTMLButtonElement;
+      saveButton.parentNode?.replaceChild(newButton, saveButton);
+      
+      newButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Direct click handler - triggering saveMenusMutation');
+        if (!saveMenusMutation.isPending) {
+          saveMenusMutation.mutate();
+        }
+      });
+      
+      (saveButtonRef as any).current = newButton;
+    }
+  }, [saveMenusMutation]);
 
   const generateCSV = (orders: Order[]): string => {
     const BOM = '\uFEFF';
@@ -765,10 +802,12 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Save Button */}
+            {/* Save Button - No keepPreviousData or manual merging allowed, replacement only */}
             <Button 
+              ref={saveButtonRef}
               onClick={handleSave}
-              disabled={saveMenusMutation.isPending || Object.keys(validationErrors).length > 0}
+              data-save-button="true"
+              disabled={saveMenusMutation.isPending}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
               {saveMenusMutation.isPending ? '保存中...' : '保存'}

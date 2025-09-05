@@ -330,7 +330,7 @@ export default function HomePage() {
 
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey] as const, exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -364,7 +364,7 @@ export default function HomePage() {
       }
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
-      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey] as const, exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
