@@ -18,8 +18,22 @@ from . import crud, schemas, auth, models
 from .time_utils import validate_delivery_time
 
 app = FastAPI(title="Crowd Lunch API", version="1.0.0")
-
 app.router.redirect_slashes = False
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://cheery-dango-2fd190.netlify.app",  # 本番
+    ],
+    # Netlify Preview を包括許可
+    allow_origin_regex=r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$",
+    allow_methods=["*"],
+    allow_headers=["accept", "content-type", "authorization"],
+    allow_credentials=False,
+    # max_age=600,  # 任意
+)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
@@ -28,18 +42,6 @@ async def validation_exception_handler(request, exc):
         status_code=422,
         content={"detail": "Validation error occurred"}
     )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://cheery-dango-2fd190.netlify.app",  # 本番
-    ],
-    allow_origin_regex=r"https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app",
-    allow_methods=["*"],
-    allow_headers=["accept", "content-type", "authorization"],
-    allow_credentials=False,  # Cookie未使用なら False
-)
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
@@ -87,7 +89,6 @@ def _preflight_ok(path: str):
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
 async def get_server_time():
     from .time_utils import get_jst_time
-    from fastapi import Response
     import json
     
     current_jst = get_jst_time()
