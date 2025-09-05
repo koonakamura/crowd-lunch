@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, cast, Date
 from datetime import date, datetime
 from typing import List, Optional
 from . import models, schemas
@@ -30,7 +30,8 @@ def get_menus_by_date(db: Session, serve_date: date):
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
     menus = db.query(models.MenuSQLAlchemy).filter(
-        and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
+        and_(cast(models.MenuSQLAlchemy.serve_date, Date) >= start_date, 
+             cast(models.MenuSQLAlchemy.serve_date, Date) <= end_date)
     ).all()
     
     menu_with_remaining = []
@@ -311,7 +312,7 @@ def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     
     query = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        query = query.filter(models.MenuSQLAlchemy.serve_date == date_filter)
+        query = query.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     menus = query.all()
     
     logger.info(f"FETCH serve_date={date_filter} count={len(menus)}")

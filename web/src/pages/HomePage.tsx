@@ -108,8 +108,11 @@ export default function HomePage() {
   const { data: weeklyMenusData, isLoading } = useQuery({
     queryKey: ['weeklyMenus', startKey, endKey] as const,
     queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
-    refetchInterval: 30000,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
   })
 
   useEffect(() => {
