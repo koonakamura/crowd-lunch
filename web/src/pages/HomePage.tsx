@@ -488,7 +488,7 @@ export default function HomePage() {
         onClick={handleLandingClick}
       >
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-black tracking-wider font-sans">
+          <h1 className="text-6xl font-bold text-black tracking-wider font-lato">
             CROWD LUNCH
           </h1>
         </div>
@@ -502,7 +502,7 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 right-0 z-20 bg-white shadow-sm p-4">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-black font-sans">CROWD LUNCH</h1>
+            <h1 className="text-xl font-bold text-black font-lato">CROWD LUNCH</h1>
             {todayOrder && (
               <div className="text-xs text-gray-600 mt-1">
                 <div className="font-medium">本日の注文履歴</div>
@@ -550,10 +550,10 @@ export default function HomePage() {
               }}
             >
               <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
-                <h2 className="text-6xl font-bold text-white drop-shadow-lg">
+                <h2 className="text-6xl font-bold text-white drop-shadow-lg font-libre">
                   {dayKey}
                 </h2>
-                <p className="text-2xl text-white mt-2">
+                <p className="text-2xl text-white mt-2 font-libre">
                   ({dayName})
                 </p>
               </div>
@@ -565,12 +565,12 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.max_qty || 0) <= 0}
-                      className={`p-4 rounded-3xl text-white font-semibold transition-colors w-full ${
+                      className={`p-4 rounded-full text-white font-semibold transition-colors w-full ${
                         cart[menu.id] > 0 
-                          ? 'bg-primary border-2 border-primary' 
+                          ? 'bg-primary border border-primary' 
                           : (menu.max_qty || 0) <= 0 
                             ? 'bg-gray-500 cursor-not-allowed' 
-                            : 'bg-black/50 hover:bg-black/70 border-2 border-white/30'
+                            : 'bg-black/50 hover:bg-black/70 border border-white/30'
                       }`}
                     >
                       <div className="flex justify-between items-center">
