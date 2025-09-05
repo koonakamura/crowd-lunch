@@ -556,16 +556,16 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Menu section (normal flow with padding-top) */}
-      <section className="relative z-10 px-4 sm:px-6 md:px-8 space-y-3 pb-16">
+      {/* Menu section (normal flow with all days in single section) */}
+      <section className="relative z-10 px-4 sm:px-6 md:px-8 space-y-8 pb-16">
         {windowDates.map((date, index) => {
           const dayKey = format(date, 'M/d')
           const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
           
           return (
-            <div key={format(date, 'yyyy-MM-dd')} className="space-y-3">
+            <div key={format(date, 'yyyy-MM-dd')} className="space-y-4">
               {index > 0 && (
-                <div className="text-center py-8">
+                <div className="text-center py-6">
                   <div className="text-[40px] sm:text-[48px] md:text-[56px] font-libre leading-none tracking-tight text-white drop-shadow-lg">
                     {dayKey}
                   </div>
@@ -608,7 +608,7 @@ export default function HomePage() {
               </div>
               
               {getTotalItems() > 0 && selectedDay === dayKey && (
-                <div className="text-center mt-8">
+                <div className="text-center mt-6">
                   <Button 
                     onClick={handleProceedToOrder}
                     className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
