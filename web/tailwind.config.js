@@ -48,6 +48,8 @@ export default {
   		},
   		fontFamily: {
   			sans: ['Noto Sans JP', 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+  			lato: ['"Lato"', 'system-ui', 'sans-serif'],
+  			libre: ['"Libre Baskerville"', 'serif'],
   		},
   		keyframes: {
   			'accordion-down': {

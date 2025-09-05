@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
@@ -50,7 +50,7 @@ interface MenuRow {
 import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
 import { format } from 'date-fns'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
+import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey, rangeContains } from '../lib/dateUtils'
 import { todayJST, makeTodayWindow } from '../lib/dateWindow'
 import { toast } from '../hooks/use-toast'
 
@@ -159,6 +159,14 @@ export default function AdminPage() {
     setSelectedDateKey(prev => clampToWindow(prev, windowKeys));
   }, [windowKeys]);
 
+  useEffect(() => {
+    const adminToken = sessionStorage.getItem('adminToken');
+    if (adminToken && apiClient.getAdminToken() !== adminToken) {
+      apiClient.setAdminToken(adminToken);
+      console.log('Admin token set in apiClient');
+    }
+  }, []);
+
   // Server time policy: Admin screen uses UI-selected date for manual date control
   const serveDateKey = selectedDateKey;
   const token = apiClient.getAdminToken();
@@ -196,7 +204,12 @@ export default function AdminPage() {
 
   const saveMenusMutation = useMutation({
     mutationFn: async () => {
+      console.log('=== SAVE MUTATION DEBUG ===');
+      console.log('menuRows state:', menuRows);
+      console.log('menuRows length:', menuRows.length);
       const validRows = menuRows.filter((row: MenuRow) => row.title.trim() !== '');
+      console.log('validRows after filter:', validRows);
+      console.log('validRows length:', validRows.length);
       if (selectedImage && validRows.length === 0) {
         throw new Error('画像をアップロードするには、少なくとも1つのメニュー項目が必要です')
       }
@@ -231,6 +244,16 @@ export default function AdminPage() {
       await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
       
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
+      
       navigate({ search: `?date=${serveDateKey}` }, { replace: true });
       
       toast({
@@ -260,6 +283,16 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -280,6 +313,16 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      
+      queryClient.invalidateQueries({ queryKey: ['menus', serveDateKey] as const, exact: true });
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', serveDateKey] as const, exact: true });
+      
+      queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          q.queryKey[0] === 'weeklyMenus' &&
+          rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, serveDateKey)
+      });
     },
     onError: (e: unknown) => {
       const isApiError = (obj: unknown): obj is ApiError => {
@@ -501,6 +544,9 @@ export default function AdminPage() {
   }
 
   const handleSave = () => {
+    console.log('handleSave called - triggering saveMenusMutation')
+    console.log('menuRows state:', menuRows)
+    console.log('menuRows length:', menuRows.length)
     saveMenusMutation.mutate()
   }
 
@@ -735,10 +781,10 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Save Button */}
+            {/* Save Button - No keepPreviousData or manual merging allowed, replacement only */}
             <Button 
               onClick={handleSave}
-              disabled={saveMenusMutation.isPending || Object.keys(validationErrors).length > 0}
+              disabled={saveMenusMutation.isPending}
               className="w-full mt-6 bg-black text-white hover:bg-gray-800"
             >
               {saveMenusMutation.isPending ? '保存中...' : '保存'}
