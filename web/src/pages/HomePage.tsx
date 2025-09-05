@@ -14,21 +14,24 @@ import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface PriceWithCafeProps {
-  menu: MenuSQLAlchemy;
+  price: number;
+  isCafe: boolean;
 }
 
-function PriceWithCafe({ menu }: PriceWithCafeProps) {
-  const isCafe = menu.cafe_time_available ?? false;
-  
+function PriceWithCafe({ price, isCafe }: PriceWithCafeProps) {
   return (
-    <span className="inline-flex items-center gap-1 text-lg font-bold tabular-nums">
-      {isCafe && (
-        <>
-          <Coffee size={16} aria-hidden="true" />
-          <span className="sr-only">カフェ</span>
-        </>
-      )}
-      {menu.price}円
+    <span className="inline-flex items-center gap-1 tabular-nums leading-none text-lg font-bold">
+      <span
+        aria-hidden="true"
+        className={`w-4 h-4 flex-none ${isCafe ? "" : "opacity-0"}`}
+      >
+        <Coffee className="w-4 h-4" />
+      </span>
+      <data value={price}>
+        {price.toLocaleString("ja-JP")}
+      </data>
+      <span className="ml-0.5">円</span>
+      {isCafe && <span className="sr-only">カフェメニュー</span>}
     </span>
   );
 }
@@ -575,7 +578,10 @@ export default function HomePage() {
                           <span className="text-lg">{menu.title}</span>
                           <span className="text-sm">({menu.max_qty})</span>
                         </div>
-                        <PriceWithCafe menu={menu} />
+                        <PriceWithCafe 
+                          price={menu.price} 
+                          isCafe={!!(menu.cafe_time_available ?? false)} 
+                        />
                       </div>
                     </button>
                   ))
