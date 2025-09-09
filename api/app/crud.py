@@ -29,8 +29,9 @@ def get_menus_by_date(db: Session, serve_date: date):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
+    from sqlalchemy import cast, Date
     menus = db.query(models.MenuSQLAlchemy).filter(
-        and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
+        and_(cast(models.MenuSQLAlchemy.serve_date, Date) >= start_date, cast(models.MenuSQLAlchemy.serve_date, Date) <= end_date)
     ).all()
     
     menu_with_remaining = []
@@ -257,7 +258,6 @@ def delete_menu_item(db: Session, item_id: int):
 
 def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName):
     """Create an order without user authentication using customer name"""
-    print(f"DEBUG CRUD: Received order - delivery_location: '{order.delivery_location}', department: '{order.department}', name: '{order.name}'")
     
     total_price = calculate_order_total(db, order.items)
     
@@ -266,7 +266,6 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     
     order_id = generate_order_id(db, order.serve_date)
     
-    print(f"DEBUG CRUD: Creating OrderSQLAlchemy with delivery_location: '{order.delivery_location}'")
     
     db_order = models.OrderSQLAlchemy(
         user_id=guest_user.id,
@@ -284,7 +283,6 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     db.commit()
     db.refresh(db_order)
     
-    print(f"DEBUG CRUD: Saved order to DB - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
     
     for item in order.items:
         db_item = models.OrderItem(
@@ -307,11 +305,12 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     """Get MenuSQLAlchemy menus with optional date filter"""
     import logging
+    from sqlalchemy import cast, Date
     logger = logging.getLogger(__name__)
     
     query = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        query = query.filter(models.MenuSQLAlchemy.serve_date == date_filter)
+        query = query.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     menus = query.all()
     
     logger.info(f"FETCH serve_date={date_filter} count={len(menus)}")

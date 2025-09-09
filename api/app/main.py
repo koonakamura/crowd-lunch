@@ -263,8 +263,37 @@ async def get_public_menus_by_date(
     date: date = None,
     db: Session = Depends(get_db),
 ):
+    from fastapi.responses import JSONResponse
+    import os
+    
     menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
+    
+    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    
+    if is_preview:
+        headers = {
+            "Cache-Control": "no-store",
+        }
+    else:
+        headers = {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+        }
+    
+    menu_data = []
+    for menu in menus:
+        menu_dict = {
+            "id": menu.id,
+            "title": menu.title,
+            "price": menu.price,
+            "max_qty": menu.max_qty,
+            "serve_date": menu.serve_date.isoformat() if menu.serve_date else None,
+            "cafe_time_available": menu.cafe_time_available,
+            "created_at": menu.created_at.isoformat() if menu.created_at else None,
+            "img_url": menu.img_url
+        }
+        menu_data.append(menu_dict)
+    
+    return JSONResponse(content=menu_data, headers=headers)
 
 
 @app.get("/public/menus-range")
@@ -275,6 +304,8 @@ async def get_public_menus_range(
 ):
     """Get menus for a date range (inclusive boundaries)"""
     from datetime import timezone, timedelta as td
+    from fastapi.responses import JSONResponse
+    import os
     
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
@@ -296,7 +327,7 @@ async def get_public_menus_range(
         if serve_date in days:
             days[serve_date].append(menu)
     
-    return {
+    response_data = {
         "range": {
             "start": start.strftime('%Y-%m-%d'),
             "end": end.strftime('%Y-%m-%d'),
@@ -304,6 +335,19 @@ async def get_public_menus_range(
         },
         "days": days
     }
+    
+    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    
+    if is_preview:
+        headers = {
+            "Cache-Control": "no-store",
+        }
+    else:
+        headers = {
+            "Cache-Control": "public, max-age=0, must-revalidate",
+        }
+    
+    return JSONResponse(content=response_data, headers=headers)
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
@@ -425,12 +469,7 @@ async def create_guest_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
     
-    print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
-    print(f"DEBUG MAIN: crud.create_guest_order returned - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
-    
-    print(f"DEBUG MAIN: Final order before response - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
-    print(f"DEBUG MAIN: Final order object attributes: {[attr for attr in dir(db_order) if not attr.startswith('_')]}")
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -518,11 +557,6 @@ async def get_today_orders(
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
     
-    print(f"DEBUG ADMIN API: get_today_orders returning {len(orders)} orders for date {target_date}")
-    for order in orders:
-        print(f"DEBUG ADMIN API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
-        print(f"DEBUG ADMIN API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
-        print(f"DEBUG ADMIN API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
     
     return orders
 
@@ -538,11 +572,6 @@ async def get_orders_by_date(
     
     orders = crud.get_today_orders(db, date, status_filter=status)
     
-    print(f"DEBUG ORDERS API: get_orders_by_date returning {len(orders)} orders for date {date}")
-    for order in orders:
-        print(f"DEBUG ORDERS API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
-        print(f"DEBUG ORDERS API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
-        print(f"DEBUG ORDERS API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
     
     return orders
 
@@ -638,13 +667,11 @@ async def fix_delivery_locations(
 ):
     """Fix existing orders with NULL delivery_location values"""
     
-    print(f"DEBUG FIX: Starting delivery_location fix for NULL values")
     
     null_delivery_orders = db.query(models.OrderSQLAlchemy).filter(
         models.OrderSQLAlchemy.delivery_location.is_(None)
     ).all()
     
-    print(f"DEBUG FIX: Found {len(null_delivery_orders)} orders with NULL delivery_location")
     
     updated_count = 0
     for order in null_delivery_orders:
@@ -662,10 +689,8 @@ async def fix_delivery_locations(
         
         order.delivery_location = default_location
         updated_count += 1
-        print(f"DEBUG FIX: Updated order {order.id}: department='{order.department}' -> delivery_location='{default_location}'")
     
     db.commit()
-    print(f"DEBUG FIX: Successfully updated {updated_count} orders")
     
     return {"message": f"Updated {updated_count} orders with delivery_location values"}
 
