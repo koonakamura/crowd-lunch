@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -258,52 +258,100 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     return result
 
 
-@app.get("/public/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
+@app.get("/public/menus")
 async def get_public_menus_by_date(
     date: date = None,
     db: Session = Depends(get_db),
 ):
+    """Get public menus by date - uses JSONResponse for consistent cache control headers"""
+    from fastapi.responses import JSONResponse
+    import os
+    
     menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
+    
+    # Preview environment detection: APP_ENV=preview only
+    PREVIEW = os.getenv("APP_ENV") == "preview"
+    
+    headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
+    
+    menu_data = []
+    for menu in menus:
+        menu_dict = {
+            "id": menu.id,
+            "title": menu.title,
+            "price": menu.price,
+            "max_qty": menu.max_qty,
+            "serve_date": menu.serve_date.isoformat() if menu.serve_date else None,
+            "cafe_time_available": menu.cafe_time_available,
+            "created_at": menu.created_at.isoformat() if menu.created_at else None,
+            "img_url": menu.img_url
+        }
+        menu_data.append(menu_dict)
+    
+    return JSONResponse(content=menu_data, headers=headers)
 
 
 @app.get("/public/menus-range")
-async def get_public_menus_range(
-    start: date,
-    end: date,
-    db: Session = Depends(get_db),
-):
-    """Get menus for a date range (inclusive boundaries)"""
-    from datetime import timezone, timedelta as td
+async def get_public_menus_range(start: date, end: date, request: Request, db: Session = Depends(get_db)):
+    from datetime import date, datetime, timedelta
+    from fastapi.responses import JSONResponse
+    import os
+    import re
     
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
-    
     if start > end:
         raise HTTPException(status_code=400, detail="Start date must be before or equal to end date")
-    
+
     menus = crud.get_weekly_menus(db, start, end)
+
+    days: dict[str, list] = {}
+    d = start
+    while d <= end:
+        days[d.strftime("%Y-%m-%d")] = []
+        d += timedelta(days=1)
+
+    def to_key(v):
+        if isinstance(v, (date, datetime)):
+            return v.strftime("%Y-%m-%d")
+        s = str(v) if v is not None else ""
+        return s[:10]
+
+    for m in menus:
+        sd = m.get("serve_date") if isinstance(m, dict) else getattr(m, "serve_date", None)
+        sd_key = to_key(sd)
+
+        item = {
+            "id": m.get("id") if isinstance(m, dict) else getattr(m, "id", None),
+            "serve_date": sd_key,
+            "title": m.get("title") if isinstance(m, dict) else getattr(m, "title", None),
+            "price": m.get("price") if isinstance(m, dict) else getattr(m, "price", None),
+            "max_qty": m.get("max_qty") if isinstance(m, dict) else getattr(m, "max_qty", None),
+            "img_url": m.get("img_url") if isinstance(m, dict) else getattr(m, "img_url", None),
+            "cafe_time_available": m.get("cafe_time_available") if isinstance(m, dict) else getattr(m, "cafe_time_available", None),
+            "created_at": m.get("created_at") if isinstance(m, dict) else getattr(m, "created_at", None),
+        }
+        if isinstance(item["created_at"], (date, datetime)):
+            item["created_at"] = item["created_at"].isoformat()
+
+        if sd_key in days:
+            days[sd_key].append(item)
+
+    # Preview detection with fallback
+    PREVIEW = os.getenv("APP_ENV") == "preview"
+    if not PREVIEW:
+        origin = request.headers.get("origin", "")
+        PREVIEW = bool(re.match(r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$", origin))
     
-    days = {}
-    current_date = start
-    while current_date <= end:
-        date_str = current_date.strftime('%Y-%m-%d')
-        days[date_str] = []
-        current_date += timedelta(days=1)
-    
-    for menu in menus:
-        serve_date = menu['serve_date']
-        if serve_date in days:
-            days[serve_date].append(menu)
-    
-    return {
-        "range": {
-            "start": start.strftime('%Y-%m-%d'),
-            "end": end.strftime('%Y-%m-%d'),
-            "tz": "Asia/Tokyo"
+    headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
+
+    return JSONResponse(
+        content={
+            "range": {"start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"), "tz": "Asia/Tokyo"},
+            "days": days,
         },
-        "days": days
-    }
+        headers=headers,
+    )
 
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
@@ -425,12 +473,7 @@ async def create_guest_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
     
-    print(f"DEBUG MAIN: About to call crud.create_guest_order with delivery_location: '{order.delivery_location}'")
     db_order = crud.create_guest_order(db, order)
-    print(f"DEBUG MAIN: crud.create_guest_order returned - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
-    
-    print(f"DEBUG MAIN: Final order before response - id: {db_order.id}, delivery_location: '{db_order.delivery_location}'")
-    print(f"DEBUG MAIN: Final order object attributes: {[attr for attr in dir(db_order) if not attr.startswith('_')]}")
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -518,11 +561,6 @@ async def get_today_orders(
     target_date = date_filter or date.today()
     orders = crud.get_today_orders(db, target_date)
     
-    print(f"DEBUG ADMIN API: get_today_orders returning {len(orders)} orders for date {target_date}")
-    for order in orders:
-        print(f"DEBUG ADMIN API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
-        print(f"DEBUG ADMIN API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
-        print(f"DEBUG ADMIN API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
     
     return orders
 
@@ -538,11 +576,6 @@ async def get_orders_by_date(
     
     orders = crud.get_today_orders(db, date, status_filter=status)
     
-    print(f"DEBUG ORDERS API: get_orders_by_date returning {len(orders)} orders for date {date}")
-    for order in orders:
-        print(f"DEBUG ORDERS API: Order {order.id} - delivery_location: '{order.delivery_location}' (type: {type(order.delivery_location)})")
-        print(f"DEBUG ORDERS API: Order {order.id} - department: '{order.department}', customer_name: '{order.customer_name}'")
-        print(f"DEBUG ORDERS API: Order {order.id} full object attributes: {[attr for attr in dir(order) if not attr.startswith('_')]}")
     
     return orders
 
@@ -638,13 +671,11 @@ async def fix_delivery_locations(
 ):
     """Fix existing orders with NULL delivery_location values"""
     
-    print(f"DEBUG FIX: Starting delivery_location fix for NULL values")
     
     null_delivery_orders = db.query(models.OrderSQLAlchemy).filter(
         models.OrderSQLAlchemy.delivery_location.is_(None)
     ).all()
     
-    print(f"DEBUG FIX: Found {len(null_delivery_orders)} orders with NULL delivery_location")
     
     updated_count = 0
     for order in null_delivery_orders:
@@ -662,10 +693,8 @@ async def fix_delivery_locations(
         
         order.delivery_location = default_location
         updated_count += 1
-        print(f"DEBUG FIX: Updated order {order.id}: department='{order.department}' -> delivery_location='{default_location}'")
     
     db.commit()
-    print(f"DEBUG FIX: Successfully updated {updated_count} orders")
     
     return {"message": f"Updated {updated_count} orders with delivery_location values"}
 

@@ -228,10 +228,17 @@ export default function AdminPage() {
     onSuccess: async () => {
       setError(null);
       
-      await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
-      await queryClient.refetchQueries({ queryKey: createMenuQueryKey(serveDateKey), exact: true });
+      const k = serveDateKey;
+      await queryClient.invalidateQueries({ queryKey: createMenuQueryKey(k), exact: true });
+      await queryClient.invalidateQueries({ queryKey: ['publicMenus', k] as const, exact: true });
+      await queryClient.invalidateQueries({
+        predicate: q => q.queryKey[0] === 'weeklyMenus'
+                     && (q.queryKey[1] as string) <= k
+                     && k <= (q.queryKey[2] as string),
+      });
+      await queryClient.refetchQueries({ queryKey: createMenuQueryKey(k), exact: true });
       
-      navigate({ search: `?date=${serveDateKey}` }, { replace: true });
+      navigate({ search: `?date=${k}` }, { replace: true });
       
       toast({
         title: "成功",

@@ -108,8 +108,12 @@ export default function HomePage() {
   const { data: weeklyMenusData, isLoading } = useQuery({
     queryKey: ['weeklyMenus', startKey, endKey] as const,
     queryFn: () => apiClient.getPublicMenusRange(startKey, endKey),
-    refetchInterval: 30000,
     staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+    enabled: Boolean(startKey && endKey),
   })
 
   useEffect(() => {
@@ -118,7 +122,7 @@ export default function HomePage() {
         const response = await apiClient.getServerTime()
         setServerTime(new Date(response.current_time))
       } catch (error) {
-        console.error('Failed to fetch server time:', error)
+        console.warn('[server-time] fallback to client', error)
       }
     }
     
@@ -277,9 +281,6 @@ export default function HomePage() {
         pickup_at: pickupAt
       };
       
-      console.log('DEBUG FRONTEND: About to send order payload:', orderPayload);
-      console.log('DEBUG FRONTEND: delivery_location value:', deliveryLocation, 'type:', typeof deliveryLocation);
-      console.log('DEBUG FRONTEND: pickup_at value:', pickupAt);
       
       await apiClient.createGuestOrder(orderPayload)
 
@@ -299,6 +300,7 @@ export default function HomePage() {
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
       queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -333,6 +335,7 @@ export default function HomePage() {
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
       
       queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
+      queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
       
       queryClient.invalidateQueries({
         predicate: (q) =>
