@@ -270,16 +270,9 @@ async def get_public_menus_by_date(
     menus = crud.get_menus_sqlalchemy(db, date)
     
     # Preview environment detection: APP_ENV=preview only
-    is_preview = os.getenv("APP_ENV") == "preview"
+    PREVIEW = os.getenv("APP_ENV") == "preview"
     
-    if is_preview:
-        headers = {
-            "Cache-Control": "no-store",  # CDN/browser cache disabled for preview
-        }
-    else:
-        headers = {
-            "Cache-Control": "public, max-age=0, must-revalidate",  # Production revalidation
-        }
+    headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
     
     menu_data = []
     for menu in menus:
@@ -322,18 +315,9 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
             return v.strftime("%Y-%m-%d")
         return str(v) if v is not None else None
 
-    debug_info = []
     for m in menus:
         sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
         sd_key = to_key(sd)
-        
-        debug_info.append({
-            "type": str(type(m)),
-            "sd_raw": str(sd),
-            "sd_type": str(type(sd)),
-            "sd_key": sd_key,
-            "in_days": sd_key in days if sd_key else False
-        })
 
         item = {
             "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
@@ -358,11 +342,6 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
         content={
             "range": {"start": start.strftime("%Y-%m-%d"), "end": end.strftime("%Y-%m-%d"), "tz": "Asia/Tokyo"},
             "days": days,
-            "debug": {
-                "total_menus": len(menus),
-                "preview_env": PREVIEW,
-                "debug_info": debug_info[:5]  # First 5 items for debugging
-            }
         },
         headers=headers,
     )
