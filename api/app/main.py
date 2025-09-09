@@ -296,7 +296,7 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
     from datetime import date, datetime, timedelta
     from fastapi.responses import JSONResponse
     import os
-
+    
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
     if start > end:
@@ -313,27 +313,28 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
     def to_key(v):
         if isinstance(v, (date, datetime)):
             return v.strftime("%Y-%m-%d")
-        return str(v) if v is not None else None
+        s = str(v) if v is not None else ""
+        return s[:10]
 
     for m in menus:
-        sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
+        sd = m.get("serve_date") if isinstance(m, dict) else getattr(m, "serve_date", None)
         sd_key = to_key(sd)
 
         item = {
-            "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
+            "id": m.get("id") if isinstance(m, dict) else getattr(m, "id", None),
             "serve_date": sd_key,
-            "title": getattr(m, "title", None) if hasattr(m, "title") else m.get("title"),
-            "price": getattr(m, "price", None) if hasattr(m, "price") else m.get("price"),
-            "max_qty": getattr(m, "max_qty", None) if hasattr(m, "max_qty") else m.get("max_qty"),
-            "img_url": getattr(m, "img_url", None) if hasattr(m, "img_url") else m.get("img_url"),
-            "cafe_time_available": getattr(m, "cafe_time_available", None) if hasattr(m, "cafe_time_available") else m.get("cafe_time_available"),
-            "created_at": getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at"),
+            "title": m.get("title") if isinstance(m, dict) else getattr(m, "title", None),
+            "price": m.get("price") if isinstance(m, dict) else getattr(m, "price", None),
+            "max_qty": m.get("max_qty") if isinstance(m, dict) else getattr(m, "max_qty", None),
+            "img_url": m.get("img_url") if isinstance(m, dict) else getattr(m, "img_url", None),
+            "cafe_time_available": m.get("cafe_time_available") if isinstance(m, dict) else getattr(m, "cafe_time_available", None),
+            "created_at": m.get("created_at") if isinstance(m, dict) else getattr(m, "created_at", None),
         }
         if isinstance(item["created_at"], (date, datetime)):
             item["created_at"] = item["created_at"].isoformat()
 
-        if sd_key in days:
-            days[sd_key].append(item)
+        days.setdefault(sd_key, [])
+        days[sd_key].append(item)
 
     PREVIEW = os.getenv("APP_ENV") == "preview"
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
