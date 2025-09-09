@@ -272,11 +272,11 @@ async def get_public_menus_by_date(
     
     if is_preview:
         headers = {
-            "Cache-Control": "no-store",
+            "Cache-Control": "no-store",  # CDN/browser cache disabled for preview
         }
     else:
         headers = {
-            "Cache-Control": "public, max-age=0, must-revalidate",
+            "Cache-Control": "public, max-age=0, must-revalidate",  # Production revalidation
         }
     
     menu_data = []
@@ -340,11 +340,11 @@ async def get_public_menus_range(
     
     if is_preview:
         headers = {
-            "Cache-Control": "no-store",
+            "Cache-Control": "no-store",  # CDN/browser cache disabled for preview
         }
     else:
         headers = {
-            "Cache-Control": "public, max-age=0, must-revalidate",
+            "Cache-Control": "public, max-age=0, must-revalidate",  # Production revalidation
         }
     
     return JSONResponse(content=response_data, headers=headers)
