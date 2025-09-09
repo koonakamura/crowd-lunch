@@ -29,7 +29,11 @@ def get_menus_by_date(db: Session, serve_date: date):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
-    """Get menus for date range using cast(serve_date, Date) for consistent filtering"""
+    """Get menus for date range using cast(serve_date, Date) for consistent filtering
+    
+    Uses cast(MenuSQLAlchemy.serve_date, Date) BETWEEN start_date AND end_date
+    for timezone-safe date comparison in /public/menus-range endpoint
+    """
     from sqlalchemy import cast, Date
     menus = db.query(models.MenuSQLAlchemy).filter(
         and_(cast(models.MenuSQLAlchemy.serve_date, Date) >= start_date, cast(models.MenuSQLAlchemy.serve_date, Date) <= end_date)
@@ -304,7 +308,11 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     return db_order_with_menus
 
 def get_menus_sqlalchemy(db: Session, date_filter: date = None):
-    """Get MenuSQLAlchemy menus with optional date filter using cast(serve_date, Date) for consistency"""
+    """Get MenuSQLAlchemy menus with optional date filter using cast(serve_date, Date) for consistency
+    
+    Uses cast(MenuSQLAlchemy.serve_date, Date) == date_filter
+    for timezone-safe date comparison in /public/menus endpoint
+    """
     import logging
     from sqlalchemy import cast, Date
     logger = logging.getLogger(__name__)

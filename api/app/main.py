@@ -258,17 +258,20 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
     return result
 
 
-@app.get("/public/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
+@app.get("/public/menus")
 async def get_public_menus_by_date(
     date: date = None,
     db: Session = Depends(get_db),
 ):
+    """Get public menus by date - uses JSONResponse for consistent cache control headers"""
     from fastapi.responses import JSONResponse
     import os
     
     menus = crud.get_menus_sqlalchemy(db, date)
     
-    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    # Preview environment detection: APP_ENV=preview or FLY_APP_NAME ending with "-preview" (important-comment)
+    # Set APP_ENV=preview (Netlify) or ENVIRONMENT=preview (Fly.io) for preview environments (important-comment)
+    is_preview = os.getenv("APP_ENV") == "preview" or os.getenv("ENVIRONMENT") == "preview" or os.getenv("FLY_APP_NAME", "").endswith("-preview")
     
     if is_preview:
         headers = {
@@ -302,7 +305,7 @@ async def get_public_menus_range(
     end: date,
     db: Session = Depends(get_db),
 ):
-    """Get menus for a date range (inclusive boundaries)"""
+    """Get menus for a date range (inclusive boundaries) - uses JSONResponse for consistent cache control headers"""
     from datetime import timezone, timedelta as td
     from fastapi.responses import JSONResponse
     import os
@@ -336,7 +339,9 @@ async def get_public_menus_range(
         "days": days
     }
     
-    is_preview = os.getenv("FLY_APP_NAME", "").endswith("-preview") or os.getenv("ENVIRONMENT") == "preview"
+    # Preview environment detection: APP_ENV=preview or FLY_APP_NAME ending with "-preview" (important-comment)
+    # Set APP_ENV=preview (Netlify) or ENVIRONMENT=preview (Fly.io) for preview environments (important-comment)
+    is_preview = os.getenv("APP_ENV") == "preview" or os.getenv("ENVIRONMENT") == "preview" or os.getenv("FLY_APP_NAME", "").endswith("-preview")
     
     if is_preview:
         headers = {
