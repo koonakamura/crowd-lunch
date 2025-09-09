@@ -269,8 +269,7 @@ async def get_public_menus_by_date(
     
     menus = crud.get_menus_sqlalchemy(db, date)
     
-    # Preview environment detection: APP_ENV=preview (important-comment)
-    # Set APP_ENV=preview (Netlify) for preview environments
+    # Preview environment detection: APP_ENV=preview only
     is_preview = os.getenv("APP_ENV") == "preview"
     
     if is_preview:
@@ -301,11 +300,10 @@ async def get_public_menus_by_date(
 
 @app.get("/public/menus-range")
 async def get_public_menus_range(start: date, end: date, db: Session = Depends(get_db)):
-    """Get menus for a date range with normalized YYYY-MM-DD string keys"""
     from datetime import date, datetime, timedelta
     from fastapi.responses import JSONResponse
     import os
-    
+
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
     if start > end:
@@ -325,46 +323,24 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
         return str(v) if v is not None else None
 
     for m in menus:
-        if isinstance(m, dict):
-            sd = m.get("serve_date")
-        else:
-            sd = getattr(m, "serve_date", None)
-        
+        sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
         sd_key = to_key(sd)
-        
-        print(f"DEBUG range item: type={type(m)}, type(sd)={type(sd)}, sd={sd}, sd_key={sd_key}, in_days={sd_key in days}")
 
-        if isinstance(m, dict):
-            item = {
-                "id": m.get("id"),
-                "serve_date": sd_key,
-                "title": m.get("title"),
-                "price": m.get("price"),
-                "max_qty": m.get("max_qty"),
-                "img_url": m.get("img_url"),
-                "cafe_time_available": m.get("cafe_time_available"),
-                "created_at": m.get("created_at"),
-            }
-        else:
-            item = {
-                "id": getattr(m, "id", None),
-                "serve_date": sd_key,
-                "title": getattr(m, "title", None),
-                "price": getattr(m, "price", None),
-                "max_qty": getattr(m, "max_qty", None),
-                "img_url": getattr(m, "img_url", None),
-                "cafe_time_available": getattr(m, "cafe_time_available", None),
-                "created_at": getattr(m, "created_at", None),
-            }
-        
+        item = {
+            "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
+            "serve_date": sd_key,
+            "title": getattr(m, "title", None) if hasattr(m, "title") else m.get("title"),
+            "price": getattr(m, "price", None) if hasattr(m, "price") else m.get("price"),
+            "max_qty": getattr(m, "max_qty", None) if hasattr(m, "max_qty") else m.get("max_qty"),
+            "img_url": getattr(m, "img_url", None) if hasattr(m, "img_url") else m.get("img_url"),
+            "cafe_time_available": getattr(m, "cafe_time_available", None) if hasattr(m, "cafe_time_available") else m.get("cafe_time_available"),
+            "created_at": getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at"),
+        }
         if isinstance(item["created_at"], (date, datetime)):
             item["created_at"] = item["created_at"].isoformat()
 
         if sd_key in days:
             days[sd_key].append(item)
-            print(f"DEBUG: Added item to days[{sd_key}], now has {len(days[sd_key])} items")
-        else:
-            print(f"DEBUG: sd_key '{sd_key}' not found in days keys: {list(days.keys())}")
 
     PREVIEW = os.getenv("APP_ENV") == "preview"
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
