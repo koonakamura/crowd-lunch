@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Response, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -292,10 +292,11 @@ async def get_public_menus_by_date(
 
 
 @app.get("/public/menus-range")
-async def get_public_menus_range(start: date, end: date, db: Session = Depends(get_db)):
+async def get_public_menus_range(start: date, end: date, request: Request, db: Session = Depends(get_db)):
     from datetime import date, datetime, timedelta
     from fastapi.responses import JSONResponse
     import os
+    import re
     
     if (end - start).days > 14:
         raise HTTPException(status_code=400, detail="Date range cannot exceed 14 days")
@@ -333,10 +334,15 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
         if isinstance(item["created_at"], (date, datetime)):
             item["created_at"] = item["created_at"].isoformat()
 
-        days.setdefault(sd_key, [])
-        days[sd_key].append(item)
+        if sd_key in days:
+            days[sd_key].append(item)
 
+    # Preview detection with fallback
     PREVIEW = os.getenv("APP_ENV") == "preview"
+    if not PREVIEW:
+        origin = request.headers.get("origin", "")
+        PREVIEW = bool(re.match(r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$", origin))
+    
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
 
     return JSONResponse(
