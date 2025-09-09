@@ -327,6 +327,8 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
     for m in menus:
         sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
         sd_key = to_key(sd)
+        
+        print(f"DEBUG range item: type={type(sd)}, sd={sd}, sd_key={sd_key}, in_days={sd_key in days}")
 
         item = {
             "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
@@ -343,6 +345,9 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
 
         if sd_key in days:
             days[sd_key].append(item)
+            print(f"DEBUG: Added item to days[{sd_key}], now has {len(days[sd_key])} items")
+        else:
+            print(f"DEBUG: sd_key '{sd_key}' not found in days keys: {list(days.keys())}")
 
     PREVIEW = os.getenv("APP_ENV") == "preview"
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
