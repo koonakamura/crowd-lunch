@@ -325,21 +325,38 @@ async def get_public_menus_range(start: date, end: date, db: Session = Depends(g
         return str(v) if v is not None else None
 
     for m in menus:
-        sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
+        if isinstance(m, dict):
+            sd = m.get("serve_date")
+        else:
+            sd = getattr(m, "serve_date", None)
+        
         sd_key = to_key(sd)
         
-        print(f"DEBUG range item: type={type(sd)}, sd={sd}, sd_key={sd_key}, in_days={sd_key in days}")
+        print(f"DEBUG range item: type={type(m)}, type(sd)={type(sd)}, sd={sd}, sd_key={sd_key}, in_days={sd_key in days}")
 
-        item = {
-            "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
-            "serve_date": sd_key,
-            "title": getattr(m, "title", None) if hasattr(m, "title") else m.get("title"),
-            "price": getattr(m, "price", None) if hasattr(m, "price") else m.get("price"),
-            "max_qty": getattr(m, "max_qty", None) if hasattr(m, "max_qty") else m.get("max_qty"),
-            "img_url": getattr(m, "img_url", None) if hasattr(m, "img_url") else m.get("img_url"),
-            "cafe_time_available": getattr(m, "cafe_time_available", None) if hasattr(m, "cafe_time_available") else m.get("cafe_time_available"),
-            "created_at": getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at"),
-        }
+        if isinstance(m, dict):
+            item = {
+                "id": m.get("id"),
+                "serve_date": sd_key,
+                "title": m.get("title"),
+                "price": m.get("price"),
+                "max_qty": m.get("max_qty"),
+                "img_url": m.get("img_url"),
+                "cafe_time_available": m.get("cafe_time_available"),
+                "created_at": m.get("created_at"),
+            }
+        else:
+            item = {
+                "id": getattr(m, "id", None),
+                "serve_date": sd_key,
+                "title": getattr(m, "title", None),
+                "price": getattr(m, "price", None),
+                "max_qty": getattr(m, "max_qty", None),
+                "img_url": getattr(m, "img_url", None),
+                "cafe_time_available": getattr(m, "cafe_time_available", None),
+                "created_at": getattr(m, "created_at", None),
+            }
+        
         if isinstance(item["created_at"], (date, datetime)):
             item["created_at"] = item["created_at"].isoformat()
 
