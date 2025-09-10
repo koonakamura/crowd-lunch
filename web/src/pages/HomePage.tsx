@@ -12,6 +12,7 @@ import { useAuth } from '../lib/auth'
 import { toServeDateKey, rangeContains } from '../lib/dateUtils'
 import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
+import CafeIcon from '../components/icons/CafeIcon'
 
 interface MenuSQLAlchemy {
   id: number;
@@ -501,7 +502,15 @@ export default function HomePage() {
                           <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
                           <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
                         </div>
-                        <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
+                        <div className="flex items-center gap-1.5">
+                          {menu.cafe_time_available && (
+                            <CafeIcon
+                              className="w-4 h-4 md:w-5 md:h-5 shrink-0 text-white/90"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
+                        </div>
                       </div>
                     </button>
                   ))
