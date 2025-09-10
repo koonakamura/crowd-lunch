@@ -86,6 +86,7 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
