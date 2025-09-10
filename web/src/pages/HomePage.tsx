@@ -502,10 +502,10 @@ export default function HomePage() {
                           <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
                           <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
                         </div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 md:gap-2 leading-none">
                           {menu.cafe_time_available && (
                             <CafeIcon
-                              className="w-4 h-4 md:w-5 md:h-5 shrink-0 text-white/90"
+                              className="inline-block align-middle h-[1.15em] w-[1.15em] md:h-[1.25em] md:w-[1.25em] text-white/90"
                               aria-hidden="true"
                             />
                           )}
