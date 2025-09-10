@@ -263,24 +263,26 @@ async def get_public_menus_by_date(date: date = None, db: Session = Depends(get_
     from fastapi.responses import JSONResponse
     
     menus = crud.get_menus_sqlalchemy(db, date)
-
-    payload = [{
-        "id": m.id,
-        "serve_date": m.serve_date.strftime("%Y-%m-%d"),
-        "title": m.title,
-        "price": m.price,
-        "max_qty": m.max_qty,
-        "img_url": m.img_url,
-        "cafe_time_available": m.cafe_time_available,
-        "created_at": m.created_at.isoformat() if m.created_at else None,
-    } for m in menus]
-
+    payload = []
+    for m in menus:
+        sd = getattr(m, "serve_date", None)
+        sd_key = crud.to_jst_key(sd)
+        payload.append({
+            "id": m.id,
+            "serve_date": sd_key,
+            "title": m.title,
+            "price": m.price,
+            "max_qty": m.max_qty,
+            "img_url": m.img_url,
+            "cafe_time_available": m.cafe_time_available,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        })
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/public/menus-range")
 async def get_public_menus_range(start: date, end: date, request: Request, db: Session = Depends(get_db)):
-    from datetime import date, datetime, timedelta
+    from datetime import date, datetime, timedelta, timezone
     from fastapi.responses import JSONResponse
     import os
     import re
@@ -292,37 +294,29 @@ async def get_public_menus_range(start: date, end: date, request: Request, db: S
 
     menus = crud.get_weekly_menus(db, start, end)
 
-    days: dict[str, list] = {}
+    days = {}
     d = start
     while d <= end:
         days[d.strftime("%Y-%m-%d")] = []
         d += timedelta(days=1)
 
-    def to_key(v):
-        if isinstance(v, (date, datetime)):
-            return v.strftime("%Y-%m-%d")
-        s = str(v) if v is not None else ""
-        return s[:10]
+    def serialize_menu(m, sd_key):
+        return {
+            "id": getattr(m, "id", None) if hasattr(m, "id") else m.get("id"),
+            "serve_date": sd_key,
+            "title": getattr(m, "title", None) if hasattr(m, "title") else m.get("title"),
+            "price": getattr(m, "price", None) if hasattr(m, "price") else m.get("price"),
+            "max_qty": getattr(m, "max_qty", None) if hasattr(m, "max_qty") else m.get("max_qty"),
+            "img_url": getattr(m, "img_url", None) if hasattr(m, "img_url") else m.get("img_url"),
+            "cafe_time_available": getattr(m, "cafe_time_available", None) if hasattr(m, "cafe_time_available") else m.get("cafe_time_available"),
+            "created_at": (getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at")).isoformat() if (getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at")) else None,
+        }
 
     for m in menus:
-        sd = m.get("serve_date") if isinstance(m, dict) else getattr(m, "serve_date", None)
-        sd_key = to_key(sd)
-
-        item = {
-            "id": m.get("id") if isinstance(m, dict) else getattr(m, "id", None),
-            "serve_date": sd_key,
-            "title": m.get("title") if isinstance(m, dict) else getattr(m, "title", None),
-            "price": m.get("price") if isinstance(m, dict) else getattr(m, "price", None),
-            "max_qty": m.get("max_qty") if isinstance(m, dict) else getattr(m, "max_qty", None),
-            "img_url": m.get("img_url") if isinstance(m, dict) else getattr(m, "img_url", None),
-            "cafe_time_available": m.get("cafe_time_available") if isinstance(m, dict) else getattr(m, "cafe_time_available", None),
-            "created_at": m.get("created_at") if isinstance(m, dict) else getattr(m, "created_at", None),
-        }
-        if isinstance(item["created_at"], (date, datetime)):
-            item["created_at"] = item["created_at"].isoformat()
-
-        if sd_key in days:
-            days[sd_key].append(item)
+        sd = getattr(m, "serve_date", None) if hasattr(m, "serve_date") else m.get("serve_date")
+        sd_key = crud.to_jst_key(sd)
+        if sd_key in days:           # ★範囲外は増やさない (important-comment)
+            days[sd_key].append(serialize_menu(m, sd_key))
 
     # Preview detection with fallback
     PREVIEW = os.getenv("APP_ENV") == "preview"
