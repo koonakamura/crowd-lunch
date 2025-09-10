@@ -6,6 +6,9 @@ import OrderPage from './pages/OrderPage'
 import ConfirmPage from './pages/ConfirmPage'
 import AdminPage from './pages/AdminPage'
 import AdminCallback from './pages/AdminCallback'
+import TermsPage from './pages/TermsPage'
+import PrivacyPage from './pages/PrivacyPage'
+import CommerceLawPage from './pages/CommerceLawPage'
 
 function App() {
 
@@ -29,6 +32,9 @@ function App() {
         <Route path="/order/confirm/:orderId" element={<ConfirmPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/callback" element={<AdminCallback />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/commerce-law" element={<CommerceLawPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

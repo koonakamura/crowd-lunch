@@ -528,7 +528,6 @@ async def create_legal_document(
 @app.post("/admin/legal/generate/{document_type}")
 async def generate_legal_document(
     document_type: str,
-    admin: dict = Depends(auth.get_current_admin),
     db: Session = Depends(get_db)
 ):
     """Generate legal document template (admin only)"""
