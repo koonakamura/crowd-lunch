@@ -319,6 +319,7 @@ def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     
     q = db.query(models.MenuSQLAlchemy)
     if date_filter:
+        # 型不一致による取りこぼし防止のため Date にキャストして等号比較
         q = q.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     menus = q.order_by(models.MenuSQLAlchemy.id.asc()).all()
     
@@ -330,16 +331,16 @@ def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     
     return menus
 
-# 代替（将来の最適化メモ）：キャストはインデックスを使いにくいので、
-# JSTの start_of_day <= serve_at < next_day にする方法もアリ（今回は不要）。
+# ※（備忘）大量データでインデックスを活かすなら
+# JSTの start_of_day <= serve_at < next_day に切替する案もあり。
 #
-# from datetime import datetime, time, timedelta, timezone (important-comment)
+# from datetime import datetime, time, timedelta, timezone
 # JST = timezone(timedelta(hours=9))
 #
 # start_dt = datetime.combine(date_filter, time(0,0), tzinfo=JST)
 # end_dt   = start_dt + timedelta(days=1)
 # q = q.filter(models.MenuSQLAlchemy.serve_date >= start_dt,
-#              models.MenuSQLAlchemy.serve_date <  end_dt) (important-comment)
+#              models.MenuSQLAlchemy.serve_date <  end_dt)
 
 def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     """Create a new MenuSQLAlchemy menu"""
