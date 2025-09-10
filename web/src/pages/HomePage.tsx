@@ -489,7 +489,7 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.max_qty || 0) <= 0}
-                      className={`p-4 rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 min-h-[40px] md:min-h-[44px] ${
+                      className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
                         cart[menu.id] > 0 
                           ? 'bg-primary' 
                           : (menu.max_qty || 0) <= 0 
@@ -502,10 +502,10 @@ export default function HomePage() {
                           <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
                           <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
                         </div>
-                        <div className="flex items-center gap-1.5 md:gap-2 leading-none">
+                        <div className="flex items-center gap-2 md:gap-2.5 leading-none">
                           {menu.cafe_time_available && (
                             <CafeIcon
-                              className="inline-block align-middle h-[1.15em] w-[1.15em] md:h-[1.25em] md:w-[1.25em] text-white/90"
+                              className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
                               aria-hidden="true"
                             />
                           )}
