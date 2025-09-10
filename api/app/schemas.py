@@ -228,7 +228,7 @@ class Refund(RefundBase):
         from_attributes = True
 
 class LegalDocumentBase(BaseModel):
-    document_type: DocumentType
+    document_type: str
     title: str
     content: str
     version: int = 1

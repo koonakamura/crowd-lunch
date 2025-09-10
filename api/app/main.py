@@ -508,6 +508,93 @@ async def create_refund(
     """Create a refund (admin only)"""
     return crud.create_refund(db, refund)
 
+@app.get("/legal/{document_type}")
+async def get_legal_document(document_type: str, db: Session = Depends(get_db)):
+    """Get active legal document by type"""
+    document = crud.get_legal_document_by_type(db, document_type)
+    if not document:
+        raise HTTPException(status_code=404, detail="Legal document not found")
+    return document
+
+@app.post("/admin/legal", response_model=schemas.LegalDocument)
+async def create_legal_document(
+    document: schemas.LegalDocumentCreate,
+    admin: dict = Depends(auth.get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Create or update legal document (admin only)"""
+    return crud.create_legal_document(db, document)
+
+@app.post("/admin/legal/generate/{document_type}")
+async def generate_legal_document(
+    document_type: str,
+    admin: dict = Depends(auth.get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Generate legal document template (admin only)"""
+    from app.legal_templates import generate_terms_of_service, generate_privacy_policy, generate_commerce_law
+    
+    if document_type == "terms":
+        content = generate_terms_of_service()
+        title = "利用規約"
+    elif document_type == "privacy":
+        content = generate_privacy_policy()
+        title = "プライバシーポリシー"
+    elif document_type == "commerce_law":
+        content = generate_commerce_law()
+        title = "特定商取引法に基づく表記"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid document type")
+    
+    existing = crud.get_legal_document_by_type(db, document_type)
+    if existing:
+        existing.is_active = False
+        db.commit()
+    
+    document_data = schemas.LegalDocumentCreate(
+        document_type=document_type,
+        title=title,
+        content=content,
+        version=existing.version + 1 if existing else 1,
+        is_active=True
+    )
+    
+    return crud.create_legal_document(db, document_data)
+
+@app.get("/admin/export/pos-csv")
+async def export_pos_csv(
+    start_date: date,
+    end_date: date,
+    admin: dict = Depends(auth.get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Export orders as CSV for POS integration (admin only)"""
+    orders = crud.get_orders_for_pos_export(db, start_date, end_date)
+    csv_data = crud.generate_pos_csv_data(orders)
+    
+    from fastapi.responses import Response
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=pos_export_{start_date}_{end_date}.csv"}
+    )
+
+@app.post("/admin/notifications/test-email")
+async def test_email_notification(
+    email: str,
+    admin: dict = Depends(auth.get_current_admin)
+):
+    """Test email notification system (admin only)"""
+    from app.email_service import email_service
+    
+    success = email_service.send_email(
+        to_email=email,
+        subject="【CROWD LUNCH】テストメール",
+        body="これはCROWD LUNCHの通知システムのテストメールです。"
+    )
+    
+    return {"success": success, "message": "Test email sent" if success else "Failed to send test email"}
+
 @app.post("/orders/guest", response_model=schemas.Order,
          summary="Create Guest Order (No Authentication Required)", 
          description="Create a guest order with department and name. No authentication required.")
@@ -594,6 +681,29 @@ async def create_guest_order(
         "order_id": db_order.id,
         "customer_name": f"{order.department}／{order.customer_name}"
     }))
+    
+    if order.customer_email:
+        from app.email_service import email_service
+        items_for_email = [
+            {
+                "name": item.menu.title,
+                "qty": item.qty,
+                "price": item.menu.price
+            }
+            for item in db_order.items
+        ]
+        
+        total_amount = sum(item.qty * item.menu.price for item in db_order.items)
+        pickup_time = db_order.pickup_at.strftime('%H:%M') if db_order.pickup_at else "未定"
+        
+        email_service.send_order_confirmation(
+            to_email=order.customer_email,
+            order_id=db_order.id,
+            customer_name=f"{order.department}／{order.customer_name}",
+            items=items_for_email,
+            total_amount=total_amount,
+            pickup_time=pickup_time
+        )
     
     return db_order
 

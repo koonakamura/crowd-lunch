@@ -537,3 +537,57 @@ def update_menu_stock(db: Session, menu_id: int, quantity_ordered: int) -> bool:
 
 def get_orders_by_date(db: Session, target_date: date):
     return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.serve_date == target_date).all()
+
+def create_legal_document(db: Session, document: schemas.LegalDocumentCreate) -> models.LegalDocument:
+    db_document = models.LegalDocument(**document.dict())
+    db.add(db_document)
+    db.commit()
+    db.refresh(db_document)
+    return db_document
+
+def get_legal_document_by_type(db: Session, document_type: str) -> models.LegalDocument:
+    return db.query(models.LegalDocument).filter(
+        models.LegalDocument.document_type == document_type,
+        models.LegalDocument.is_active == True
+    ).first()
+
+def update_legal_document(db: Session, document_id: int, document: schemas.LegalDocumentCreate) -> models.LegalDocument:
+    db_document = db.query(models.LegalDocument).filter(models.LegalDocument.id == document_id).first()
+    if db_document:
+        for key, value in document.dict().items():
+            setattr(db_document, key, value)
+        db.commit()
+        db.refresh(db_document)
+    return db_document
+
+def get_orders_for_pos_export(db: Session, start_date: date, end_date: date) -> List[models.OrderSQLAlchemy]:
+    return db.query(models.OrderSQLAlchemy).filter(
+        models.OrderSQLAlchemy.serve_date >= start_date,
+        models.OrderSQLAlchemy.serve_date <= end_date,
+        models.OrderSQLAlchemy.status == "confirmed"
+    ).all()
+
+def generate_pos_csv_data(orders: List[models.OrderSQLAlchemy]) -> str:
+    import csv
+    import io
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow(['注文ID', '日付', '時間', '商品名', '数量', '単価', '合計', '顧客名', '部署'])
+    
+    for order in orders:
+        for item in order.items:
+            writer.writerow([
+                order.id,
+                order.serve_date.strftime('%Y-%m-%d'),
+                order.pickup_at.strftime('%H:%M') if order.pickup_at else '',
+                item.menu.title,
+                item.qty,
+                item.menu.price,
+                item.qty * item.menu.price,
+                order.customer_name or f"{order.department}／{order.name}",
+                order.department or ''
+            ])
+    
+    return output.getvalue()
