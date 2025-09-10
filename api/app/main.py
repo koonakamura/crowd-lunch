@@ -277,6 +277,7 @@ async def get_public_menus_by_date(date: date = None, db: Session = Depends(get_
             "cafe_time_available": m.cafe_time_available,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         })
+    # 現在は no-store、将来は must-revalidate + ETag に移行予定
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
@@ -325,6 +326,7 @@ async def get_public_menus_range(start: date, end: date, request: Request, db: S
         PREVIEW = bool(re.match(r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$", origin))
     
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
+    # 現在は no-store/must-revalidate、将来は ETag + Last-Modified に移行予定
 
     return JSONResponse(
         content={

@@ -29,7 +29,7 @@ def get_menus_by_date(db: Session, serve_date: date):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
-    """Get menus for date range - Date列なので素直にDate同士で比較"""
+    """Get menus for date range - serve_date は Date型なので直接比較が最適"""
     menus = db.query(models.MenuSQLAlchemy).filter(
         and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
     ).order_by(models.MenuSQLAlchemy.serve_date.asc(), models.MenuSQLAlchemy.id.asc()).all()
@@ -305,7 +305,9 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
 def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     """Get MenuSQLAlchemy menus with optional date filter
     
-    Date列なので等号比較が最も安全・高速
+    serve_date は models.MenuSQLAlchemy で Date型定義（タイムゾーン情報なし）
+    等号比較が最も安全・高速（インデックス有効）
+    将来 DateTime型に変更する場合は JST レンジ比較への切り替えを検討
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -313,8 +315,6 @@ def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     q = db.query(models.MenuSQLAlchemy)
     if date_filter:
         q = q.filter(models.MenuSQLAlchemy.serve_date == date_filter)
-        # from sqlalchemy import cast, Date
-        # q = q.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     
     menus = q.order_by(models.MenuSQLAlchemy.id.asc()).all()
     
@@ -326,13 +326,6 @@ def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     
     return menus
 
-# def _jst_day_range(d: date):
-#     """Generate JST day range [00:00, 24:00) for given date - for DateTime columns only"""
-#     from datetime import datetime, time, timedelta, timezone
-#     JST = timezone(timedelta(hours=9))
-#     start_jst = datetime.combine(d, time(0, 0, 0, tzinfo=JST))
-#     end_jst = start_jst + timedelta(days=1)
-#     return start_jst, end_jst
 
 def to_jst_key(v) -> str | None:
     """Convert date/datetime value to JST 'YYYY-MM-DD' key"""
