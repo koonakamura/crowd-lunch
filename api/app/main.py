@@ -266,7 +266,7 @@ async def get_public_menus_by_date(date: date = None, db: Session = Depends(get_
     payload = []
     for m in menus:
         sd = getattr(m, "serve_date", None)
-        sd_key = crud.to_jst_key(sd)
+        sd_key = sd.strftime("%Y-%m-%d") if sd else None
         payload.append({
             "id": m.id,
             "serve_date": sd_key,

@@ -29,15 +29,9 @@ def get_menus_by_date(db: Session, serve_date: date):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.serve_date == serve_date).all()
 
 def get_weekly_menus(db: Session, start_date: date, end_date: date):
-    """Get menus for date range using cast(serve_date, Date) for consistent filtering
-    
-    安全のため Date キャストで [start..end] を比較（datetime/date混在吸収）
-    Uses cast(MenuSQLAlchemy.serve_date, Date) BETWEEN start_date AND end_date
-    for timezone-safe date comparison in /public/menus-range endpoint
-    """
-    from sqlalchemy import cast, Date
+    """Get menus for date range - Date列なので素直にDate同士で比較"""
     menus = db.query(models.MenuSQLAlchemy).filter(
-        and_(cast(models.MenuSQLAlchemy.serve_date, Date) >= start_date, cast(models.MenuSQLAlchemy.serve_date, Date) <= end_date)
+        and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
     ).order_by(models.MenuSQLAlchemy.serve_date.asc(), models.MenuSQLAlchemy.id.asc()).all()
     
     menu_with_remaining = []
@@ -309,24 +303,18 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     return db_order_with_menus
 
 def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
-    """Get MenuSQLAlchemy menus with optional date filter using JST day-range for consistency
+    """Get MenuSQLAlchemy menus with optional date filter
     
-    Uses JST [00:00, 24:00) range comparison instead of cast(Date) equality
-    for timezone-safe date comparison in /public/menus endpoint
+    Date列なので等号比較が最も安全・高速
     """
     import logging
-    from datetime import datetime, time, timedelta, timezone
-    from .time_utils import get_jst_time
     logger = logging.getLogger(__name__)
     
     q = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        # 型不一致やタイムゾーン差による取りこぼし防止：JSTの1日レンジで比較
-        start_jst, end_jst = _jst_day_range(date_filter)
-        
-        # DBがDate型保存なのでJSTで比較（serve_dateは日付のみ）
-        q = q.filter(models.MenuSQLAlchemy.serve_date >= start_jst,
-                     models.MenuSQLAlchemy.serve_date < end_jst)
+        q = q.filter(models.MenuSQLAlchemy.serve_date == date_filter)
+        # from sqlalchemy import cast, Date
+        # q = q.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
     
     menus = q.order_by(models.MenuSQLAlchemy.id.asc()).all()
     
@@ -338,13 +326,13 @@ def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     
     return menus
 
-def _jst_day_range(d: date):
-    """Generate JST day range [00:00, 24:00) for given date"""
-    from datetime import datetime, time, timedelta, timezone
-    JST = timezone(timedelta(hours=9))
-    start_jst = datetime.combine(d, time(0, 0, 0, tzinfo=JST))
-    end_jst = start_jst + timedelta(days=1)
-    return start_jst, end_jst
+# def _jst_day_range(d: date):
+#     """Generate JST day range [00:00, 24:00) for given date - for DateTime columns only"""
+#     from datetime import datetime, time, timedelta, timezone
+#     JST = timezone(timedelta(hours=9))
+#     start_jst = datetime.combine(d, time(0, 0, 0, tzinfo=JST))
+#     end_jst = start_jst + timedelta(days=1)
+#     return start_jst, end_jst
 
 def to_jst_key(v) -> str | None:
     """Convert date/datetime value to JST 'YYYY-MM-DD' key"""
@@ -360,9 +348,6 @@ def to_jst_key(v) -> str | None:
     s = str(v)
     return s[:10]  # "2025-09-10T..." の保険
 
-# ※（備忘）大量データでインデックスを活かすなら
-# 代替（将来の最適化メモ）：キャストはインデックスを使いにくいので、
-# JSTの start_of_day <= serve_at < next_day にする方法もアリ（今回は不要）。
 
 def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     """Create a new MenuSQLAlchemy menu"""
