@@ -56,7 +56,7 @@ async def add_security_headers(request, call_next):
         return Response(
             status_code=200,
             headers={
-                "Access-Control-Allow-Origin": "http://localhost:3001",
+                "Access-Control-Allow-Origin": "http://localhost:3000",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "authorization, content-type, accept, cache-control, pragma, expires",
                 "Access-Control-Max-Age": "600"
@@ -65,7 +65,7 @@ async def add_security_headers(request, call_next):
     
     response = await call_next(request)
     
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3001"
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "authorization, content-type, accept, cache-control, pragma, expires"
     
