@@ -488,7 +488,7 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.max_qty || 0) <= 0}
-                      className={`p-4 rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 ${
+                      className={`p-4 rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 min-h-[40px] md:min-h-[44px] ${
                         cart[menu.id] > 0 
                           ? 'bg-primary' 
                           : (menu.max_qty || 0) <= 0 
@@ -498,10 +498,10 @@ export default function HomePage() {
                     >
                       <div className="flex justify-between items-center w-full">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">{menu.title}</span>
-                          <span className="text-sm">({menu.max_qty})</span>
+                          <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
+                          <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
                         </div>
-                        <span className="text-lg font-bold tabular-nums">{menu.price}円</span>
+                        <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
                       </div>
                     </button>
                   ))
