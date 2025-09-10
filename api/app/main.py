@@ -259,36 +259,23 @@ async def get_weekly_menus(db: Session = Depends(get_db)):
 
 
 @app.get("/public/menus")
-async def get_public_menus_by_date(
-    date: date = None,
-    db: Session = Depends(get_db),
-):
-    """Get public menus by date - uses JSONResponse for consistent cache control headers"""
+async def get_public_menus_by_date(date: date = None, db: Session = Depends(get_db)):
     from fastapi.responses import JSONResponse
-    import os
     
     menus = crud.get_menus_sqlalchemy(db, date)
-    
-    # Preview environment detection: APP_ENV=preview only
-    PREVIEW = os.getenv("APP_ENV") == "preview"
-    
-    headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
-    
-    menu_data = []
-    for menu in menus:
-        menu_dict = {
-            "id": menu.id,
-            "title": menu.title,
-            "price": menu.price,
-            "max_qty": menu.max_qty,
-            "serve_date": menu.serve_date.isoformat() if menu.serve_date else None,
-            "cafe_time_available": menu.cafe_time_available,
-            "created_at": menu.created_at.isoformat() if menu.created_at else None,
-            "img_url": menu.img_url
-        }
-        menu_data.append(menu_dict)
-    
-    return JSONResponse(content=menu_data, headers=headers)
+
+    payload = [{
+        "id": m.id,
+        "serve_date": m.serve_date.strftime("%Y-%m-%d"),
+        "title": m.title,
+        "price": m.price,
+        "max_qty": m.max_qty,
+        "img_url": m.img_url,
+        "cafe_time_available": m.cafe_time_available,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    } for m in menus]
+
+    return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/public/menus-range")
