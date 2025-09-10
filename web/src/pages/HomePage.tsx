@@ -488,12 +488,12 @@ export default function HomePage() {
                       key={menu.id}
                       onClick={() => addToCart(menu.id, dayKey)}
                       disabled={(menu.max_qty || 0) <= 0}
-                      className={`p-4 rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ${
+                      className={`p-4 rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 ${
                         cart[menu.id] > 0 
-                          ? 'bg-primary border-2 border-primary' 
+                          ? 'bg-primary' 
                           : (menu.max_qty || 0) <= 0 
                             ? 'bg-gray-500 cursor-not-allowed' 
-                            : 'bg-black/50 hover:bg-black/70 border-2 border-white/30'
+                            : 'bg-black/50 hover:bg-black/70'
                       }`}
                     >
                       <div className="flex justify-between items-center w-full">
