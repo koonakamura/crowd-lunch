@@ -574,7 +574,7 @@ export default function AdminPage() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-sans">
+          <h1 className="text-xl font-lato tracking-wide">
             <span className="font-bold">CROWD LUNCH</span>
             <span className="font-light"> Order sheet</span>
           </h1>

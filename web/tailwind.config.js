@@ -48,6 +48,9 @@ export default {
   		},
   		fontFamily: {
   			sans: ['Noto Sans JP', 'Inter', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Meiryo', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif'],
+  			lato: ['Lato', 'system-ui', 'Arial', 'Noto Sans JP', 'sans-serif'],
+  			libre: ['"Libre Baskerville"', 'Georgia', 'serif'],
+  			jp: ['"Noto Sans JP"', 'Hiragino Kaku Gothic ProN', 'Meiryo', 'sans-serif'],
   		},
   		keyframes: {
   			'accordion-down': {
