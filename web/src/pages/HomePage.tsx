@@ -11,7 +11,7 @@ import { User } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { toServeDateKey, rangeContains } from '../lib/dateUtils'
 import { makeTodayWindow, todayJST } from '../lib/dateWindow'
-import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
+import { isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 
 interface MenuSQLAlchemy {
   id: number;
@@ -98,6 +98,8 @@ export default function HomePage() {
   const [showThankYouModal, setShowThankYouModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeSlotError, setTimeSlotError] = useState<string>('')
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<Array<{id: number, slot_datetime: string, current_orders: number, max_orders: number}>>([])
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false)
   const [todayOrder, setTodayOrder] = useState<TodayOrderData | null>(null)
   const [serverTime, setServerTime] = useState<Date | null>(null)
   
@@ -199,6 +201,32 @@ export default function HomePage() {
     return true
   }
 
+  const fetchTimeSlots = async (date: Date) => {
+    setLoadingTimeSlots(true)
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      const response = await fetch(`http://localhost:8000/time-slots/${dateStr}`)
+      if (response.ok) {
+        const slots = await response.json()
+        setAvailableTimeSlots(slots)
+      } else {
+        console.error('Failed to fetch time slots')
+        setAvailableTimeSlots([])
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error)
+      setAvailableTimeSlots([])
+    } finally {
+      setLoadingTimeSlots(false)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedDate) {
+      fetchTimeSlots(selectedDate)
+    }
+  }, [selectedDate])
+
   const getSelectedDate = (): Date | null => {
     if (!selectedDay) return null
     const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
@@ -270,6 +298,10 @@ export default function HomePage() {
       const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
 
+      const selectedSlot = availableTimeSlots.find(slot => 
+        format(new Date(slot.slot_datetime), 'HH:mm') === deliveryTime
+      )
+      
       const orderPayload = {
         serve_date: selectedDate,
         delivery_type: 'desk' as const,
@@ -277,6 +309,7 @@ export default function HomePage() {
         delivery_location: deliveryLocation,
         department: department,
         name: customerName,
+        time_slot_id: selectedSlot?.id || null,
         items: orderItems,
         pickup_at: pickupAt
       };
@@ -318,6 +351,10 @@ export default function HomePage() {
       setDeliveryTime('')
       setDeliveryLocation('')
       setShowConfirmationModal(false)
+      
+      if (getSelectedDate()) {
+        fetchTimeSlots(getSelectedDate()!)
+      }
       toast.success('注文が正常に送信されました')
     } catch (error) {
       console.error('Order submission failed:', error)
@@ -329,6 +366,24 @@ export default function HomePage() {
         toast.error('このメニューはカフェタイムでは注文できません')
       } else if (errorWithCode.code === 'invalid_timeslot') {
         toast.error('選択した時間が有効範囲外です')
+      } else if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as any).response
+        if (response?.data?.detail) {
+          const detail = response.data.detail
+          if (typeof detail === 'string') {
+            if (detail.includes('Time slot is not available')) {
+              toast.error('選択した時間枠は満席です。他の時間をお選びください。')
+            } else if (detail.includes('Insufficient stock')) {
+              toast.error('選択したメニューの在庫が不足しています。')
+            } else {
+              toast.error(detail)
+            }
+          } else {
+            toast.error('注文の送信に失敗しました。もう一度お試しください。')
+          }
+        } else {
+          toast.error('注文の送信に失敗しました。もう一度お試しください。')
+        }
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
@@ -612,16 +667,21 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(getSelectedDate() || undefined).map((slot) => (
-                      <SelectItem 
-                        key={slot.value}
-                        value={slot.value}
-                        disabled={slot.disabled}
-                        className={slot.disabled ? "bg-gray-200 text-gray-400" : ""}
-                      >
-                        {slot.value}{slot.disabled ? " (終了)" : ""}
-                      </SelectItem>
-                    ))}
+                    {loadingTimeSlots ? (
+                      <SelectItem value="" disabled>読み込み中...</SelectItem>
+                    ) : availableTimeSlots.length > 0 ? (
+                      availableTimeSlots.map((slot) => {
+                        const timeStr = format(new Date(slot.slot_datetime), 'HH:mm')
+                        const availability = `${slot.current_orders}/${slot.max_orders}`
+                        return (
+                          <SelectItem key={slot.id} value={timeStr}>
+                            {timeStr} ({availability})
+                          </SelectItem>
+                        )
+                      })
+                    ) : (
+                      <SelectItem value="" disabled>利用可能な時間枠がありません</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 {timeSlotError && (

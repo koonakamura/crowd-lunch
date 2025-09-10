@@ -349,7 +349,7 @@ async def get_menus_by_date(
          summary="Create Order (Requires Bearer Token)",
          description="Create a new order. **Authentication required**: Include Bearer token in Authorization header.")
 async def create_order(
-    order: schemas.OrderCreate,
+    order: schemas.OrderCreateWithTimeSlot,
     current_user: schemas.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -396,7 +396,35 @@ async def create_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
     
-    db_order = crud.create_order(db, order, current_user.id)
+    if order.time_slot_id:
+        if not crud.reserve_time_slot(db, order.time_slot_id):
+            raise HTTPException(status_code=400, detail="Time slot is not available")
+    
+    for item in order.items:
+        if not crud.update_menu_stock(db, item.menu_id, item.qty):
+            menu = crud.get_menu_by_id(db, item.menu_id)
+            raise HTTPException(status_code=400, detail=f"Insufficient stock for {menu.title if menu else 'menu item'}")
+    
+    order_data = schemas.OrderCreate(
+        serve_date=order.serve_date,
+        delivery_type=order.delivery_type,
+        request_time=order.request_time,
+        delivery_location=order.delivery_location,
+        pickup_at=order.pickup_at,
+        items=order.items
+    )
+    
+    db_order = crud.create_order(db, order_data, current_user.id)
+    
+    if order.time_slot_id:
+        db_order.time_slot_id = order.time_slot_id
+    if order.customer_email:
+        db_order.customer_email = order.customer_email
+    if order.customer_phone:
+        db_order.customer_phone = order.customer_phone
+    
+    db.commit()
+    db.refresh(db_order)
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -406,11 +434,57 @@ async def create_order(
     
     return db_order
 
+@app.get("/time-slots/{target_date}", response_model=List[schemas.TimeSlot])
+async def get_time_slots_for_date(
+    target_date: date,
+    db: Session = Depends(get_db)
+):
+    """Get available time slots for a specific date"""
+    crud.generate_time_slots_for_date(db, target_date)
+    return crud.get_available_time_slots(db, target_date)
+
+@app.post("/time-slots/generate/{target_date}")
+async def generate_time_slots(
+    target_date: date,
+    admin: dict = Depends(auth.get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Generate time slots for a date (admin only)"""
+    slots = crud.generate_time_slots_for_date(db, target_date)
+    return {"message": f"Generated {len(slots)} time slots for {target_date}"}
+
+@app.post("/payments", response_model=schemas.Payment)
+async def create_payment(
+    payment: schemas.PaymentCreate,
+    order_id: int,
+    current_user: dict = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a payment for an order"""
+    db_payment = crud.create_payment(db, payment, order_id)
+    
+    import time
+    time.sleep(1)
+    
+    crud.update_payment_status(db, db_payment.id, models.PaymentStatus.completed, "Mock payment successful")
+    
+    db.refresh(db_payment)
+    return db_payment
+
+@app.post("/refunds", response_model=schemas.Refund)
+async def create_refund(
+    refund: schemas.RefundCreate,
+    admin: dict = Depends(auth.get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Create a refund (admin only)"""
+    return crud.create_refund(db, refund)
+
 @app.post("/orders/guest", response_model=schemas.Order,
          summary="Create Guest Order (No Authentication Required)", 
          description="Create a guest order with department and name. No authentication required.")
 async def create_guest_order(
-    order: schemas.OrderCreateWithDepartmentName,
+    order: schemas.GuestOrderCreate,
     db: Session = Depends(get_db)
 ):
     import os
@@ -456,12 +530,41 @@ async def create_guest_order(
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
     
-    db_order = crud.create_guest_order(db, order)
+    if order.time_slot_id:
+        if not crud.reserve_time_slot(db, order.time_slot_id):
+            raise HTTPException(status_code=400, detail="Time slot is not available")
+    
+    for item in order.items:
+        if not crud.update_menu_stock(db, item.menu_id, item.qty):
+            menu = crud.get_menu_by_id(db, item.menu_id)
+            raise HTTPException(status_code=400, detail=f"Insufficient stock for {menu.title if menu else 'menu item'}")
+    
+    order_data = schemas.OrderCreateWithDepartmentName(
+        serve_date=order.serve_date,
+        delivery_type=order.delivery_type,
+        request_time=order.request_time,
+        delivery_location=order.delivery_location,
+        department=order.department,
+        name=order.customer_name,
+        items=order.items
+    )
+    
+    db_order = crud.create_guest_order(db, order_data)
+    
+    if order.time_slot_id:
+        db_order.time_slot_id = order.time_slot_id
+    if order.customer_email:
+        db_order.customer_email = order.customer_email
+    if order.customer_phone:
+        db_order.customer_phone = order.customer_phone
+    
+    db.commit()
+    db.refresh(db_order)
     
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
-        "customer_name": f"{order.department}／{order.name}"
+        "customer_name": f"{order.department}／{order.customer_name}"
     }))
     
     return db_order

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import date, time, datetime
-from .models import DeliveryType, OrderStatus
+from .models import DeliveryType, OrderStatus, PaymentMethod, PaymentStatus, RefundStatus, DocumentType
 
 class UserBase(BaseModel):
     name: str
@@ -173,3 +173,91 @@ class MenuSQLAlchemyResponse(MenuSQLAlchemyBase):
     
     class Config:
         from_attributes = True
+
+class TimeSlotBase(BaseModel):
+    slot_datetime: datetime
+    max_orders: int = 20
+    is_available: bool = True
+
+class TimeSlotCreate(TimeSlotBase):
+    pass
+
+class TimeSlot(TimeSlotBase):
+    id: int
+    current_orders: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class PaymentBase(BaseModel):
+    payment_method: PaymentMethod
+    amount: int
+
+class PaymentCreate(PaymentBase):
+    payment_gateway: str
+    gateway_transaction_id: Optional[str] = None
+
+class Payment(PaymentBase):
+    id: int
+    order_id: int
+    payment_gateway: str
+    gateway_transaction_id: Optional[str] = None
+    status: PaymentStatus
+    gateway_response: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class RefundBase(BaseModel):
+    amount: int
+    reason: Optional[str] = None
+
+class RefundCreate(RefundBase):
+    payment_id: int
+
+class Refund(RefundBase):
+    id: int
+    payment_id: int
+    status: RefundStatus
+    gateway_refund_id: Optional[str] = None
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class LegalDocumentBase(BaseModel):
+    document_type: DocumentType
+    title: str
+    content: str
+    version: int = 1
+    is_active: bool = False
+
+class LegalDocumentCreate(LegalDocumentBase):
+    pass
+
+class LegalDocument(LegalDocumentBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class OrderCreateWithTimeSlot(OrderBase):
+    time_slot_id: Optional[int] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    items: List[OrderItemCreate]
+
+class GuestOrderCreate(BaseModel):
+    serve_date: date
+    delivery_type: DeliveryType
+    request_time: Optional[str] = None
+    delivery_location: Optional[str] = None
+    department: str
+    customer_name: str
+    time_slot_id: Optional[int] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    items: List[OrderItemCreate]

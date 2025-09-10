@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone, timedelta
 from typing import List, Optional
 from . import models, schemas
 from sqlmodel import select
+import uuid
 
 def get_menu_by_id(db: Session, menu_id: int):
     return db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
@@ -407,3 +408,132 @@ def generate_order_id(db: Session, serve_date: date) -> str:
     month_day = serve_date.strftime("%m%d")
     order_number = str(len(existing_orders) + 1).zfill(3)
     return f"#{month_day}{order_number}"
+
+def generate_time_slots_for_date(db: Session, target_date: date) -> List[models.TimeSlot]:
+    """Generate 15-minute time slots for a given date (11:00-14:00 JST)"""
+    existing_slots = db.query(models.TimeSlot).filter(
+        func.date(models.TimeSlot.slot_datetime) == target_date
+    ).all()
+    
+    if existing_slots:
+        return existing_slots
+        
+    slots = []
+    jst = timezone(timedelta(hours=9))
+    start_time = datetime.combine(target_date, time(11, 0)).replace(tzinfo=jst)
+    end_time = datetime.combine(target_date, time(14, 0)).replace(tzinfo=jst)
+    
+    current_time = start_time
+    while current_time < end_time:
+        slot = models.TimeSlot(
+            slot_datetime=current_time,
+            max_orders=20,
+            current_orders=0,
+            is_available=True
+        )
+        db.add(slot)
+        slots.append(slot)
+        current_time += timedelta(minutes=15)
+    
+    db.commit()
+    return slots
+
+def get_available_time_slots(db: Session, target_date: date) -> List[models.TimeSlot]:
+    """Get available time slots for a date with 30-minute cutoff validation"""
+    from .time_utils import get_jst_time
+    
+    current_jst = get_jst_time()
+    cutoff_time = current_jst + timedelta(minutes=30)
+    
+    slots = db.query(models.TimeSlot).filter(
+        func.date(models.TimeSlot.slot_datetime) == target_date,
+        models.TimeSlot.is_available == True,
+        models.TimeSlot.current_orders < models.TimeSlot.max_orders
+    ).all()
+    
+    if target_date == current_jst.date():
+        slots = [slot for slot in slots if slot.slot_datetime.replace(tzinfo=timezone(timedelta(hours=9))) > cutoff_time]
+        
+    return slots
+
+def reserve_time_slot(db: Session, slot_id: int) -> bool:
+    """Reserve a time slot for an order"""
+    slot = db.query(models.TimeSlot).filter(models.TimeSlot.id == slot_id).first()
+    if not slot or slot.current_orders >= slot.max_orders:
+        return False
+        
+    slot.current_orders += 1
+    if slot.current_orders >= slot.max_orders:
+        slot.is_available = False
+        
+    db.commit()
+    return True
+
+def create_payment(db: Session, payment: schemas.PaymentCreate, order_id: int) -> models.Payment:
+    """Create a payment record"""
+    db_payment = models.Payment(
+        order_id=order_id,
+        payment_method=payment.payment_method,
+        payment_gateway=payment.payment_gateway,
+        gateway_transaction_id=payment.gateway_transaction_id,
+        amount=payment.amount,
+        status=models.PaymentStatus.pending
+    )
+    db.add(db_payment)
+    db.commit()
+    db.refresh(db_payment)
+    return db_payment
+
+def update_payment_status(db: Session, payment_id: int, status: models.PaymentStatus, gateway_response: str = None) -> models.Payment:
+    """Update payment status"""
+    payment = db.query(models.Payment).filter(models.Payment.id == payment_id).first()
+    if payment:
+        payment.status = status
+        if gateway_response:
+            payment.gateway_response = gateway_response
+        db.commit()
+        db.refresh(payment)
+    return payment
+
+def create_refund(db: Session, refund: schemas.RefundCreate) -> models.Refund:
+    """Create a refund record"""
+    db_refund = models.Refund(
+        payment_id=refund.payment_id,
+        amount=refund.amount,
+        reason=refund.reason,
+        status=models.RefundStatus.pending
+    )
+    db.add(db_refund)
+    db.commit()
+    db.refresh(db_refund)
+    return db_refund
+
+def update_menu_stock(db: Session, menu_id: int, quantity_ordered: int) -> bool:
+    """Update menu stock quantity after order"""
+    menu = db.query(models.MenuSQLAlchemy).filter(models.MenuSQLAlchemy.id == menu_id).first()
+    if not menu:
+        return False
+        
+    if menu.stock_quantity is not None:
+        if menu.stock_quantity < quantity_ordered:
+            return False
+        menu.stock_quantity -= quantity_ordered
+        if menu.stock_quantity <= 0:
+            menu.is_available = False
+    
+    if menu.daily_limit is not None:
+        today_orders = db.query(func.sum(models.OrderItem.qty)).join(
+            models.OrderSQLAlchemy
+        ).filter(
+            models.OrderItem.menu_id == menu_id,
+            models.OrderSQLAlchemy.serve_date == date.today()
+        ).scalar() or 0
+        
+        if today_orders + quantity_ordered > menu.daily_limit:
+            return False
+    
+    db.commit()
+    return True
+
+def get_orders_by_date(db: Session, target_date: date):
+    return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.serve_date == target_date).all()
