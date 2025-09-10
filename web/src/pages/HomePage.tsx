@@ -86,8 +86,9 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  void selectedDay // Explicitly mark as intentionally unused for potential rollback to tab-based UI
+  void setSelectedDay // Explicitly mark as intentionally unused for potential rollback to tab-based UI
   const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
