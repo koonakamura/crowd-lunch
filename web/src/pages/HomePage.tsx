@@ -668,7 +668,7 @@ export default function HomePage() {
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
                     {loadingTimeSlots ? (
-                      <SelectItem value="" disabled>読み込み中...</SelectItem>
+                      <SelectItem value="loading" disabled>読み込み中...</SelectItem>
                     ) : availableTimeSlots.length > 0 ? (
                       availableTimeSlots.map((slot) => {
                         const timeStr = format(new Date(slot.slot_datetime), 'HH:mm')
@@ -680,7 +680,7 @@ export default function HomePage() {
                         )
                       })
                     ) : (
-                      <SelectItem value="" disabled>利用可能な時間枠がありません</SelectItem>
+                      <SelectItem value="no-slots" disabled>利用可能な時間枠がありません</SelectItem>
                     )}
                   </SelectContent>
                 </Select>

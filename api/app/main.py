@@ -39,19 +39,36 @@ ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify
 logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
 logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=ALLOW_ORIGIN_REGEX,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["authorization", "content-type", "accept"],
-    allow_credentials=False,
-    max_age=600,
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=ALLOWED_ORIGINS,
+#     allow_origin_regex=ALLOW_ORIGIN_REGEX,
+#     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+#     allow_headers=["authorization", "content-type", "accept"],
+#     allow_credentials=False,
+#     max_age=600,
+# )
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
+    if request.method == "OPTIONS":
+        from fastapi import Response
+        return Response(
+            status_code=200,
+            headers={
+                "Access-Control-Allow-Origin": "http://localhost:3001",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "authorization, content-type, accept, cache-control, pragma, expires",
+                "Access-Control-Max-Age": "600"
+            }
+        )
+    
     response = await call_next(request)
+    
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3001"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "authorization, content-type, accept, cache-control, pragma, expires"
+    
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-App-Commit"] = os.environ.get("FLY_MACHINE_VERSION", "dev")
     return response
@@ -88,9 +105,20 @@ manager = ConnectionManager()
 async def healthz():
     return {"status": "ok"}
 
+
 @app.options("/{path:path}")
-def _preflight_ok(path: str):
-    return Response(status_code=204)
+async def handle_preflight(path: str):
+    """Handle all preflight requests with proper CORS headers"""
+    from fastapi import Response
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "http://localhost:3001",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "authorization, content-type, accept",
+            "Access-Control-Max-Age": "600"
+        }
+    )
 
 @app.get("/server-time", summary="Get Server Time", description="Get current server time in JST")
 async def get_server_time():
