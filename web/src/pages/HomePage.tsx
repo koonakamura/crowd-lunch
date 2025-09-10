@@ -503,11 +503,6 @@ export default function HomePage() {
                         </div>
                         <span className="text-lg font-bold">{menu.price}円</span>
                       </div>
-                      {cart[menu.id] > 0 && (
-                        <div className="mt-2 text-sm">
-                          選択済み: {cart[menu.id]}個
-                        </div>
-                      )}
                     </button>
                   ))
                 ) : (
