@@ -86,7 +86,6 @@ export default function HomePage() {
   const { user, logout } = useAuth()
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
@@ -142,31 +141,35 @@ export default function HomePage() {
   }, [serverTime, selectedDate]);
 
 
-  const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
+  const getBackgroundImage = (dateKey: string, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
     if (adminImage && adminImage.startsWith('/uploads/')) {
       return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
     }
+    
+    const date = new Date(dateKey + 'T00:00:00')
+    const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1
     
     const defaultImages = [
       '/images/monday.jpeg',
       '/images/tuesday.jpeg', 
       '/images/wednesday.jpeg',
       '/images/thursday.jpeg',
-      '/images/friday.jpeg'
+      '/images/friday.jpeg',
+      '/images/monday.jpeg',
+      '/images/monday.jpeg'
     ]
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
 
-  const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
+  const getMenusForDate = (dateKey: string, selectedDeliveryTime?: string) => {
     if (!weeklyMenusData?.days) return []
     
-    const dateKey = format(date, 'yyyy-MM-dd')
     const menus = weeklyMenusData.days[dateKey] || []
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
-      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
+      (serverTime && serverTime.getHours() >= 14 && dateKey === format(serverTime, 'yyyy-MM-dd'))
     
     if (shouldFilterForCafeTime) {
       return menus.filter(menu => menu.cafe_time_available === true)
@@ -201,21 +204,21 @@ export default function HomePage() {
   }
 
   const getSelectedDate = (): Date | null => {
-    if (!selectedDay) return null
-    const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
-    return dayInfo || null
+    return selectedDate
   }
 
 
-  const addToCart = (menuId: number, dayKey: string) => {
-    if (selectedDay && selectedDay !== dayKey) {
+  const addToCart = (menuId: number, dateKey: string) => {
+    const currentCartDate = Object.keys(cart).length > 0 ? 
+      getSelectedMenus()[0]?.menu?.serve_date : null
+    
+    if (currentCartDate && currentCartDate !== dateKey) {
       setCart({})
     }
-    setSelectedDay(dayKey)
-    const clickedDate = windowDates.find(d => format(d, 'M/d') === dayKey)
-    if (clickedDate) {
-      setSelectedDate(clickedDate)
-    }
+    
+    const clickedDate = new Date(dateKey + 'T00:00:00')
+    setSelectedDate(clickedDate)
+    
     setCart(prev => ({
       ...prev,
       [menuId]: prev[menuId] > 0 ? 0 : 1
@@ -456,38 +459,38 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="pt-16">
-        {windowDates.map((date, index) => {
-          const dayKey = format(date, 'M/d')
-          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
-          
+      <div className="pt-16 grid grid-cols-1 gap-6">
+        {weeklyMenusData?.days && Object.keys(weeklyMenusData.days).sort().map((dateKey) => {
+          const dayMenus = getMenusForDate(dateKey, deliveryTime)
+          const date = new Date(dateKey + 'T00:00:00')
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
+          const dayKey = format(date, 'M/d')
           
           return (
             <section 
-              key={format(date, 'yyyy-MM-dd')}
-              className="min-h-screen relative flex flex-col justify-center items-center p-8"
+              key={dateKey}
+              className="relative overflow-visible"
               style={{
-                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
+                backgroundImage: `url(${getBackgroundImage(dateKey, dayMenus)})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center'
               }}
             >
-              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
-                <h2 className="text-6xl font-bold text-white drop-shadow-lg font-libre tabular-nums">
+              <header className="px-4 pt-6 pb-2">
+                <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none text-white drop-shadow-lg">
                   {dayKey}
-                </h2>
-                <p className="text-2xl text-white mt-2 font-libre">
-                  ({dayName})
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
+                </div>
+                <div className="text-xl md:text-2xl font-libre mt-1 text-white drop-shadow-lg">
+                  {dayName}
+                </div>
+              </header>
+
+              <div className="px-3 md:px-4 pb-8 flex flex-col gap-4">
                 {dayMenus.length > 0 ? (
                   dayMenus.map((menu) => (
                     <button
                       key={menu.id}
-                      onClick={() => addToCart(menu.id, dayKey)}
+                      onClick={() => addToCart(menu.id, dateKey)}
                       disabled={(menu.max_qty || 0) <= 0}
                       className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
                         cart[menu.id] > 0 
@@ -515,23 +518,25 @@ export default function HomePage() {
                     </button>
                   ))
                 ) : (
-                  <div className="col-span-full"></div>
+                  <div className="text-center py-8">
+                    <span className="text-white/70">メニューがありません</span>
+                  </div>
                 )}
               </div>
-              
-              {getTotalItems() > 0 && selectedDay === dayKey && (
-                <div className="text-center mt-8">
-                  <Button 
-                    onClick={handleProceedToOrder}
-                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                  >
-                    注文
-                  </Button>
-                </div>
-              )}
             </section>
           )
         })}
+        
+        {getTotalItems() > 0 && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+            <Button 
+              onClick={handleProceedToOrder}
+              className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl shadow-lg"
+            >
+              注文 ({getTotalItems()}個)
+            </Button>
+          </div>
+        )}
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
