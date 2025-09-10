@@ -307,7 +307,7 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     
     return db_order_with_menus
 
-def get_menus_sqlalchemy(db: Session, date_filter: date = None):
+def get_menus_sqlalchemy(db: Session, date_filter: Optional[date] = None):
     """Get MenuSQLAlchemy menus with optional date filter using cast(serve_date, Date) for consistency
     
     Uses cast(MenuSQLAlchemy.serve_date, Date) == date_filter
@@ -317,10 +317,10 @@ def get_menus_sqlalchemy(db: Session, date_filter: date = None):
     from sqlalchemy import cast, Date
     logger = logging.getLogger(__name__)
     
-    query = db.query(models.MenuSQLAlchemy)
+    q = db.query(models.MenuSQLAlchemy)
     if date_filter:
-        query = query.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
-    menus = query.all()
+        q = q.filter(cast(models.MenuSQLAlchemy.serve_date, Date) == date_filter)
+    menus = q.order_by(models.MenuSQLAlchemy.id.asc()).all()
     
     logger.info(f"FETCH serve_date={date_filter} count={len(menus)}")
     
@@ -329,6 +329,17 @@ def get_menus_sqlalchemy(db: Session, date_filter: date = None):
             menu.cafe_time_available = False
     
     return menus
+
+# 代替（将来の最適化メモ）：キャストはインデックスを使いにくいので、
+# JSTの start_of_day <= serve_at < next_day にする方法もアリ（今回は不要）。
+#
+# from datetime import datetime, time, timedelta, timezone (important-comment)
+# JST = timezone(timedelta(hours=9))
+#
+# start_dt = datetime.combine(date_filter, time(0,0), tzinfo=JST)
+# end_dt   = start_dt + timedelta(days=1)
+# q = q.filter(models.MenuSQLAlchemy.serve_date >= start_dt,
+#              models.MenuSQLAlchemy.serve_date <  end_dt) (important-comment)
 
 def create_menu_sqlalchemy(db: Session, menu: schemas.MenuSQLAlchemyCreate):
     """Create a new MenuSQLAlchemy menu"""
