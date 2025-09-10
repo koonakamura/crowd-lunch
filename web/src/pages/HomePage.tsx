@@ -470,25 +470,30 @@ export default function HomePage() {
           const dayKey = format(date, 'M/d')
           
           return (
-            <section 
-              key={dateKey}
-              className="relative overflow-visible"
-              style={{
-                backgroundImage: `url(${getBackgroundImage(dateKey, dayMenus)})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
-            >
-              <header className="px-4 pt-6 pb-2">
-                <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none text-white drop-shadow-lg">
-                  {dayKey}
-                </div>
-                <div className="text-xl md:text-2xl font-libre mt-1 text-white drop-shadow-lg">
-                  {dayName}
-                </div>
-              </header>
+            <section key={dateKey} className="relative">
+              {/* 固定高さヒーロー（背景画像はここだけ） */}
+              <div className="relative bg-black h-[42vh] min-h-[260px] md:h-[54vh]">
+                <img
+                  src={getBackgroundImage(dateKey, dayMenus)}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-contain"
+                />
+                {/* 下からの薄いグラデで文言の可読性UP */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/40 to-transparent" />
+                {/* 見出し（写真の上に重ねる） */}
+                <header className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-6">
+                  <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none text-white drop-shadow-lg">
+                    {dayKey}
+                  </div>
+                  <div className="text-xl md:text-2xl font-libre mt-1 text-white drop-shadow-lg">
+                    {dayName}
+                  </div>
+                </header>
+              </div>
 
-              <div className="px-3 md:px-4 pb-8 flex flex-col gap-4">
+              {/* メニューリスト（背景高に影響させない） */}
+              <div className="px-3 md:px-4 py-6 flex flex-col gap-4">
                 {dayMenus.length > 0 ? (
                   dayMenus.map((menu) => (
                     <button
