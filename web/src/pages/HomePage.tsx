@@ -159,8 +159,8 @@ export default function HomePage() {
       '/images/wednesday.jpeg',
       '/images/thursday.jpeg',
       '/images/friday.jpeg',
-      '/images/monday.jpeg',
-      '/images/monday.jpeg'
+      '/images/saturday.jpeg',
+      '/images/sunday.jpeg'
     ]
     return defaultImages[dayIndex] || '/images/monday.jpeg'
   }
