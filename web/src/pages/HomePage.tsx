@@ -240,18 +240,48 @@ export default function HomePage() {
     setShowOrderModal(true)
   }
 
+  const menusById = useMemo(() => {
+    const days = weeklyMenusData?.days ?? {};
+    const map = new Map<number, MenuSQLAlchemy>();
+    Object.values(days).flat().forEach((m: MenuSQLAlchemy) => map.set(m.id, m));
+    return map;
+  }, [weeklyMenusData]);
+
+  const orderLines = useMemo(() => {
+    return Object.entries(cart)
+      .filter(([, q]) => (q ?? 0) > 0)
+      .map(([idStr, q]) => {
+        const id = Number(idStr);
+        const m = menusById.get(id);
+        const qty = Number(q);
+        const price = m?.price ?? 0;
+        return {
+          id,
+          title: m?.title ?? '(不明なメニュー)',
+          qty,
+          price,
+          total: price * qty,
+        };
+      });
+  }, [cart, menusById]);
+
+  const total = useMemo(
+    () => orderLines.reduce((s, l) => s + l.total, 0),
+    [orderLines]
+  );
+
   const getSelectedMenus = () => {
-    if (!weeklyMenusData?.days) return []
-    const allMenus = Object.values(weeklyMenusData.days).flat()
-    return Object.entries(cart).map(([menuId, qty]) => {
-      const menu = allMenus.find((m: MenuSQLAlchemy) => m.id === parseInt(menuId))
-      return { menu: menu!, qty }
-    }).filter(item => item.menu)
+    return orderLines.map(line => ({ 
+      menu: { 
+        id: line.id, 
+        title: line.title, 
+        price: line.price,
+        cafe_time_available: menusById.get(line.id)?.cafe_time_available ?? false
+      } as MenuSQLAlchemy, 
+      qty: line.qty 
+    }));
   }
 
-  const getTotalPrice = () => {
-    return getSelectedMenus().reduce((total, item) => total + (item.menu!.price * item.qty), 0)
-  }
 
   const handleSubmitOrder = async () => {
     if (!department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation) return
@@ -560,17 +590,23 @@ export default function HomePage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="font-semibold">注文内容</h3>
-              {getSelectedMenus().map(({ menu }) => (
-                <div key={menu!.id} className="flex justify-between">
-                  <span>{menu!.title}</span>
-                  <span>{menu!.price}円</span>
-                </div>
-              ))}
-              <div className="border-t border-gray-600 pt-2">
-                <div className="flex justify-between font-bold">
-                  <span>合計</span>
-                  <span>{getTotalPrice()}円</span>
-                </div>
+              <div className="space-y-2">
+                {orderLines.map(l => (
+                  <div key={l.id} className="flex items-baseline justify-between">
+                    <div>
+                      {l.title}
+                      {l.qty > 1 ? <span className="ml-1 text-sm">× {l.qty}</span> : null}
+                    </div>
+                    <div className="tabular-nums">{l.total}円</div>
+                  </div>
+                ))}
+                {orderLines.length === 0 ? (
+                  <div className="text-sm text-white/70">（選択中のメニューはありません）</div>
+                ) : null}
+              </div>
+              <div className="mt-3 border-t border-white/20 pt-3 flex justify-between">
+                <span>合計</span>
+                <span className="tabular-nums font-semibold">{total}円</span>
               </div>
             </div>
 
@@ -662,7 +698,7 @@ export default function HomePage() {
           <DialogFooter>
             <Button
               onClick={() => setShowConfirmationModal(true)}
-              disabled={isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation || timeSlotError !== ''}
+              disabled={orderLines.length === 0 || isSubmitting || !department.trim() || !customerName.trim() || !deliveryTime || !deliveryLocation || timeSlotError !== ''}
               className="w-full bg-primary hover:bg-primary/90 text-white"
               data-testid="submit-order"
             >
@@ -706,19 +742,22 @@ export default function HomePage() {
             <div>
               <h3 className="font-semibold mb-2">注文内容</h3>
               <div className="space-y-1">
-                {getSelectedMenus().map(({ menu, qty }) => (
-                  <div key={menu!.id} className="flex justify-between text-sm">
-                    <span>{menu!.title} × {qty}</span>
-                    <span>¥{(menu!.price * qty).toLocaleString()}</span>
+                {orderLines.map(l => (
+                  <div key={l.id} className="flex justify-between text-sm">
+                    <span>{l.title} × {l.qty}</span>
+                    <span>¥{l.total.toLocaleString()}</span>
                   </div>
                 ))}
+                {orderLines.length === 0 ? (
+                  <div className="text-sm text-white/70">（選択中のメニューはありません）</div>
+                ) : null}
               </div>
             </div>
             
             <div className="border-t border-gray-600 pt-2">
               <div className="flex justify-between font-semibold">
                 <span>合計金額</span>
-                <span>¥{getTotalPrice().toLocaleString()}</span>
+                <span className="tabular-nums">¥{total.toLocaleString()}</span>
               </div>
             </div>
             
