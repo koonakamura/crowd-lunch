@@ -13,8 +13,13 @@ import logging
 import time
 
 import os
+import secrets
+import base64
 
 SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-here")
+
+BASIC_AUTH_USERNAME = os.getenv("BASIC_AUTH_USERNAME", "")
+BASIC_AUTH_PASSWORD = os.getenv("BASIC_AUTH_PASSWORD", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -139,3 +144,21 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
         return get_current_user(credentials, db)
     except HTTPException:
         return None
+
+def verify_basic_auth(auth_header: str) -> bool:
+    """Verify basic authentication credentials - simple implementation for easy removal"""
+    if not auth_header or not auth_header.startswith("Basic "):
+        return False
+    
+    try:
+        # Extract and decode credentials
+        encoded_credentials = auth_header.split(" ")[1]
+        decoded_credentials = base64.b64decode(encoded_credentials).decode("utf-8")
+        username, password = decoded_credentials.split(":", 1)
+        
+        is_correct_username = secrets.compare_digest(username, BASIC_AUTH_USERNAME)
+        is_correct_password = secrets.compare_digest(password, BASIC_AUTH_PASSWORD)
+        
+        return is_correct_username and is_correct_password
+    except Exception:
+        return False

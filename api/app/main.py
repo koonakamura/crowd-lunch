@@ -73,6 +73,30 @@ async def add_security_headers(request, call_next):
     response.headers["X-App-Commit"] = os.environ.get("FLY_MACHINE_VERSION", "dev")
     return response
 
+@app.middleware("http")
+async def basic_auth_middleware(request: Request, call_next):
+    if request.url.path in ["/healthz", "/"] or request.method == "OPTIONS":
+        return await call_next(request)
+    
+    basic_auth_enabled = os.getenv("ENABLE_BASIC_AUTH", "false").lower() == "true"
+    
+    if basic_auth_enabled:
+        auth_header = request.headers.get("authorization", "")
+        
+        if not auth.verify_basic_auth(auth_header):
+            return Response(
+                status_code=401,
+                headers={
+                    "WWW-Authenticate": "Basic realm='Crowd Lunch Demo'",
+                    "Access-Control-Allow-Origin": "http://localhost:3000",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "authorization, content-type, accept, cache-control, pragma, expires"
+                },
+                content="Authentication required"
+            )
+    
+    return await call_next(request)
+
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
 
