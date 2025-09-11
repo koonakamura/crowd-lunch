@@ -475,32 +475,32 @@ export default function HomePage() {
           return (
             <section key={dateKey} className="relative isolate">
               {/* ヒーロー（画像 + オーバーレイ） */}
-              <div className="relative bg-black h-[42vh] min-h-[260px] md:h-[54vh] pb-6 md:pb-8">
+              <div className="relative bg-black min-h-[54vh] md:min-h-[68vh] lg:min-h-[76vh] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
                   decoding="async"
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover object-center select-none"
+                  className="absolute inset-0 h-full w-full object-cover object-center select-none -z-10"
                   draggable={false}
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
 
                 {/* 日付・曜日（中央／白） */}
-                <header className="absolute inset-x-0 top-0 px-4 pt-6 pb-2 text-center text-white z-20">
+                <header className="px-4 pt-6 pb-2 text-center text-white relative z-10">
                   <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none">{dayKey}</div>
                   <div className="text-xl md:text-2xl font-libre mt-1">{dayName}</div>
                 </header>
 
                 {/* メニュー：ヘッダー直下から下に積む */}
-                <div className="absolute inset-0 z-20 pointer-events-none">
-                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pt-28 md:pt-36 pb-24 md:pb-28">
+                <div className="px-3 md:px-4 mt-4 md:mt-5">
+                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-24 md:pb-28">
                     {dayMenus.map((menu) => (
                       <button
                         key={menu.id}
                         onClick={() => addToCart(menu.id, dateKey)}
                         disabled={(menu.max_qty || 0) <= 0}
-                        className={`pointer-events-auto px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
+                        className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
                           cart[menu.id] > 0 
                             ? 'bg-primary' 
                             : (menu.max_qty || 0) <= 0 
@@ -529,11 +529,11 @@ export default function HomePage() {
                 </div>
 
                 {/* 明るい写真対策（任意） */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent -z-0" />
 
                 {/* 注文ボタン（ヒーロー内でsticky・端より"少し上"で停止） */}
                 {dayCount > 0 && (
-                  <div className="sticky top-[calc(100vh-(64px+env(safe-area-inset-bottom)))] md:top-[calc(100vh-(80px+env(safe-area-inset-bottom)))] z-30 pointer-events-none">
+                  <div className="sticky top-[calc(100vh-(64px+env(safe-area-inset-bottom)))] md:top-[calc(100vh-(80px+env(safe-area-inset-bottom)))] z-20 pointer-events-none mt-6">
                     <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex justify-center">
                       <button
                         type="button"
