@@ -491,11 +491,12 @@ export default function HomePage() {
                 </header>
 
                 {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
-                <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex flex-col items-center gap-3 px-3">
+                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4 pb-8">
                   {dayMenus.length > 0 ? (
-                    dayMenus.map((menu) => (
-                      <div key={menu.id} className="w-full max-w-[720px] md:max-w-[860px]">
+                    <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4">
+                      {dayMenus.map((menu) => (
                         <button
+                          key={menu.id}
                           onClick={() => addToCart(menu.id, dateKey)}
                           disabled={(menu.max_qty || 0) <= 0}
                           className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
@@ -522,13 +523,9 @@ export default function HomePage() {
                             </div>
                           </div>
                         </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <span className="text-white/70">メニューがありません</span>
+                      ))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -649,8 +646,8 @@ export default function HomePage() {
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
-                <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。</p>
-                <p>当日11時までの予約注文は、時間通りのお届けがしやすくなりますので事前のご予約をお願いします。</p>
+                <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。早めのご予約をお願いします。</p>
+                <p>カフェタイムメニューは14時以降のお届けが可能です。ぜひご利用ください。</p>
               </div>
             </div>
           </div>
