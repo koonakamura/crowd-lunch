@@ -472,63 +472,66 @@ export default function HomePage() {
           
           return (
             <section key={dateKey} className="relative">
-              {/* ① 見出し（縦並びの最初） */}
-              <header className="px-4 pt-6 pb-3">
-                <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none">{dayKey}</div>
-                <div className="text-xl md:text-2xl font-libre mt-1">{dayName}</div>
-              </header>
-
-              {/* ② 写真：固定高さヒーロー。cover で余白ゼロフィット */}
-              <div className="relative bg-black h-[42vh] min-h-[260px] md:h-[54vh]">
+              {/* ヒーロー：最小高さで内容に応じて伸びる */}
+              <div className="relative bg-black min-h-[42vh] md:min-h-[54vh]">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
-                  className="absolute inset-0 w-full h-full object-cover object-center"
+                  className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover object-center"
                   loading="lazy"
                   decoding="async"
                   draggable={false}
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
-              </div>
-
-              {/* ③ メニュー（既存の黒帯ピルのまま） */}
-              <div className="px-3 md:px-4 py-6 flex flex-col gap-4">
-                {dayMenus.length > 0 ? (
-                  dayMenus.map((menu) => (
-                    <button
-                      key={menu.id}
-                      onClick={() => addToCart(menu.id, dateKey)}
-                      disabled={(menu.max_qty || 0) <= 0}
-                      className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
-                        cart[menu.id] > 0 
-                          ? 'bg-primary' 
-                          : (menu.max_qty || 0) <= 0 
-                            ? 'bg-gray-500 cursor-not-allowed' 
-                            : 'bg-black/50 hover:bg-black/70'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center w-full">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
-                          <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
-                        </div>
-                        <div className="flex items-center gap-2 md:gap-2.5 leading-none">
-                          {menu.cafe_time_available && (
-                            <CafeIcon
-                              className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
-                        </div>
+                
+                {/* 可読性向上のための薄いグラデ */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 md:h-28 bg-gradient-to-t from-black/35 to-transparent" />
+                
+                {/* オーバーレイ内容：すべてヒーローの中へ */}
+                <div className="relative z-10 px-4 pt-6 pb-6">
+                  <header className="mb-3">
+                    <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none">{dayKey}</div>
+                    <div className="text-xl md:text-2xl font-libre mt-1">{dayName}</div>
+                  </header>
+                  <div className="flex flex-col gap-4">
+                    {dayMenus.length > 0 ? (
+                      dayMenus.map((menu) => (
+                        <button
+                          key={menu.id}
+                          onClick={() => addToCart(menu.id, dateKey)}
+                          disabled={(menu.max_qty || 0) <= 0}
+                          className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
+                            cart[menu.id] > 0 
+                              ? 'bg-primary' 
+                              : (menu.max_qty || 0) <= 0 
+                                ? 'bg-gray-500 cursor-not-allowed' 
+                                : 'bg-black/50 hover:bg-black/70'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center w-full">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
+                              <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
+                            </div>
+                            <div className="flex items-center gap-2 md:gap-2.5 leading-none">
+                              {menu.cafe_time_available && (
+                                <CafeIcon
+                                  className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <span className="text-white/70">メニューがありません</span>
                       </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <span className="text-white/70">メニューがありません</span>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </section>
           )
