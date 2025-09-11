@@ -536,7 +536,7 @@ export default function HomePage() {
 
                 {/* 注文ボタン：ヒーロー内に sticky で配置 */}
                 {dayCount > 0 && (
-                  <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+64px)] md:bottom-[calc(env(safe-area-inset-bottom)+80px)] z-30 pointer-events-none">
+                  <div className="sticky top-[calc(100vh-(64px+env(safe-area-inset-bottom)))] md:top-[calc(100vh-(80px+env(safe-area-inset-bottom)))] z-30 pointer-events-none">
                     <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex justify-center">
                       <button
                         type="button"
