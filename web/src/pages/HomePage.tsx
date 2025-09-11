@@ -494,7 +494,7 @@ export default function HomePage() {
 
                 {/* メニュー：ヘッダー直下から下に積む */}
                 <div className="px-3 md:px-4 mt-4 md:mt-5 relative z-10">
-                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-24 md:pb-28">
+                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-16 md:pb-20">
                     {dayMenus.map((menu) => (
                       <button
                         key={menu.id}
