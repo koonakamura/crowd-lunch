@@ -151,13 +151,13 @@ export default function HomePage() {
     }
     
     const defaultByDow: Record<number, string> = {
-      0: '/images/sunday.jpeg',        // Sun
+      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',        // Sun
       1: '/images/monday.jpeg',
       2: '/images/tuesday.jpeg',
       3: '/images/wednesday.jpeg',
       4: '/images/thursday.jpeg',
       5: '/images/friday.jpeg',
-      6: '/images/saturday.jpeg',    // Sat
+      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',    // Sat
     }
     
     const adminImage = dayMenus?.[0]?.img_url
