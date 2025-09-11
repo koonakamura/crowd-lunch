@@ -150,19 +150,20 @@ export default function HomePage() {
       return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
     }
     
-    const date = new Date(dateKey + 'T00:00:00')
-    const dayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1
+    const JST = '+09:00'
+    const dowJst = (k: string) => new Date(`${k}T00:00:00${JST}`).getDay()
     
-    const defaultImages = [
-      '/images/monday.jpeg',
-      '/images/tuesday.jpeg', 
-      '/images/wednesday.jpeg',
-      '/images/thursday.jpeg',
-      '/images/friday.jpeg',
-      '/images/saturday.jpeg',
-      '/images/sunday.jpeg'
-    ]
-    return defaultImages[dayIndex] || '/images/monday.jpeg'
+    const defaultByDow: Record<number, string> = {
+      0: '/images/sunday.jpeg',      // Sun - pizza
+      1: '/images/monday.jpeg',      // Mon
+      2: '/images/tuesday.jpeg',     // Tue
+      3: '/images/wednesday.jpeg',   // Wed
+      4: '/images/thursday.jpeg',    // Thu
+      5: '/images/friday.jpeg',      // Fri
+      6: '/images/saturday.jpeg',    // Sat - churrasco
+    }
+    
+    return defaultByDow[dowJst(dateKey)] || '/images/monday.jpeg'
   }
 
   const getMenusForDate = (dateKey: string, selectedDeliveryTime?: string) => {
@@ -484,8 +485,9 @@ export default function HomePage() {
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
                 
-                {/* Optional gradient overlay for better text readability */}
+                {/* Optional gradient overlays for better text readability */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/25 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
                 
                 {/* 日付・曜日：中央寄せ/白/読みやすい影 */}
                 <header className="absolute top-8 md:top-12 inset-x-0 text-center text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]">
