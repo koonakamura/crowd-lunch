@@ -232,9 +232,6 @@ export default function HomePage() {
   }
 
 
-  const getTotalItems = () => {
-    return Object.values(cart).reduce((sum, qty) => sum + qty, 0)
-  }
 
   const handleProceedToOrder = () => {
     setShowOrderModal(true)
@@ -473,6 +470,8 @@ export default function HomePage() {
           const dayKey = format(date, 'M/d')
           const isFirst = index === 0
           
+          const dayCount = dayMenus.reduce((sum, menu) => sum + (cart[menu.id] || 0), 0)
+          
           return (
             <section key={dateKey} className="relative isolate">
               {/* ヒーロー（1画面=1日） */}
@@ -498,7 +497,7 @@ export default function HomePage() {
                 </header>
 
                 {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
-                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4 pb-24 md:pb-28">
+                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4">
                   {dayMenus.length > 0 ? (
                     <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4">
                       {dayMenus.map((menu) => (
@@ -534,25 +533,29 @@ export default function HomePage() {
                     </div>
                   ) : null}
                 </div>
+
+                {/* 注文ボタン：ヒーロー内に sticky で配置 */}
+                {dayCount > 0 && (
+                  <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+64px)] md:bottom-[calc(env(safe-area-inset-bottom)+80px)] z-30 pointer-events-none">
+                    <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex justify-center">
+                      <button
+                        type="button"
+                        onClick={handleProceedToOrder}
+                        disabled={isSubmitting || dayCount === 0}
+                        className="
+                          pointer-events-auto
+                          rounded-full px-6 py-3 md:px-8 md:py-3.5
+                          bg-amber-500/95 text-white font-semibold shadow-lg
+                          ring-1 ring-white/20
+                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80
+                        "
+                      >
+                        注文（{dayCount}個）
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              {getTotalItems() > 0 && toServeDateKey(selectedDate) === dateKey && (
-                <div className="sticky bottom-16 md:bottom-20 z-30 flex justify-center pointer-events-none">
-                  <button
-                    type="button"
-                    className="
-                      pointer-events-auto
-                      rounded-full px-6 py-3 md:px-8 md:py-3.5
-                      bg-amber-500/95 text-white font-semibold shadow-lg
-                      ring-1 ring-white/20
-                    "
-                    onClick={handleProceedToOrder}
-                    disabled={getTotalItems() === 0}
-                  >
-                    注文（{getTotalItems()}個）
-                  </button>
-                </div>
-              )}
             </section>
           )
         })}
