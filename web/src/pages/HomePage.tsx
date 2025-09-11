@@ -471,36 +471,34 @@ export default function HomePage() {
           const isFirst = index === 0
           
           return (
-            <section key={dateKey} className="relative">
-              {/* ヒーロー：最小高さで内容に応じて伸びる */}
-              <div className="relative bg-black min-h-[42vh] md:min-h-[54vh]">
+            <section key={dateKey} className="relative overflow-hidden">
+              {/* ヒーロー（1画面=1日） */}
+              <div className="relative h-[92vh] md:h-[100svh]">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
-                  className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover object-center"
-                  loading="lazy"
                   decoding="async"
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
                   draggable={false}
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
                 
-                {/* 可読性向上のための薄いグラデ */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 md:h-28 bg-gradient-to-t from-black/35 to-transparent" />
-                
-                {/* オーバーレイ内容：すべてヒーローの中へ */}
-                <div className="relative z-10 px-4 pt-6 pb-6">
-                  <header className="mb-3">
-                    <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none">{dayKey}</div>
-                    <div className="text-xl md:text-2xl font-libre mt-1">{dayName}</div>
-                  </header>
-                  <div className="flex flex-col gap-4">
-                    {dayMenus.length > 0 ? (
-                      dayMenus.map((menu) => (
+                {/* 日付・曜日：中央寄せ/白/読みやすい影 */}
+                <header className="absolute top-8 md:top-12 inset-x-0 text-center text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]">
+                  <div className="font-libre tabular-nums leading-none text-5xl md:text-6xl">{dayKey}</div>
+                  <div className="font-libre mt-2 text-xl md:text-2xl">{dayName}</div>
+                </header>
+
+                {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
+                <div className="absolute inset-x-0 bottom-6 md:bottom-10 flex flex-col items-center gap-3 px-3">
+                  {dayMenus.length > 0 ? (
+                    dayMenus.map((menu) => (
+                      <div key={menu.id} className="w-full max-w-[720px] md:max-w-[860px]">
                         <button
-                          key={menu.id}
                           onClick={() => addToCart(menu.id, dateKey)}
                           disabled={(menu.max_qty || 0) <= 0}
-                          className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
+                          className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
                             cart[menu.id] > 0 
                               ? 'bg-primary' 
                               : (menu.max_qty || 0) <= 0 
@@ -524,13 +522,13 @@ export default function HomePage() {
                             </div>
                           </div>
                         </button>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <span className="text-white/70">メニューがありません</span>
                       </div>
-                    )}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <span className="text-white/70">メニューがありません</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
