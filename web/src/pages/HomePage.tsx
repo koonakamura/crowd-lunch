@@ -145,27 +145,31 @@ export default function HomePage() {
 
 
   const getBackgroundImage = (dateKey: string, dayMenus: { img_url?: string }[]) => {
-    const adminImage = dayMenus?.[0]?.img_url
-    if (adminImage && adminImage.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
-    }
-    
     const dow = (k: string) => {
       const [y, m, d] = k.split("-").map(Number)
       return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
     }
     
     const defaultByDow: Record<number, string> = {
-      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',      // Sun
+      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',        // Sun
       1: '/images/monday.jpeg',
       2: '/images/tuesday.jpeg',
       3: '/images/wednesday.jpeg',
       4: '/images/thursday.jpeg',
       5: '/images/friday.jpeg',
-      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',  // Sat
+      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',    // Sat
     }
     
-    return defaultByDow[dow(dateKey)] || '/images/monday.jpeg'
+    const adminImage = dayMenus?.[0]?.img_url
+    const firstMenuImg = dayMenus.find(m => m?.img_url)?.img_url ?? null
+    
+    const heroSrc =
+      (adminImage && adminImage.startsWith('/uploads/') ? `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}` : null)  // 管理画面でその日に指定があれば最優先
+      ?? firstMenuImg               // その日の最初のメニュー画像
+      ?? defaultByDow[dow(dateKey)] // デフォルト（曜日ごと）
+      ?? '/images/monday.jpeg'      // 最終フォールバック
+    
+    return heroSrc
   }
 
   const getMenusForDate = (dateKey: string, selectedDeliveryTime?: string) => {
@@ -478,6 +482,7 @@ export default function HomePage() {
               <div className="relative bg-black min-h-[calc(100dvh-64px)] md:min-h-[calc(100dvh-72px)] lg:min-h-[calc(100dvh-80px)] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/monday.jpeg'; }}
                   alt=""
                   decoding="async"
                   loading="lazy"
