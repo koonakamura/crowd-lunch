@@ -474,67 +474,64 @@ export default function HomePage() {
           
           return (
             <section key={dateKey} className="relative isolate">
-              {/* ヒーロー（1画面=1日） */}
-              <div className="relative h-[92vh] md:h-[100svh] pb-6 md:pb-8">
+              {/* ヒーロー（画像 + オーバーレイ） */}
+              <div className="relative bg-black h-[42vh] min-h-[260px] md:h-[54vh] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
                   decoding="async"
                   loading="lazy"
-                  className="absolute inset-0 w-full h-full object-cover object-center"
+                  className="absolute inset-0 h-full w-full object-cover object-center select-none"
                   draggable={false}
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
-                
-                {/* Optional gradient overlays for better text readability */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/25 to-transparent" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
-                
-                {/* 日付・曜日：中央寄せ/白/読みやすい影 */}
-                <header className="absolute top-8 md:top-12 inset-x-0 text-center text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]">
-                  <div className="font-libre tabular-nums leading-none text-5xl md:text-6xl">{dayKey}</div>
-                  <div className="font-libre mt-2 text-xl md:text-2xl">{dayName}</div>
+
+                {/* 日付・曜日（中央／白） */}
+                <header className="absolute inset-x-0 top-0 px-4 pt-6 pb-2 text-center text-white z-20">
+                  <div className="text-5xl md:text-6xl font-libre tabular-nums leading-none">{dayKey}</div>
+                  <div className="text-xl md:text-2xl font-libre mt-1">{dayName}</div>
                 </header>
 
-                {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
-                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4 pt-6 md:pt-8 pb-24 md:pb-28">
-                  {dayMenus.length > 0 ? (
-                    <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4">
-                      {dayMenus.map((menu) => (
-                        <button
-                          key={menu.id}
-                          onClick={() => addToCart(menu.id, dateKey)}
-                          disabled={(menu.max_qty || 0) <= 0}
-                          className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
-                            cart[menu.id] > 0 
-                              ? 'bg-primary' 
-                              : (menu.max_qty || 0) <= 0 
-                                ? 'bg-gray-500 cursor-not-allowed' 
-                                : 'bg-black/50 hover:bg-black/70'
-                          }`}
-                        >
-                          <div className="flex justify-between items-center w-full">
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
-                              <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
-                            </div>
-                            <div className="flex items-center gap-2 md:gap-2.5 leading-none">
-                              {menu.cafe_time_available && (
-                                <CafeIcon
-                                  className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
-                            </div>
+                {/* メニュー：ヘッダー直下から下に積む */}
+                <div className="absolute inset-0 z-20 pointer-events-none">
+                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pt-28 md:pt-36 pb-24 md:pb-28">
+                    {dayMenus.map((menu) => (
+                      <button
+                        key={menu.id}
+                        onClick={() => addToCart(menu.id, dateKey)}
+                        disabled={(menu.max_qty || 0) <= 0}
+                        className={`pointer-events-auto px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
+                          cart[menu.id] > 0 
+                            ? 'bg-primary' 
+                            : (menu.max_qty || 0) <= 0 
+                              ? 'bg-gray-500 cursor-not-allowed' 
+                              : 'bg-black/50 hover:bg-black/70'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center w-full">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
+                            <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+                          <div className="flex items-center gap-2 md:gap-2.5 leading-none">
+                            {menu.cafe_time_available && (
+                              <CafeIcon
+                                className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* 注文ボタン：ヒーロー内に sticky で配置 */}
+                {/* 明るい写真対策（任意） */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
+
+                {/* 注文ボタン（ヒーロー内でsticky・端より"少し上"で停止） */}
                 {dayCount > 0 && (
                   <div className="sticky top-[calc(100vh-(64px+env(safe-area-inset-bottom)))] md:top-[calc(100vh-(80px+env(safe-area-inset-bottom)))] z-30 pointer-events-none">
                     <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex justify-center">
@@ -542,13 +539,7 @@ export default function HomePage() {
                         type="button"
                         onClick={handleProceedToOrder}
                         disabled={isSubmitting || dayCount === 0}
-                        className="
-                          pointer-events-auto
-                          rounded-full px-6 py-3 md:px-8 md:py-3.5
-                          bg-amber-500/95 text-white font-semibold shadow-lg
-                          ring-1 ring-white/20
-                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80
-                        "
+                        className="pointer-events-auto rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                       >
                         注文（{dayCount}個）
                       </button>
