@@ -150,20 +150,22 @@ export default function HomePage() {
       return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
     }
     
-    const JST = '+09:00'
-    const dowJst = (k: string) => new Date(`${k}T00:00:00${JST}`).getDay()
-    
-    const defaultByDow: Record<number, string> = {
-      0: '/images/sunday.jpeg',      // Sun - pizza
-      1: '/images/monday.jpeg',      // Mon
-      2: '/images/tuesday.jpeg',     // Tue
-      3: '/images/wednesday.jpeg',   // Wed
-      4: '/images/thursday.jpeg',    // Thu
-      5: '/images/friday.jpeg',      // Fri
-      6: '/images/saturday.jpeg',    // Sat - churrasco
+    const dow = (k: string) => {
+      const [y, m, d] = k.split("-").map(Number)
+      return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
     }
     
-    return defaultByDow[dowJst(dateKey)] || '/images/monday.jpeg'
+    const defaultByDow: Record<number, string> = {
+      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',      // Sun
+      1: '/images/monday.jpeg',
+      2: '/images/tuesday.jpeg',
+      3: '/images/wednesday.jpeg',
+      4: '/images/thursday.jpeg',
+      5: '/images/friday.jpeg',
+      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',  // Sat
+    }
+    
+    return defaultByDow[dow(dateKey)] || '/images/monday.jpeg'
   }
 
   const getMenusForDate = (dateKey: string, selectedDeliveryTime?: string) => {
