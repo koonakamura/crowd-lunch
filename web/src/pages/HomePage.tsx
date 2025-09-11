@@ -475,7 +475,7 @@ export default function HomePage() {
           return (
             <section key={dateKey} className="relative isolate">
               {/* ヒーロー（1画面=1日） */}
-              <div className="relative h-[92vh] md:h-[100svh]">
+              <div className="relative h-[92vh] md:h-[100svh] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
@@ -497,7 +497,7 @@ export default function HomePage() {
                 </header>
 
                 {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
-                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4">
+                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4 pt-6 md:pt-8 pb-24 md:pb-28">
                   {dayMenus.length > 0 ? (
                     <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4">
                       {dayMenus.map((menu) => (
