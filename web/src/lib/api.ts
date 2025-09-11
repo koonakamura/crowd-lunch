@@ -1,4 +1,3 @@
-import { authenticatedFetch } from './basicAuth';
 
 function sanitizeApiUrl(url: string): string {
   try {
@@ -162,7 +161,7 @@ class ApiClient {
       (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;
     }
 
-    const response = await authenticatedFetch(url, {
+    const response = await fetch(url, {
       ...options,
       headers,
     });
@@ -327,7 +326,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await authenticatedFetch(`${API_BASE_URL}/admin/upload-image`, {
+    const response = await fetch(`${API_BASE_URL}/admin/upload-image`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -412,7 +411,7 @@ class ApiClient {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await authenticatedFetch(`${API_BASE_URL}/menus/background?date=${date}`, {
+    const response = await fetch(`${API_BASE_URL}/menus/background?date=${date}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -445,7 +444,7 @@ class ApiClient {
       formData.append('image', image);
     }
 
-    const response = await authenticatedFetch(`${API_BASE_URL}/menus`, {
+    const response = await fetch(`${API_BASE_URL}/menus`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.token}`,
@@ -488,7 +487,7 @@ class ApiClient {
     if (menu.cafe_time_available !== undefined) formData.append('cafe_time_available', menu.cafe_time_available.toString());
     formData.append('image', image);
 
-    const response = await authenticatedFetch(`${API_BASE_URL}/menus/${menuId}`, {
+    const response = await fetch(`${API_BASE_URL}/menus/${menuId}`, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${this.token}`,
