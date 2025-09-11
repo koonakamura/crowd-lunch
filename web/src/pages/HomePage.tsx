@@ -87,6 +87,8 @@ export default function HomePage() {
   const queryClient = useQueryClient()
   const [cart, setCart] = useState<Record<number, number>>({})
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  void selectedDay // Explicitly mark as intentionally unused for potential rollback to tab-based UI
+  void setSelectedDay // Explicitly mark as intentionally unused for potential rollback to tab-based UI
   const [selectedDate, setSelectedDate] = useState<Date>(() => todayJST(undefined))
   const [showLanding, setShowLanding] = useState(true)
   const [fadeOut, setFadeOut] = useState(false)
@@ -142,31 +144,38 @@ export default function HomePage() {
   }, [serverTime, selectedDate]);
 
 
-  const getBackgroundImage = (dayIndex: number, dayMenus: { img_url?: string }[]) => {
+  const getBackgroundImage = (dateKey: string, dayMenus: { img_url?: string }[]) => {
     const adminImage = dayMenus?.[0]?.img_url
     if (adminImage && adminImage.startsWith('/uploads/')) {
       return `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}`
     }
     
-    const defaultImages = [
-      '/images/monday.jpeg',
-      '/images/tuesday.jpeg', 
-      '/images/wednesday.jpeg',
-      '/images/thursday.jpeg',
-      '/images/friday.jpeg'
-    ]
-    return defaultImages[dayIndex] || '/images/monday.jpeg'
+    const dow = (k: string) => {
+      const [y, m, d] = k.split("-").map(Number)
+      return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+    }
+    
+    const defaultByDow: Record<number, string> = {
+      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',      // Sun
+      1: '/images/monday.jpeg',
+      2: '/images/tuesday.jpeg',
+      3: '/images/wednesday.jpeg',
+      4: '/images/thursday.jpeg',
+      5: '/images/friday.jpeg',
+      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',  // Sat
+    }
+    
+    return defaultByDow[dow(dateKey)] || '/images/monday.jpeg'
   }
 
-  const getMenusForDate = (date: Date, selectedDeliveryTime?: string) => {
+  const getMenusForDate = (dateKey: string, selectedDeliveryTime?: string) => {
     if (!weeklyMenusData?.days) return []
     
-    const dateKey = format(date, 'yyyy-MM-dd')
     const menus = weeklyMenusData.days[dateKey] || []
     
     const shouldFilterForCafeTime = selectedDeliveryTime ? 
       isCafeTime(selectedDeliveryTime) : 
-      (serverTime && serverTime.getHours() >= 14 && format(date, 'yyyy-MM-dd') === format(serverTime, 'yyyy-MM-dd'))
+      (serverTime && serverTime.getHours() >= 14 && dateKey === format(serverTime, 'yyyy-MM-dd'))
     
     if (shouldFilterForCafeTime) {
       return menus.filter(menu => menu.cafe_time_available === true)
@@ -201,21 +210,21 @@ export default function HomePage() {
   }
 
   const getSelectedDate = (): Date | null => {
-    if (!selectedDay) return null
-    const dayInfo = windowDates.find(date => format(date, 'M/d') === selectedDay)
-    return dayInfo || null
+    return selectedDate
   }
 
 
-  const addToCart = (menuId: number, dayKey: string) => {
-    if (selectedDay && selectedDay !== dayKey) {
+  const addToCart = (menuId: number, dateKey: string) => {
+    const currentCartDate = Object.keys(cart).length > 0 ? 
+      getSelectedMenus()[0]?.menu?.serve_date : null
+    
+    if (currentCartDate && currentCartDate !== dateKey) {
       setCart({})
     }
-    setSelectedDay(dayKey)
-    const clickedDate = windowDates.find(d => format(d, 'M/d') === dayKey)
-    if (clickedDate) {
-      setSelectedDate(clickedDate)
-    }
+    
+    const clickedDate = new Date(dateKey + 'T00:00:00')
+    setSelectedDate(clickedDate)
+    
     setCart(prev => ({
       ...prev,
       [menuId]: prev[menuId] > 0 ? 0 : 1
@@ -456,82 +465,90 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="pt-16">
-        {windowDates.map((date, index) => {
-          const dayKey = format(date, 'M/d')
-          const dayMenus = getMenusForDate(date, selectedDay === dayKey ? deliveryTime : undefined)
-          
+      <div className="pt-16 grid grid-cols-1 gap-6">
+        {weeklyMenusData?.days && Object.keys(weeklyMenusData.days).sort().map((dateKey, index) => {
+          const dayMenus = getMenusForDate(dateKey, deliveryTime)
+          const date = new Date(dateKey + 'T00:00:00')
           const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]
+          const dayKey = format(date, 'M/d')
+          const isFirst = index === 0
           
           return (
-            <section 
-              key={format(date, 'yyyy-MM-dd')}
-              className="min-h-screen relative flex flex-col justify-center items-center p-8"
-              style={{
-                backgroundImage: `url(${getBackgroundImage(index, dayMenus)})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center'
-              }}
-            >
-              <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
-                <h2 className="text-6xl font-bold text-white drop-shadow-lg font-libre tabular-nums">
-                  {dayKey}
-                </h2>
-                <p className="text-2xl text-white mt-2 font-libre">
-                  ({dayName})
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
-                {dayMenus.length > 0 ? (
-                  dayMenus.map((menu) => (
-                    <button
-                      key={menu.id}
-                      onClick={() => addToCart(menu.id, dayKey)}
-                      disabled={(menu.max_qty || 0) <= 0}
-                      className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight ${
-                        cart[menu.id] > 0 
-                          ? 'bg-primary' 
-                          : (menu.max_qty || 0) <= 0 
-                            ? 'bg-gray-500 cursor-not-allowed' 
-                            : 'bg-black/50 hover:bg-black/70'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center w-full">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
-                          <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
-                        </div>
-                        <div className="flex items-center gap-2 md:gap-2.5 leading-none">
-                          {menu.cafe_time_available && (
-                            <CafeIcon
-                              className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
-                              aria-hidden="true"
-                            />
-                          )}
-                          <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="col-span-full"></div>
-                )}
-              </div>
-              
-              {getTotalItems() > 0 && selectedDay === dayKey && (
-                <div className="text-center mt-8">
-                  <Button 
-                    onClick={handleProceedToOrder}
-                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl"
-                  >
-                    注文
-                  </Button>
+            <section key={dateKey} className="relative overflow-hidden">
+              {/* ヒーロー（1画面=1日） */}
+              <div className="relative h-[92vh] md:h-[100svh]">
+                <img
+                  src={getBackgroundImage(dateKey, dayMenus)}
+                  alt=""
+                  decoding="async"
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover object-center"
+                  draggable={false}
+                  {...(isFirst ? { fetchPriority: 'high' as const } : {})}
+                />
+                
+                {/* Optional gradient overlays for better text readability */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/25 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
+                
+                {/* 日付・曜日：中央寄せ/白/読みやすい影 */}
+                <header className="absolute top-8 md:top-12 inset-x-0 text-center text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]">
+                  <div className="font-libre tabular-nums leading-none text-5xl md:text-6xl">{dayKey}</div>
+                  <div className="font-libre mt-2 text-xl md:text-2xl">{dayName}</div>
+                </header>
+
+                {/* メニュー群：画像の"上"に重ねて下寄せ・中央寄せ */}
+                <div className="absolute inset-x-0 bottom-3 md:bottom-4 px-3 md:px-4 pb-8">
+                  {dayMenus.length > 0 ? (
+                    <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4">
+                      {dayMenus.map((menu) => (
+                        <button
+                          key={menu.id}
+                          onClick={() => addToCart(menu.id, dateKey)}
+                          disabled={(menu.max_qty || 0) <= 0}
+                          className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
+                            cart[menu.id] > 0 
+                              ? 'bg-primary' 
+                              : (menu.max_qty || 0) <= 0 
+                                ? 'bg-gray-500 cursor-not-allowed' 
+                                : 'bg-black/50 hover:bg-black/70'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center w-full">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
+                              <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
+                            </div>
+                            <div className="flex items-center gap-2 md:gap-2.5 leading-none">
+                              {menu.cafe_time_available && (
+                                <CafeIcon
+                                  className="inline-block align-middle h-[1.5em] w-[1.5em] md:h-[1.6em] md:w-[1.6em] text-white/90"
+                                  aria-hidden="true"
+                                />
+                              )}
+                              <span className="text-lg font-bold tabular-nums whitespace-nowrap">{menu.price}円</span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              )}
+              </div>
             </section>
           )
         })}
+        
+        {getTotalItems() > 0 && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+            <Button 
+              onClick={handleProceedToOrder}
+              className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-3xl shadow-lg"
+            >
+              注文 ({getTotalItems()}個)
+            </Button>
+          </div>
+        )}
       </div>
 
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
@@ -636,8 +653,8 @@ export default function HomePage() {
               </div>
 
               <div className="text-sm text-gray-300 mt-2 p-3 bg-gray-800 rounded">
-                <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。</p>
-                <p>当日11時までの予約注文は、時間通りのお届けがしやすくなりますので事前のご予約をお願いします。</p>
+                <p>ピークタイム直前のご注文はお届け時間が多少前後する可能性がございます。早めのご予約をお願いします。</p>
+                <p>カフェタイムメニューは14時以降のお届けが可能です。ぜひご利用ください。</p>
               </div>
             </div>
           </div>
