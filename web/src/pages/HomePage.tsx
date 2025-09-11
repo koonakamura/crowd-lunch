@@ -475,7 +475,7 @@ export default function HomePage() {
           return (
             <section key={dateKey} className="relative isolate">
               {/* ヒーロー（画像 + オーバーレイ） */}
-              <div className="relative bg-black min-h-[54vh] md:min-h-[68vh] lg:min-h-[76vh] pb-6 md:pb-8">
+              <div className="relative bg-black min-h-[calc(100dvh-64px)] md:min-h-[calc(100dvh-72px)] lg:min-h-[calc(100dvh-80px)] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
                   alt=""
