@@ -481,7 +481,7 @@ export default function HomePage() {
                   alt=""
                   decoding="async"
                   loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover object-center select-none -z-10"
+                  className="absolute inset-0 h-full w-full object-cover object-center select-none z-0"
                   draggable={false}
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
@@ -493,7 +493,7 @@ export default function HomePage() {
                 </header>
 
                 {/* メニュー：ヘッダー直下から下に積む */}
-                <div className="px-3 md:px-4 mt-4 md:mt-5">
+                <div className="px-3 md:px-4 mt-4 md:mt-5 relative z-10">
                   <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-24 md:pb-28">
                     {dayMenus.map((menu) => (
                       <button
@@ -529,7 +529,7 @@ export default function HomePage() {
                 </div>
 
                 {/* 明るい写真対策（任意） */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent -z-0" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
 
                 {/* 注文ボタン（ヒーロー内でsticky・端より"少し上"で停止） */}
                 {dayCount > 0 && (
