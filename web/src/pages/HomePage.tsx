@@ -233,8 +233,8 @@ export default function HomePage() {
 
   const menusById = useMemo(() => {
     const days = weeklyMenusData?.days ?? {};
-    const map = new Map<number, any>();
-    Object.values(days).flat().forEach((m: any) => map.set(m.id, m));
+    const map = new Map<number, MenuSQLAlchemy>();
+    Object.values(days).flat().forEach((m: MenuSQLAlchemy) => map.set(m.id, m));
     return map;
   }, [weeklyMenusData]);
 
@@ -252,9 +252,10 @@ export default function HomePage() {
           qty,
           price,
           total: price * qty,
-          menu: m, // Keep menu object for compatibility
+          menu: m!, // Keep menu object for compatibility
         };
-      });
+      })
+      .filter(line => line.menu); // Filter out lines where menu is undefined
   }, [cart, menusById]);
 
   const total = useMemo(
@@ -264,10 +265,6 @@ export default function HomePage() {
 
   const getSelectedMenus = () => {
     return orderLines.map(line => ({ menu: line.menu, qty: line.qty }));
-  }
-
-  const getTotalPrice = () => {
-    return total;
   }
 
   const handleSubmitOrder = async () => {
