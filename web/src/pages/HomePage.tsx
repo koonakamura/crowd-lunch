@@ -484,6 +484,9 @@ export default function HomePage() {
                   {...(isFirst ? { fetchPriority: 'high' as const } : {})}
                 />
                 
+                {/* Optional gradient overlay for better text readability */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/25 to-transparent" />
+                
                 {/* 日付・曜日：中央寄せ/白/読みやすい影 */}
                 <header className="absolute top-8 md:top-12 inset-x-0 text-center text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.55)]">
                   <div className="font-libre tabular-nums leading-none text-5xl md:text-6xl">{dayKey}</div>
