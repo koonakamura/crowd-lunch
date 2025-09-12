@@ -578,8 +578,10 @@ export default function HomePage() {
                     onClick={handleProceedToOrder}
                     disabled={dayCount === 0}
                     className={
-                      "w-fit rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 transition-opacity " +
-                      (dayCount === 0 ? "invisible pointer-events-none" : "")
+                      "w-fit min-w-[9rem] whitespace-nowrap rounded-full px-6 py-3 md:px-8 md:py-3.5 " +
+                      "bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 " +
+                      "transition-opacity " +
+                      (dayCount === 0 ? "opacity-0 invisible pointer-events-none" : "opacity-100")
                     }
                     aria-hidden={dayCount === 0}
                     tabIndex={dayCount === 0 ? -1 : 0}
