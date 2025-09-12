@@ -571,19 +571,22 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* 注文ボタン（メニューの直下にフロー配置） */}
-                {dayCount > 0 && (
-                  <div className="relative z-10 mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] mt-3 md:mt-4 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={handleProceedToOrder}
-                      disabled={isSubmitting || dayCount === 0}
-                      className="pointer-events-auto rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                    >
-                      注文（{dayCount}個）
-                    </button>
-                  </div>
-                )}
+                {/* メニュー直下に常にボタン枠を確保（高さ変化ゼロ） */}
+                <div className="relative z-10 mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] mt-3 md:mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={handleProceedToOrder}
+                    disabled={dayCount === 0}
+                    className={
+                      "w-fit rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 transition-opacity " +
+                      (dayCount === 0 ? "invisible pointer-events-none" : "")
+                    }
+                    aria-hidden={dayCount === 0}
+                    tabIndex={dayCount === 0 ? -1 : 0}
+                  >
+                    注文（{dayCount}個）
+                  </button>
+                </div>
 
                 {/* 明るい写真対策（任意） */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
