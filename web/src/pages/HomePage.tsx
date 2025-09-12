@@ -537,7 +537,7 @@ export default function HomePage() {
 
                 {/* メニュー：ヘッダー直下から下に積む */}
                 <div className="px-3 md:px-4 mt-4 md:mt-5 relative z-10">
-                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-16 md:pb-20">
+                  <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-2 md:pb-3">
                     {dayMenus.map((menu) => (
                       <button
                         key={menu.id}
@@ -571,24 +571,22 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* 明るい写真対策（任意） */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
-
-                {/* 注文ボタン（ヒーロー内でsticky・端より"少し上"で停止） */}
+                {/* 注文ボタン（メニューの直下にフロー配置） */}
                 {dayCount > 0 && (
-                  <div className="sticky top-[calc(100vh-(64px+env(safe-area-inset-bottom)))] md:top-[calc(100vh-(80px+env(safe-area-inset-bottom)))] z-20 pointer-events-none mt-6">
-                    <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex justify-center">
-                      <button
-                        type="button"
-                        onClick={handleProceedToOrder}
-                        disabled={isSubmitting || dayCount === 0}
-                        className="pointer-events-auto rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                      >
-                        注文（{dayCount}個）
-                      </button>
-                    </div>
+                  <div className="relative z-10 mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] mt-3 md:mt-4">
+                    <button
+                      type="button"
+                      onClick={handleProceedToOrder}
+                      disabled={isSubmitting || dayCount === 0}
+                      className="pointer-events-auto rounded-full px-6 py-3 md:px-8 md:py-3.5 bg-amber-500/95 text-white font-semibold shadow-lg ring-1 ring-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                    >
+                      注文（{dayCount}個）
+                    </button>
                   </div>
                 )}
+
+                {/* 明るい写真対策（任意） */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent z-10" />
               </div>
             </section>
           )
