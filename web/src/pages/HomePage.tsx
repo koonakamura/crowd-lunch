@@ -311,10 +311,9 @@ export default function HomePage() {
     
     setIsSubmitting(true)
     try {
-      const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
-        menu_id: parseInt(menuId),
-        qty
-      }))
+      const orderItems = Object.entries(cart)
+        .map(([menuId, qty]) => ({ menu_id: parseInt(menuId), qty: Number(qty ?? 0) }))
+        .filter(({ qty }) => qty > 0)
 
       const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);

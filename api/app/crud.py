@@ -78,12 +78,13 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     db.refresh(db_order)
     
     for item in order.items:
-        db_item = models.OrderItem(
-            order_id=db_order.id,
-            menu_id=item.menu_id,
-            qty=item.qty
-        )
-        db.add(db_item)
+        if item.qty > 0:  # Filter out items with qty <= 0
+            db_item = models.OrderItem(
+                order_id=db_order.id,
+                menu_id=item.menu_id,
+                qty=item.qty
+            )
+            db.add(db_item)
     
     db.commit()
     db.refresh(db_order)
@@ -285,12 +286,13 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     
     
     for item in order.items:
-        db_item = models.OrderItem(
-            order_id=db_order.id,
-            menu_id=item.menu_id,
-            qty=item.qty
-        )
-        db.add(db_item)
+        if item.qty > 0:  # Filter out items with qty <= 0
+            db_item = models.OrderItem(
+                order_id=db_order.id,
+                menu_id=item.menu_id,
+                qty=item.qty
+            )
+            db.add(db_item)
     
     db.commit()
     db.refresh(db_order)
