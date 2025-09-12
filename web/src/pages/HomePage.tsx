@@ -14,6 +14,14 @@ import { makeTodayWindow, todayJST } from '../lib/dateWindow'
 import { getAvailableTimeSlots, isCutoffTimeExpired, convertToPickupAt } from '../utils/timeUtils'
 import CafeIcon from '../components/icons/CafeIcon'
 
+import mon from '@/assets/defaults/monday.jpeg'
+import tue from '@/assets/defaults/tuesday.jpeg'
+import wed from '@/assets/defaults/wednesday.jpeg'
+import thu from '@/assets/defaults/thursday.jpeg'
+import fri from '@/assets/defaults/friday.jpeg'
+import sat from '@/assets/defaults/AdobeStock_792531420_Preview_churrasco.jpeg'
+import sun from '@/assets/defaults/AdobeStock_387834369_Preview_pizza.jpeg'
+
 interface MenuSQLAlchemy {
   id: number;
   title: string;
@@ -151,13 +159,13 @@ export default function HomePage() {
     }
     
     const defaultByDow: Record<number, string> = {
-      0: '/images/AdobeStock_387834369_Preview_pizza.jpeg',        // Sun
-      1: '/images/monday.jpeg',
-      2: '/images/tuesday.jpeg',
-      3: '/images/wednesday.jpeg',
-      4: '/images/thursday.jpeg',
-      5: '/images/friday.jpeg',
-      6: '/images/AdobeStock_792531420_Preview_churrasco.jpeg',    // Sat
+      0: sun,  // Sun: pizza
+      1: mon,  // Mon
+      2: tue,  // Tue
+      3: wed,  // Wed
+      4: thu,  // Thu
+      5: fri,  // Fri
+      6: sat,  // Sat: churrasco
     }
     
     const adminImage = dayMenus?.[0]?.img_url
@@ -167,7 +175,7 @@ export default function HomePage() {
       (adminImage && adminImage.startsWith('/uploads/') ? `${import.meta.env.VITE_API_URL || 'https://crowd-lunch.fly.dev'}${adminImage}` : null)  // 管理画面でその日に指定があれば最優先
       ?? firstMenuImg               // その日の最初のメニュー画像
       ?? defaultByDow[dow(dateKey)] // デフォルト（曜日ごと）
-      ?? '/images/monday.jpeg'      // 最終フォールバック
+      ?? mon                        // 最終フォールバック
     
     return heroSrc
   }
@@ -512,7 +520,7 @@ export default function HomePage() {
               <div className="relative bg-black min-h-[calc(100dvh-64px)] md:min-h-[calc(100dvh-72px)] lg:min-h-[calc(100dvh-80px)] pb-6 md:pb-8">
                 <img
                   src={getBackgroundImage(dateKey, dayMenus)}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/monday.jpeg'; }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = mon; }}
                   alt=""
                   decoding="async"
                   loading="lazy"
