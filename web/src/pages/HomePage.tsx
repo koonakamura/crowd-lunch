@@ -573,7 +573,7 @@ export default function HomePage() {
 
                 {/* 注文ボタン（メニューの直下にフロー配置） */}
                 {dayCount > 0 && (
-                  <div className="relative z-10 mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] mt-3 md:mt-4">
+                  <div className="relative z-10 mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] mt-3 md:mt-4 flex justify-center">
                     <button
                       type="button"
                       onClick={handleProceedToOrder}
