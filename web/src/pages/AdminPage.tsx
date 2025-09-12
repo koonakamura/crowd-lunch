@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
 import { formatJst } from '../utils/datetime'
+import { JstTime } from '../components/admin/JstTime'
 
 interface ApiError {
   status: number;
@@ -535,13 +536,7 @@ export default function AdminPage() {
     const link = document.createElement('a');
     
     const today = new Date();
-    const jstToday = new Intl.DateTimeFormat('ja-JP', {
-      timeZone: 'Asia/Tokyo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).format(today).replace(/\//g, '');
-    const dateStr = jstToday;
+    const dateStr = formatJst(today).split(' ')[0].replace(/\//g, '');
     const filename = `orders_${dateStr}.csv`;
     
     link.href = URL.createObjectURL(blob);
@@ -789,7 +784,7 @@ export default function AdminPage() {
                     (showConfirmedOnly ? confirmedOrders : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
-                        <td className="p-2">{formatJst(order.created_at)}</td>
+                        <td className="p-2"><JstTime value={order.created_at} /></td>
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
                         <td className="p-2">{order.user.name}</td>
@@ -803,7 +798,7 @@ export default function AdminPage() {
                               disabled={toggleDeliveryMutation.isPending}
                             />
                             <span className="text-sm text-gray-600">
-                              {order.delivered_at ? formatJst(order.delivered_at) : ''}
+                              {order.delivered_at ? <JstTime value={order.delivered_at} /> : ''}
                             </span>
                           </div>
                         </td>
