@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
+import { formatJst } from '../utils/datetime'
+import { JstTime } from '../components/admin/JstTime'
 
 interface ApiError {
   status: number;
@@ -13,26 +15,6 @@ interface ApiError {
 
 const API_BASE_URL = 'https://crowd-lunch.fly.dev';
 
-const formatJSTTime = (utcDateString: string): string => {
-  const date = new Date(utcDateString);
-  
-  try {
-    return date.toLocaleString('ja-JP', { 
-      timeZone: 'Asia/Tokyo', 
-      month: '2-digit', 
-      day: '2-digit', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  } catch {
-    const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-    const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(jstDate.getUTCDate()).padStart(2, '0');
-    const hour = String(jstDate.getUTCHours()).padStart(2, '0');
-    const minute = String(jstDate.getUTCMinutes()).padStart(2, '0');
-    return `${month}/${day} ${hour}:${minute}`;
-  }
-};
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -523,7 +505,7 @@ export default function AdminPage() {
     orders.forEach(order => {
       const row = [
         order.order_id || `#${order.id.toString().padStart(7, '0')}`,
-        formatJSTTime(order.created_at),
+        formatJst(order.created_at),
         order.department || '',
         order.customer_name || order.user?.name || '',
         order.order_items.map(item => item.menu.title).join('、'),
@@ -531,7 +513,7 @@ export default function AdminPage() {
         order.delivery_location || '',
         order.request_time || '',
         order.delivered_at ? 'true' : 'false',
-        order.delivered_at ? formatJSTTime(order.delivered_at) : ''
+        order.delivered_at ? formatJst(order.delivered_at) : ''
       ];
       csvRows.push(row.map(field => `"${field.replace(/"/g, '""')}"`).join(','));
     });
@@ -554,9 +536,7 @@ export default function AdminPage() {
     const link = document.createElement('a');
     
     const today = new Date();
-    const dateStr = today.getFullYear() + 
-      String(today.getMonth() + 1).padStart(2, '0') + 
-      String(today.getDate()).padStart(2, '0');
+    const dateStr = formatJst(today).split(' ')[0].replace(/\//g, '');
     const filename = `orders_${dateStr}.csv`;
     
     link.href = URL.createObjectURL(blob);
@@ -804,7 +784,7 @@ export default function AdminPage() {
                     (showConfirmedOnly ? confirmedOrders : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
-                        <td className="p-2">{formatJSTTime(order.created_at)}</td>
+                        <td className="p-2"><JstTime value={order.created_at} /></td>
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
                         <td className="p-2">{order.user.name}</td>
@@ -818,7 +798,7 @@ export default function AdminPage() {
                               disabled={toggleDeliveryMutation.isPending}
                             />
                             <span className="text-sm text-gray-600">
-                              {order.delivered_at ? formatJSTTime(order.delivered_at) : ''}
+                              {order.delivered_at ? <JstTime value={order.delivered_at} /> : ''}
                             </span>
                           </div>
                         </td>
