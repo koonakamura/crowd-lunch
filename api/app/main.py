@@ -34,6 +34,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://system-creator-app-tunnel-r1d1fmif.devinapps.com",  # tunnel frontend
+    "https://system-creator-app-thj7drts.devinapps.com",  # deployed frontend
 ]
 ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
 
