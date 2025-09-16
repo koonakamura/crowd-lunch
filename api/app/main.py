@@ -33,6 +33,7 @@ ALLOWED_ORIGINS = [
     "https://cheery-dango-2fd190.netlify.app",  # prod
     "http://localhost:3000",
     "http://localhost:3001",
+    "https://system-creator-app-tunnel-r1d1fmif.devinapps.com",  # tunnel frontend
 ]
 ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
 
@@ -51,12 +52,18 @@ logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
 
 @app.middleware("http")
 async def add_security_headers(request, call_next):
+    origin = request.headers.get("origin")
+    allowed_origin = "*"  # Default fallback
+    
+    if origin and origin in ALLOWED_ORIGINS:
+        allowed_origin = origin
+    
     if request.method == "OPTIONS":
         from fastapi import Response
         return Response(
             status_code=200,
             headers={
-                "Access-Control-Allow-Origin": "http://localhost:3000",
+                "Access-Control-Allow-Origin": allowed_origin,
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "authorization, content-type, accept, cache-control, pragma, expires",
                 "Access-Control-Max-Age": "600"
@@ -65,7 +72,7 @@ async def add_security_headers(request, call_next):
     
     response = await call_next(request)
     
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:3000"
+    response.headers["Access-Control-Allow-Origin"] = allowed_origin
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "authorization, content-type, accept, cache-control, pragma, expires"
     
@@ -108,13 +115,20 @@ async def healthz():
 
 
 @app.options("/{path:path}")
-async def handle_preflight(path: str):
+async def handle_preflight(path: str, request: Request):
     """Handle all preflight requests with proper CORS headers"""
     from fastapi import Response
+    
+    origin = request.headers.get("origin")
+    allowed_origin = "*"  # Default fallback
+    
+    if origin and origin in ALLOWED_ORIGINS:
+        allowed_origin = origin
+    
     return Response(
         status_code=200,
         headers={
-            "Access-Control-Allow-Origin": "http://localhost:3001",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "authorization, content-type, accept",
             "Access-Control-Max-Age": "600"

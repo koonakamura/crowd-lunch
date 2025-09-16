@@ -1,19 +1,29 @@
 
-function sanitizeApiUrl(url: string): string {
+function sanitizeApiUrl(url: string): { cleanUrl: string; credentials?: { username: string; password: string } } {
   try {
     const urlObj = new URL(url);
     if (urlObj.hostname.startsWith('xn--')) {
       console.warn(`Punycode domain detected: ${urlObj.hostname}, falling back to direct API host`);
-      return 'https://crowd-lunch.fly.dev';
+      return { cleanUrl: 'https://crowd-lunch.fly.dev' };
     }
-    return url;
+    
+    if (urlObj.username && urlObj.password) {
+      const credentials = { username: urlObj.username, password: urlObj.password };
+      urlObj.username = '';
+      urlObj.password = '';
+      const cleanUrl = urlObj.toString().replace(/\/$/, '');
+      return { cleanUrl, credentials };
+    }
+    
+    const cleanUrl = url.replace(/\/$/, '');
+    return { cleanUrl };
   } catch {
-    return 'https://crowd-lunch.fly.dev';
+    return { cleanUrl: 'https://crowd-lunch.fly.dev' };
   }
 }
 
 const RAW_API_BASE_URL = (import.meta.env as { VITE_API_BASE_URL?: string }).VITE_API_BASE_URL || 'https://crowd-lunch.fly.dev';
-const API_BASE_URL = sanitizeApiUrl(RAW_API_BASE_URL);
+const { cleanUrl: API_BASE_URL, credentials: API_CREDENTIALS } = sanitizeApiUrl(RAW_API_BASE_URL);
 
 const DIAGNOSTIC_INFO = {
   API_BASE_URL: API_BASE_URL,
@@ -27,9 +37,16 @@ console.log('=== API CLIENT DIAGNOSTIC INFO ===', DIAGNOSTIC_INFO);
 
 const performConnectivityCheck = async () => {
   try {
+    const headers: HeadersInit = { 'Cache-Control': 'no-cache' };
+    
+    if (API_CREDENTIALS) {
+      const basicAuth = btoa(`${API_CREDENTIALS.username}:${API_CREDENTIALS.password}`);
+      (headers as Record<string, string>).Authorization = `Basic ${basicAuth}`;
+    }
+    
     const response = await fetch(`${API_BASE_URL}/server-time`, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers
     });
     if (response.ok) {
       console.log('✅ API connectivity verified');
@@ -156,6 +173,11 @@ class ApiClient {
       'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    if (API_CREDENTIALS) {
+      const basicAuth = btoa(`${API_CREDENTIALS.username}:${API_CREDENTIALS.password}`);
+      (headers as Record<string, string>).Authorization = `Basic ${basicAuth}`;
+    }
 
     if (this.token && !isServerTime) {
       (headers as Record<string, string>).Authorization = `Bearer ${this.token}`;

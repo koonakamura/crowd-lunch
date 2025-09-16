@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { apiClient, type MenuSQLAlchemy, apiFetch } from '../lib/api'
+import { apiClient, type MenuSQLAlchemy, apiFetch, DIAGNOSTIC_INFO } from '../lib/api'
 import { DiagnosticInfo } from '../components/DiagnosticInfo'
 
 interface ApiError {
@@ -11,7 +11,7 @@ interface ApiError {
   raw: unknown;
 }
 
-const API_BASE_URL = 'https://crowd-lunch.fly.dev';
+const API_BASE_URL = DIAGNOSTIC_INFO.API_BASE_URL;
 
 const formatJSTTime = (utcDateString: string): string => {
   const date = new Date(utcDateString);
@@ -343,7 +343,7 @@ export default function AdminPage() {
       
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
-        const apiUrl = import.meta.env?.VITE_API_URL as string || 'https://crowd-lunch.fly.dev'
+        const apiUrl = DIAGNOSTIC_INFO.API_BASE_URL
         const imageUrl = firstMenuWithImage.img_url.startsWith('/uploads/') 
           ? `${apiUrl}${firstMenuWithImage.img_url}`
           : firstMenuWithImage.img_url
@@ -375,7 +375,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token) return
     
-    const wsUrl = (import.meta.env?.VITE_API_URL || 'https://crowd-lunch.fly.dev').replace(/^http/, 'ws')
+    const wsUrl = DIAGNOSTIC_INFO.API_BASE_URL.replace(/^http/, 'ws')
     const ws = new WebSocket(`${wsUrl}/ws/orders`)
     
     ws.onmessage = (event) => {
