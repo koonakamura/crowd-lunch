@@ -195,7 +195,8 @@ async def login_redirect(redirect_uri: str, state: str = None):
         
         ALLOWED_HOSTS = {
             "cheery-dango-2fd190.netlify.app",
-            "system-creator-app-tunnel-r1d1fmif.devinapps.com"
+            "system-creator-app-tunnel-r1d1fmif.devinapps.com",
+            "system-creator-app-thj7drts.devinapps.com"
         }
         
         LOCALHOST_HOSTS = {
