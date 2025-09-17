@@ -221,7 +221,8 @@ async def login_redirect(redirect_uri: str, state: str = None):
             "event": "admin_login_blocked",
             "reason": "redirect_uri_validation_failed",
             "redirect_uri": redirect_uri,
-            "error": str(e)
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
         })
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
