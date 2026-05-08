@@ -50,6 +50,7 @@ interface Order {
   delivered_at?: string
   department?: string
   customer_name?: string
+  note?: string
   status: string
 }
 
@@ -496,18 +497,19 @@ export default function AdminPage() {
   const generateCSV = (orders: Order[]): string => {
     const BOM = '\uFEFF';
     const headers = [
-      '注文ID', '注文時間', '注文者部署', '注文者名前', 'メニュー', 
+      '注文ID', '注文時間', '注文者部署', '注文者名前', '備考', 'メニュー',
       '金額', 'お届け場所', '配達時間', '配達完了ステータス', '配達完了時間'
     ];
-    
+
     const csvRows = [headers.join(',')];
-    
+
     orders.forEach(order => {
       const row = [
         order.order_id || `#${order.id.toString().padStart(7, '0')}`,
         formatJst(order.created_at),
         order.department || '',
         order.customer_name || order.user?.name || '',
+        order.note || '',
         order.order_items.map(item => item.menu.title).join('、'),
         order.total_price.toString(),
         order.delivery_location || '',
@@ -774,6 +776,7 @@ export default function AdminPage() {
                     <th className="text-left p-2">メニュー</th>
                     <th className="text-left p-2">金額</th>
                     <th className="text-left p-2">注文者</th>
+                    <th className="text-left p-2">備考</th>
                     <th className="text-left p-2">お届け場所</th>
                     <th className="text-left p-2">配達時間</th>
                     <th className="text-left p-2">配達完了</th>
@@ -788,6 +791,7 @@ export default function AdminPage() {
                         <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
                         <td className="p-2">{order.user.name}</td>
+                        <td className="p-2 whitespace-pre-wrap break-words max-w-[16rem]">{order.note || '-'}</td>
                         <td className="p-2">{order.delivery_location || '-'}</td>
                         <td className="p-2">{order.request_time || '-'}</td>
                         <td className="p-2">
@@ -806,7 +810,7 @@ export default function AdminPage() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="text-center text-muted-foreground py-8">
+                      <td colSpan={9} className="text-center text-muted-foreground py-8">
                         注文がありません
                       </td>
                     </tr>

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import date, time, datetime
 from .models import DeliveryType, OrderStatus
@@ -80,6 +80,7 @@ class OrderCreateWithDepartmentName(BaseModel):
     name: str
     items: List[OrderItemCreate]
     pickup_at: Optional[datetime] = None
+    note: Optional[str] = Field(default=None, max_length=500)
 
 class Order(OrderBase):
     id: int
@@ -94,7 +95,8 @@ class Order(OrderBase):
     customer_name: Optional[str] = None
     delivery_location: Optional[str] = None
     delivered_at: Optional[datetime] = None
-    
+    note: Optional[str] = None
+
     class Config:
         from_attributes = True
 

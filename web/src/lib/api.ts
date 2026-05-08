@@ -106,6 +106,7 @@ export interface Order {
   customer_name?: string;
   delivery_location?: string;
   delivered_at?: string;
+  note?: string;
 }
 
 export interface WeeklyMenuResponse {
@@ -248,6 +249,7 @@ class ApiClient {
     name: string;
     items: OrderItem[];
     pickup_at?: string;
+    note?: string;
   }): Promise<Order> {
     return this.request('/orders/guest', {
       method: 'POST',

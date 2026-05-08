@@ -277,7 +277,8 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
         status=models.OrderStatus.new,
         department=order.department,
         customer_name=order.name,
-        order_id=order_id
+        order_id=order_id,
+        note=order.note,
     )
     db.add(db_order)
     db.commit()

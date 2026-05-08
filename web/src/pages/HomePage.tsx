@@ -103,6 +103,7 @@ export default function HomePage() {
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [department, setDepartment] = useState('')
   const [customerName, setCustomerName] = useState('')
+  const [note, setNote] = useState('')
   const [deliveryTime, setDeliveryTime] = useState('')
   const [deliveryLocation, setDeliveryLocation] = useState('')
   const [showConfirmationModal, setShowConfirmationModal] = useState(false)
@@ -227,20 +228,25 @@ export default function HomePage() {
 
 
   const addToCart = (menuId: number, dateKey: string) => {
-    const currentCartDate = Object.keys(cart).length > 0 ? 
+    const currentCartDate = Object.keys(cart).length > 0 ?
       getSelectedMenus()[0]?.menu?.serve_date : null
-    
+
     if (currentCartDate && currentCartDate !== dateKey) {
       setCart({})
     }
-    
+
     const clickedDate = new Date(dateKey + 'T00:00:00')
     setSelectedDate(clickedDate)
-    
-    setCart(prev => ({
-      ...prev,
-      [menuId]: prev[menuId] > 0 ? 0 : 1
-    }))
+
+    setCart(prev => {
+      const next = { ...prev }
+      if ((prev[menuId] ?? 0) > 0) {
+        delete next[menuId]
+      } else {
+        next[menuId] = 1
+      }
+      return next
+    })
   }
 
 
@@ -311,10 +317,18 @@ export default function HomePage() {
     
     setIsSubmitting(true)
     try {
-      const orderItems = Object.entries(cart).map(([menuId, qty]) => ({
-        menu_id: parseInt(menuId),
-        qty
-      }))
+      const orderItems = Object.entries(cart)
+        .filter(([, qty]) => (qty ?? 0) > 0)
+        .map(([menuId, qty]) => ({
+          menu_id: parseInt(menuId),
+          qty
+        }))
+
+      if (orderItems.length === 0) {
+        toast.error('注文するメニューが選択されていません。')
+        setIsSubmitting(false)
+        return
+      }
 
       const selectedDate = getSelectedDate() ? toServeDateKey(getSelectedDate()!) : toServeDateKey(new Date());
       const pickupAt = convertToPickupAt(selectedDate, deliveryTime);
@@ -327,7 +341,8 @@ export default function HomePage() {
         department: department,
         name: customerName,
         items: orderItems,
-        pickup_at: pickupAt
+        pickup_at: pickupAt,
+        note: note.trim() || undefined,
       };
       
       
@@ -364,6 +379,7 @@ export default function HomePage() {
       setSelectedDay(null)
       setDepartment('')
       setCustomerName('')
+      setNote('')
       setDeliveryTime('')
       setDeliveryLocation('')
       setShowConfirmationModal(false)
@@ -648,6 +664,18 @@ export default function HomePage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-1">備考</label>
+                <Input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="bg-white border-gray-300 text-black"
+                  placeholder="ご要望などあればご記入ください（任意）"
+                  maxLength={500}
+                  data-testid="note"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-1 text-white">お届け場所</label>
                 <div className="flex gap-4">
                   <label className="flex items-center text-white">
@@ -780,6 +808,9 @@ export default function HomePage() {
               <div className="space-y-1 text-sm">
                 <div><span className="text-gray-300">部署:</span> {department}</div>
                 <div><span className="text-gray-300">お名前:</span> {customerName}</div>
+                {note.trim() && (
+                  <div><span className="text-gray-300">備考:</span> {note.trim()}</div>
+                )}
                 <div><span className="text-gray-300">お届け場所:</span> {deliveryLocation}</div>
                 <div><span className="text-gray-300">希望お届け時間:</span> {deliveryTime}</div>
               </div>
