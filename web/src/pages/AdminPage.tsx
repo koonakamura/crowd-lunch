@@ -29,7 +29,46 @@ interface MenuRow {
   max_qty: number;
   cafe_time_available: boolean;
 }
-import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX } from 'lucide-react'
+
+type MenuTemplateItem = Omit<MenuRow, 'id'>;
+interface MenuTemplate {
+  name: string;
+  items: MenuTemplateItem[];
+}
+
+const TEMPLATES_KEY = 'cl_menu_templates';
+const ORDER_KEY_PREFIX = 'cl_menu_order_';
+
+function loadTemplates(): MenuTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistTemplates(templates: MenuTemplate[]) {
+  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+}
+
+/** localStorage に保存した表示順(タイトル配列)で行を並べ替える。未登録のタイトルは末尾へ。 */
+function applySavedOrder(rows: MenuRow[], dateKey: string): MenuRow[] {
+  try {
+    const raw = localStorage.getItem(`${ORDER_KEY_PREFIX}${dateKey}`);
+    const order: unknown = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(order)) return rows;
+    const rank = (title: string) => {
+      const i = order.indexOf(title);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    return [...rows].sort((a, b) => rank(a.title) - rank(b.title));
+  } catch {
+    return rows;
+  }
+}
+import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX, ChevronUp, ChevronDown, Save } from 'lucide-react'
 import { format } from 'date-fns'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
@@ -101,6 +140,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string|null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
   const [showConfirmedOnly, setShowConfirmedOnly] = useState(false)
+  const [templates, setTemplates] = useState<MenuTemplate[]>(() => loadTemplates())
+  const [templateName, setTemplateName] = useState('')
 
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
@@ -322,7 +363,7 @@ export default function AdminPage() {
         max_qty: menu.max_qty,
         cafe_time_available: menu.cafe_time_available || false
       }))
-      setMenuRows(newRows)
+      setMenuRows(applySavedOrder(newRows, serveDateKey))
       
       const firstMenuWithImage = sqlAlchemyMenus.find(menu => menu.img_url)
       if (firstMenuWithImage?.img_url) {
@@ -404,6 +445,55 @@ export default function AdminPage() {
 
   const addMenuRow = () => {
     setMenuRows([...menuRows, { id: null, title: '', price: 0, max_qty: 0, cafe_time_available: false }])
+  }
+
+  const moveMenuRow = (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= menuRows.length) return
+    const updated = [...menuRows]
+    ;[updated[index], updated[target]] = [updated[target], updated[index]]
+    setMenuRows(updated)
+    // この日の表示順をブラウザに保存（再読込後も維持）
+    localStorage.setItem(
+      `${ORDER_KEY_PREFIX}${selectedDateKey}`,
+      JSON.stringify(updated.map(r => r.title))
+    )
+  }
+
+  const saveAsTemplate = () => {
+    const name = templateName.trim()
+    if (!name) {
+      toast({ title: "エラー", description: "テンプレート名を入力してください", variant: "destructive" })
+      return
+    }
+    const items: MenuTemplateItem[] = menuRows
+      .filter(r => r.title.trim() !== '')
+      .map(({ title, price, max_qty, cafe_time_available }) => ({
+        title: title.trim(), price, max_qty, cafe_time_available,
+      }))
+    if (items.length === 0) {
+      toast({ title: "エラー", description: "保存できるメニューがありません", variant: "destructive" })
+      return
+    }
+    const next = [...templates.filter(t => t.name !== name), { name, items }]
+    setTemplates(next)
+    persistTemplates(next)
+    setTemplateName('')
+    toast({ title: "保存しました", description: `テンプレート「${name}」を保存しました` })
+  }
+
+  const loadTemplate = (name: string) => {
+    const tpl = templates.find(t => t.name === name)
+    if (!tpl) return
+    // 新規行として読み込む（保存時に POST される）
+    setMenuRows(tpl.items.map(item => ({ id: null, ...item })))
+    toast({ title: "読み込みました", description: `「${name}」を反映しました。内容を確認して「保存」してください` })
+  }
+
+  const deleteTemplate = (name: string) => {
+    const next = templates.filter(t => t.name !== name)
+    setTemplates(next)
+    persistTemplates(next)
   }
 
   const handleDeleteMenu = (index: number) => {
@@ -602,6 +692,40 @@ export default function AdminPage() {
             <CardTitle>メニュー構成</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Template save / load */}
+            <div className="mb-4 flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-md">
+              <span className="text-sm font-medium text-gray-700">テンプレート</span>
+              <Input
+                placeholder="テンプレート名"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                className="w-40 h-8"
+              />
+              <Button size="sm" variant="outline" onClick={saveAsTemplate}>
+                <Save className="h-4 w-4 mr-1" />
+                現在の構成を保存
+              </Button>
+              {templates.length > 0 && <span className="text-gray-300">|</span>}
+              {templates.map((t) => (
+                <span
+                  key={t.name}
+                  className="inline-flex items-center gap-1 bg-white border border-gray-300 rounded-full pl-3 pr-1 py-0.5 text-sm"
+                >
+                  <button type="button" className="hover:underline" onClick={() => loadTemplate(t.name)}>
+                    {t.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-red-500 hover:text-red-700 px-1 leading-none"
+                    title="テンプレートを削除"
+                    onClick={() => deleteTemplate(t.name)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+
             <div className="flex gap-6">
               {/* Circular Image Upload Area */}
               <div className="flex flex-col items-center">
@@ -648,6 +772,7 @@ export default function AdminPage() {
                   <div className="w-24 text-sm font-medium text-gray-700 text-center">金額</div>
                   <div className="w-24 text-sm font-medium text-gray-700 text-center">販売数</div>
                   <div className="w-16 text-sm font-medium text-gray-700 text-center">カフェ</div>
+                  <div className="w-8 text-sm font-medium text-gray-700 text-center">順序</div>
                   <div className="w-8"></div> {/* Edit button space */}
                   <div className="w-8"></div> {/* Delete button space */}
                 </div>
@@ -690,6 +815,26 @@ export default function AdminPage() {
                           checked={row.cafe_time_available}
                           onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
                         />
+                      </div>
+                      <div className="flex flex-col items-center w-8">
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={() => moveMenuRow(index, -1)}
+                          className="text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="上へ"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === menuRows.length - 1}
+                          onClick={() => moveMenuRow(index, 1)}
+                          className="text-gray-500 hover:text-gray-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="下へ"
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </button>
                       </div>
                       <Button
                         size="sm"
@@ -768,7 +913,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="text-left p-2">注文ID</th>

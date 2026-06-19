@@ -20,7 +20,7 @@ const jstFmt = new Intl.DateTimeFormat('ja-JP', {
   timeZone: TZ,
   calendar: 'gregory',
   numberingSystem: 'latn',
-  year: 'numeric', month: '2-digit', day: '2-digit',
+  year: '2-digit', month: '2-digit', day: '2-digit',
   hour: '2-digit', minute: '2-digit',
   hour12: false,
 });
@@ -32,7 +32,7 @@ const jstDateOnlyFmt = new Intl.DateTimeFormat('ja-JP', {
   year: 'numeric', month: '2-digit', day: '2-digit',
 });
 
-/** 例: 2024/09/13 12:00 */
+/** 例: 24/09/13 12:00 */
 export function formatJst(input: string | number | Date): string {
   return jstFmt.format(toDate(input));
 }
