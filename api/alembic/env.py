@@ -10,11 +10,19 @@ from alembic import context
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
 from app.models import Base
-from sqlmodel import SQLModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# 環境変数 DATABASE_URL があれば ini のURLを上書きする（本番=Postgres対応）
+_db_url = os.getenv("DATABASE_URL")
+if _db_url:
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif _db_url.startswith("postgresql://"):
+        _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    config.set_main_option("sqlalchemy.url", _db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -23,7 +31,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = SQLModel.metadata
+# モデルは app/database.py の Base を継承しているため Base.metadata を使う
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
