@@ -653,6 +653,14 @@ export default function AdminPage() {
           <span className="text-sm text-muted-foreground ml-4">
             {getTodayFormatted()}
           </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-4 border-blue-300 text-blue-700 hover:bg-blue-50"
+            onClick={() => navigate('/admin/catalog')}
+          >
+            新プランニング(β)
+          </Button>
           <div className="flex items-center gap-2 ml-auto">
             {isNotificationEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             <span className="text-sm text-muted-foreground">通知音</span>

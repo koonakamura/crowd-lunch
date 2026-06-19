@@ -525,6 +525,62 @@ class ApiClient {
   async getServerTime(): Promise<{ current_time: string; timezone: string }> {
     return this.request('/server-time');
   }
+
+  // ===== Phase 1/2: 新カタログAPI (/admin/catalog, /v2) =====
+  async catListCategories(): Promise<CatCategory[]> {
+    return this.request('/admin/catalog/categories');
+  }
+  async catCreateCategory(body: { name: string; kind?: string; sort_order?: number }): Promise<CatCategory> {
+    return this.request('/admin/catalog/categories', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catListProducts(): Promise<CatProduct[]> {
+    return this.request('/admin/catalog/products');
+  }
+  async catCreateProduct(body: { category_id?: number | null; name: string; description?: string | null; base_price?: number; image_url?: string | null; is_active?: boolean }): Promise<CatProduct> {
+    return this.request('/admin/catalog/products', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catUpdateProduct(id: number, body: { category_id?: number | null; name: string; description?: string | null; base_price?: number; image_url?: string | null; is_active?: boolean }): Promise<CatProduct> {
+    return this.request(`/admin/catalog/products/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  }
+  async catDeleteProduct(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/products/${id}`, { method: 'DELETE' });
+  }
+  async catListDailyMenus(date: string): Promise<CatDailyMenu[]> {
+    return this.request(`/admin/catalog/daily-menus?date=${date}`);
+  }
+  async catCreateDailyMenu(body: { serve_date: string; product_id: number; price_override?: number | null; max_qty?: number; sort_order?: number; is_available?: boolean; cafe_time_available?: boolean }): Promise<CatDailyMenu> {
+    return this.request('/admin/catalog/daily-menus', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catUpdateDailyMenu(id: number, body: { price_override?: number | null; max_qty?: number; sort_order?: number; is_available?: boolean; cafe_time_available?: boolean }): Promise<CatDailyMenu> {
+    return this.request(`/admin/catalog/daily-menus/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  }
+  async catDeleteDailyMenu(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/daily-menus/${id}`, { method: 'DELETE' });
+  }
+  async catCreateOptionGroup(body: { product_id?: number | null; name: string; min_select?: number; max_select?: number; is_required?: boolean; sort_order?: number }): Promise<CatOptionGroup> {
+    return this.request('/admin/catalog/option-groups', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catDeleteOptionGroup(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/option-groups/${id}`, { method: 'DELETE' });
+  }
+  async catCreateOption(body: { option_group_id: number; name: string; price_delta?: number; sort_order?: number }): Promise<CatOption> {
+    return this.request('/admin/catalog/options', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catDeleteOption(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/options/${id}`, { method: 'DELETE' });
+  }
+  async catListTemplates(): Promise<CatTemplate[]> {
+    return this.request('/admin/catalog/templates');
+  }
+  async catCreateTemplate(body: { name: string; weekday?: number | null; note?: string | null; items: Array<{ product_id: number; price_override?: number | null; max_qty?: number; sort_order?: number }> }): Promise<CatTemplate> {
+    return this.request('/admin/catalog/templates', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async catDeleteTemplate(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/templates/${id}`, { method: 'DELETE' });
+  }
+  async catApplyTemplate(id: number, date: string, replace = false): Promise<CatDailyMenu[]> {
+    return this.request(`/admin/catalog/templates/${id}/apply?date=${date}&replace=${replace}`, { method: 'POST' });
+  }
 }
 
 export interface MenuSQLAlchemy {
@@ -536,6 +592,74 @@ export interface MenuSQLAlchemy {
   img_url?: string;
   cafe_time_available: boolean;
   created_at: string;
+}
+
+// ===== Phase 1/2: 新カタログモデル =====
+export interface CatCategory {
+  id: number;
+  name: string;
+  kind: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface CatOption {
+  id: number;
+  option_group_id: number;
+  name: string;
+  price_delta: number;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface CatOptionGroup {
+  id: number;
+  product_id: number | null;
+  name: string;
+  min_select: number;
+  max_select: number;
+  is_required: boolean;
+  sort_order: number;
+  options: CatOption[];
+}
+
+export interface CatProduct {
+  id: number;
+  category_id: number | null;
+  name: string;
+  description?: string | null;
+  base_price: number;
+  image_url?: string | null;
+  is_active: boolean;
+  option_groups: CatOptionGroup[];
+}
+
+export interface CatDailyMenu {
+  id: number;
+  serve_date: string;
+  product_id: number;
+  price_override: number | null;
+  max_qty: number;
+  sort_order: number;
+  is_available: boolean;
+  cafe_time_available: boolean;
+  product: CatProduct;
+}
+
+export interface CatTemplateItem {
+  id: number;
+  product_id: number;
+  price_override: number | null;
+  max_qty: number;
+  sort_order: number;
+}
+
+export interface CatTemplate {
+  id: number;
+  name: string;
+  weekday: number | null;
+  note?: string | null;
+  items: CatTemplateItem[];
 }
 
 /**

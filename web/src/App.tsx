@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage'
 import OrderPage from './pages/OrderPage'
 import ConfirmPage from './pages/ConfirmPage'
 import AdminPage from './pages/AdminPage'
+import AdminCatalogPage from './pages/AdminCatalogPage'
 import AdminCallback from './pages/AdminCallback'
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
         <Route path="/order" element={<OrderPage />} />
         <Route path="/order/confirm/:orderId" element={<ConfirmPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/catalog" element={<AdminCatalogPage />} />
         <Route path="/admin/callback" element={<AdminCallback />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
