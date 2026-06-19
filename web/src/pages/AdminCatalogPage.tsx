@@ -30,6 +30,7 @@ export default function AdminCatalogPage() {
   const [tplName, setTplName] = useState('')
   const [tplReplace, setTplReplace] = useState(true)
   const [showMaster, setShowMaster] = useState(false)
+  const [optProductId, setOptProductId] = useState<number | null>(null)
 
   const enabled = !!token
   const daily = useQuery({ queryKey: ['catDaily', dateKey], queryFn: () => apiClient.catListDailyMenus(dateKey), enabled })
@@ -72,6 +73,28 @@ export default function AdminCatalogPage() {
   const deleteProduct = useMutation({
     mutationFn: (id: number) => apiClient.catDeleteProduct(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['catProducts'] }),
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
+  })
+  const invalidateProducts = () => qc.invalidateQueries({ queryKey: ['catProducts'] })
+  const addGroup = useMutation({
+    mutationFn: (v: { product_id: number; name: string; max_select: number }) =>
+      apiClient.catCreateOptionGroup({ product_id: v.product_id, name: v.name, min_select: 0, max_select: v.max_select, is_required: false }),
+    onSuccess: invalidateProducts,
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
+  })
+  const delGroup = useMutation({
+    mutationFn: (id: number) => apiClient.catDeleteOptionGroup(id),
+    onSuccess: invalidateProducts,
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
+  })
+  const addOption = useMutation({
+    mutationFn: (v: { option_group_id: number; name: string; price_delta: number }) => apiClient.catCreateOption(v),
+    onSuccess: invalidateProducts,
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
+  })
+  const delOption = useMutation({
+    mutationFn: (id: number) => apiClient.catDeleteOption(id),
+    onSuccess: invalidateProducts,
     onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
   })
   const saveTemplate = useMutation({
@@ -240,16 +263,31 @@ export default function AdminCatalogPage() {
               </div>
               <div className="space-y-1">
                 {(products.data || []).map((p: CatProduct) => (
-                  <div key={p.id} className="flex items-center gap-3 text-sm border-b py-1">
-                    <span className="w-28 text-gray-500">{catName(p.category_id)}</span>
-                    <span className="flex-1">{p.name}</span>
-                    <span className="w-20 text-right">¥{p.base_price}</span>
-                    <span className="flex-1 text-xs text-gray-500">
-                      {p.option_groups.map((g) => `${g.name}[${g.options.map((o) => `${o.name}+${o.price_delta}`).join(',')}]`).join(' ') || ''}
-                    </span>
-                    <button className="text-red-500" title="削除" onClick={() => { if (confirm(`「${p.name}」を削除しますか？`)) deleteProduct.mutate(p.id) }}>
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div key={p.id} className="border-b py-1">
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="w-28 text-gray-500">{catName(p.category_id)}</span>
+                      <span className="flex-1">{p.name}</span>
+                      <span className="w-20 text-right">¥{p.base_price}</span>
+                      <span className="w-40 text-xs text-gray-400 text-right">
+                        {p.option_groups.length > 0 ? `オプション${p.option_groups.length}群` : ''}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-7 text-xs"
+                        onClick={() => setOptProductId(optProductId === p.id ? null : p.id)}>
+                        オプション{optProductId === p.id ? '▲' : '▼'}
+                      </Button>
+                      <button className="text-red-500" title="削除" onClick={() => { if (confirm(`「${p.name}」を削除しますか？`)) deleteProduct.mutate(p.id) }}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {optProductId === p.id && (
+                      <ProductOptionsEditor
+                        product={p}
+                        onAddGroup={(name, max) => addGroup.mutate({ product_id: p.id, name, max_select: max })}
+                        onDelGroup={(id) => delGroup.mutate(id)}
+                        onAddOption={(gid, name, price) => addOption.mutate({ option_group_id: gid, name, price_delta: price })}
+                        onDelOption={(id) => delOption.mutate(id)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -290,6 +328,64 @@ function DailyRow({ dm, idx, total, catName, onPrice, onQty, onCafe, onMove, onD
         <button disabled={idx === total - 1} onClick={() => onMove(1)} className="text-gray-500 hover:text-gray-900 disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
       </div>
       <button className="w-8 text-red-500 hover:text-red-700" title="削除" onClick={onDelete}><Trash2 className="h-4 w-4" /></button>
+    </div>
+  )
+}
+
+function ProductOptionsEditor({ product, onAddGroup, onDelGroup, onAddOption, onDelOption }: {
+  product: CatProduct
+  onAddGroup: (name: string, maxSelect: number) => void
+  onDelGroup: (id: number) => void
+  onAddOption: (groupId: number, name: string, priceDelta: number) => void
+  onDelOption: (id: number) => void
+}) {
+  const [gName, setGName] = useState('')
+  const [gMulti, setGMulti] = useState(false)
+  const [optDraft, setOptDraft] = useState<Record<number, { name: string; price: number }>>({})
+  const getDraft = (gid: number) => optDraft[gid] || { name: '', price: 0 }
+  const setDraft = (gid: number, v: { name: string; price: number }) => setOptDraft((s) => ({ ...s, [gid]: v }))
+
+  return (
+    <div className="mt-2 ml-28 mb-2 p-3 bg-blue-50/50 rounded-md space-y-3">
+      {product.option_groups.length === 0 && <p className="text-xs text-gray-500">オプション群がありません。下で追加してください。</p>}
+      {product.option_groups.map((g) => (
+        <div key={g.id} className="bg-white rounded border p-2">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span>{g.name}</span>
+            <span className="text-xs text-gray-400">{g.max_select > 1 ? `複数選択(最大${g.max_select})` : '1つ選択'}</span>
+            <button className="ml-auto text-red-500 text-xs" onClick={() => { if (confirm(`オプション群「${g.name}」を削除しますか？`)) onDelGroup(g.id) }}>群を削除</button>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {g.options.map((o) => (
+              <span key={o.id} className="inline-flex items-center gap-1 bg-gray-100 rounded-full pl-2 pr-1 py-0.5 text-xs">
+                {o.name} +¥{o.price_delta}
+                <button className="text-red-500 px-1" onClick={() => onDelOption(o.id)}>×</button>
+              </span>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-1">
+            <Input placeholder="オプション名" value={getDraft(g.id).name} className="h-8 w-40 text-xs"
+              onChange={(e) => setDraft(g.id, { ...getDraft(g.id), name: e.target.value })} />
+            <Input type="number" placeholder="+価格" value={getDraft(g.id).price} className="h-8 w-24 text-xs"
+              onChange={(e) => setDraft(g.id, { ...getDraft(g.id), price: parseInt(e.target.value) || 0 })} />
+            <Button size="sm" className="h-8 text-xs" disabled={!getDraft(g.id).name.trim()}
+              onClick={() => { onAddOption(g.id, getDraft(g.id).name.trim(), getDraft(g.id).price); setDraft(g.id, { name: '', price: 0 }) }}>
+              <Plus className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 pt-1 border-t">
+        <span className="text-xs text-gray-600">オプション群を追加</span>
+        <Input placeholder="群名（例: トッピング）" value={gName} className="h-8 w-44 text-xs" onChange={(e) => setGName(e.target.value)} />
+        <label className="flex items-center gap-1 text-xs text-gray-600">
+          <input type="checkbox" checked={gMulti} onChange={(e) => setGMulti(e.target.checked)} />複数選択可
+        </label>
+        <Button size="sm" className="h-8 text-xs" disabled={!gName.trim()}
+          onClick={() => { onAddGroup(gName.trim(), gMulti ? 10 : 1); setGName('') }}>
+          <Plus className="h-3 w-3 mr-1" />群を追加
+        </Button>
+      </div>
     </div>
   )
 }
