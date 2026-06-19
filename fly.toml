@@ -9,10 +9,12 @@ primary_region = "nrt"
 
 [env]
   PORT = "8000"
-  # SQLite を永続ボリューム(/data)上に置く。これがないとデプロイ毎にDBが初期化される。
+  PYTHONPATH = "/app"
+  # 本番DBは Supabase Postgres（DATABASE_URL は fly secret で上書き）。
+  # 下記 sqlite はシークレット未設定時のフォールバック（ロールバック用に当面残す）。
   DATABASE_URL = "sqlite:////data/crowdlunch.db"
 
-# /data に永続ボリューム crowd_lunch_data をマウント（SQLite永続化）
+# 旧SQLite用の永続ボリューム。Postgres移行のロールバック保険として当面マウント維持。
 [mounts]
   source = "crowd_lunch_data"
   destination = "/data"
@@ -32,3 +34,5 @@ primary_region = "nrt"
 
 [deploy]
   strategy = "rolling"
+  # デプロイ時にDBマイグレーションを自動適用（env.pyがDATABASE_URL=Postgresを使用）
+  release_command = "alembic upgrade head"

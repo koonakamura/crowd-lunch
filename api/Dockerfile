@@ -10,6 +10,9 @@ RUN poetry config virtualenvs.create false \
     && poetry install --only=main --no-root
 # アプリ本体をコピー (プロジェクトルート/api/app → /app/app)
 COPY api/app ./app
+# Alembic（デプロイ時の自動マイグレーション用）
+COPY api/alembic ./alembic
+COPY api/alembic.ini ./alembic.ini
 
 EXPOSE 8000
 
