@@ -59,6 +59,10 @@ async def add_security_headers(request, call_next):
 Base.metadata.create_all(bind=engine)
 create_db_and_tables()
 
+# Phase 1: 新カタログAPI（/v2, /admin/catalog 配下）を追加
+from .catalog_routes import router as catalog_router
+app.include_router(catalog_router)
+
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
