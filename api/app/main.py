@@ -60,11 +60,13 @@ Base.metadata.create_all(bind=engine)
 create_db_and_tables()
 
 # Phase 1: 新カタログAPI（/v2, /admin/catalog 配下）を追加
-from .catalog_routes import router as catalog_router
+from .catalog_routes import router as catalog_router, MEDIA_DIR
 app.include_router(catalog_router)
 
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+# 画像ライブラリの静的配信（/media → 永続ボリューム or ローカル）
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

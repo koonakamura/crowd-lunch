@@ -4,10 +4,13 @@
 更新系は CORS の allow_methods に合わせて PUT を使用（PATCH不可）。
 詳細: docs/overhaul-design.md
 """
+import os
+import uuid
 from datetime import date as date_type
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, selectinload
 
@@ -16,6 +19,11 @@ from .auth import get_current_admin
 from . import models
 
 router = APIRouter(tags=["catalog-v2"])
+
+# 画像保存先: 本番は永続ボリューム /data、無ければローカル(uploads/media)
+MEDIA_DIR = Path(os.getenv("MEDIA_DIR") or ("/data/media" if os.path.isdir("/data") else "uploads/media"))
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
 
 # ----------------------------- Schemas -----------------------------
@@ -385,3 +393,93 @@ def apply_template(template_id: int, date: date_type, replace: bool = False,
         _daily_query(db).filter(models.DailyMenu.serve_date == date)
         .order_by(models.DailyMenu.sort_order, models.DailyMenu.id).all()
     )
+
+
+# ----------------------------- Media library -----------------------------
+class MediaAssetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    url: str
+    filename: Optional[str]
+    label: Optional[str]
+    kind: str
+    is_active: bool
+
+
+@router.get("/admin/catalog/media", response_model=List[MediaAssetOut])
+def list_media(admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    return db.query(models.MediaAsset).filter(models.MediaAsset.is_active == True).order_by(models.MediaAsset.id.desc()).all()  # noqa: E712
+
+
+@router.post("/admin/catalog/media", response_model=MediaAssetOut)
+async def upload_media(file: UploadFile = File(...), admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXT:
+        raise HTTPException(status_code=400, detail="対応していない画像形式です")
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="画像サイズは8MB以下にしてください")
+    name = f"{uuid.uuid4().hex}{ext}"
+    (MEDIA_DIR / name).write_bytes(data)
+    asset = models.MediaAsset(url=f"/media/{name}", filename=file.filename, kind="hero")
+    db.add(asset); db.commit(); db.refresh(asset)
+    return asset
+
+
+@router.delete("/admin/catalog/media/{media_id}")
+def delete_media(media_id: int, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    a = db.query(models.MediaAsset).get(media_id)
+    if not a:
+        raise HTTPException(status_code=404, detail="media not found")
+    a.is_active = False  # 論理削除（既存参照を壊さない）
+    db.commit()
+    return {"ok": True}
+
+
+# ----------------------------- Day settings (hero image) -----------------------------
+class DaySettingOut(BaseModel):
+    serve_date: date_type
+    hero_image_id: Optional[int] = None
+    hero_image_url: Optional[str] = None
+    banner_text: Optional[str] = None
+
+
+class DaySettingIn(BaseModel):
+    hero_image_id: Optional[int] = None
+    banner_text: Optional[str] = None
+
+
+def _day_setting_out(db: Session, ds: Optional[models.DaySetting], serve_date: date_type) -> DaySettingOut:
+    if not ds:
+        return DaySettingOut(serve_date=serve_date)
+    url = None
+    if ds.hero_image_id:
+        a = db.query(models.MediaAsset).get(ds.hero_image_id)
+        url = a.url if a else None
+    return DaySettingOut(serve_date=ds.serve_date, hero_image_id=ds.hero_image_id,
+                         hero_image_url=url, banner_text=ds.banner_text)
+
+
+@router.get("/admin/catalog/day-settings", response_model=DaySettingOut)
+def get_day_setting(date: date_type, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    ds = db.query(models.DaySetting).get(date)
+    return _day_setting_out(db, ds, date)
+
+
+@router.put("/admin/catalog/day-settings", response_model=DaySettingOut)
+def set_day_setting(date: date_type, body: DaySettingIn, admin=Depends(get_current_admin), db: Session = Depends(get_db)):
+    ds = db.query(models.DaySetting).get(date)
+    if not ds:
+        ds = models.DaySetting(serve_date=date)
+        db.add(ds)
+    ds.hero_image_id = body.hero_image_id
+    if body.banner_text is not None:
+        ds.banner_text = body.banner_text
+    db.commit(); db.refresh(ds)
+    return _day_setting_out(db, ds, date)
+
+
+@router.get("/v2/day-settings", response_model=DaySettingOut)
+def public_day_setting(date: date_type, db: Session = Depends(get_db)):
+    ds = db.query(models.DaySetting).get(date)
+    return _day_setting_out(db, ds, date)
