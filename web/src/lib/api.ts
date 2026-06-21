@@ -581,6 +581,31 @@ class ApiClient {
   async catApplyTemplate(id: number, date: string, replace = false): Promise<CatDailyMenu[]> {
     return this.request(`/admin/catalog/templates/${id}/apply?date=${date}&replace=${replace}`, { method: 'POST' });
   }
+
+  // ----- media library / day settings -----
+  async catListMedia(): Promise<CatMediaAsset[]> {
+    return this.request('/admin/catalog/media');
+  }
+  async catUploadMedia(file: File): Promise<CatMediaAsset> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/admin/catalog/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.token}` },
+      body: form,
+    });
+    if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
+    return res.json();
+  }
+  async catDeleteMedia(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/catalog/media/${id}`, { method: 'DELETE' });
+  }
+  async catGetDaySetting(date: string): Promise<CatDaySetting> {
+    return this.request(`/admin/catalog/day-settings?date=${date}`);
+  }
+  async catSetDaySetting(date: string, hero_image_id: number | null): Promise<CatDaySetting> {
+    return this.request(`/admin/catalog/day-settings?date=${date}`, { method: 'PUT', body: JSON.stringify({ hero_image_id }) });
+  }
 }
 
 export interface MenuSQLAlchemy {
@@ -662,6 +687,22 @@ export interface CatTemplate {
   items: CatTemplateItem[];
 }
 
+export interface CatMediaAsset {
+  id: number;
+  url: string;
+  filename?: string | null;
+  label?: string | null;
+  kind: string;
+  is_active: boolean;
+}
+
+export interface CatDaySetting {
+  serve_date: string;
+  hero_image_id?: number | null;
+  hero_image_url?: string | null;
+  banner_text?: string | null;
+}
+
 /**
  * API fetch wrapper with 401 error handling
  * 
@@ -714,4 +755,10 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
 
 export const apiClient = new ApiClient();
 
-export { DIAGNOSTIC_INFO };
+export { DIAGNOSTIC_INFO, API_BASE_URL };
+
+/** メディアの相対URL(/media/..)をAPIの絶対URLに変換 */
+export function mediaUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+}

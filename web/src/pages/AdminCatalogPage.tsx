@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save } from 'lucide-react'
-import { apiClient, type CatProduct, type CatDailyMenu, type CatCategory, type CatTemplate } from '../lib/api'
+import { apiClient, mediaUrl, type CatProduct, type CatDailyMenu, type CatCategory, type CatTemplate, type CatMediaAsset } from '../lib/api'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -37,6 +37,8 @@ export default function AdminCatalogPage() {
   const products = useQuery({ queryKey: ['catProducts'], queryFn: () => apiClient.catListProducts(), enabled })
   const categories = useQuery({ queryKey: ['catCategories'], queryFn: () => apiClient.catListCategories(), enabled })
   const templates = useQuery({ queryKey: ['catTemplates'], queryFn: () => apiClient.catListTemplates(), enabled })
+  const media = useQuery({ queryKey: ['catMedia'], queryFn: () => apiClient.catListMedia(), enabled })
+  const daySetting = useQuery({ queryKey: ['catDaySetting', dateKey], queryFn: () => apiClient.catGetDaySetting(dateKey), enabled })
 
   const invalidateDaily = () => qc.invalidateQueries({ queryKey: ['catDaily', dateKey] })
 
@@ -116,6 +118,20 @@ export default function AdminCatalogPage() {
   const deleteTemplate = useMutation({
     mutationFn: (id: number) => apiClient.catDeleteTemplate(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['catTemplates'] }),
+  })
+  const uploadMedia = useMutation({
+    mutationFn: (file: File) => apiClient.catUploadMedia(file),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['catMedia'] }); toast({ title: '画像をアップロードしました' }) },
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
+  })
+  const deleteMedia = useMutation({
+    mutationFn: (id: number) => apiClient.catDeleteMedia(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catMedia'] }),
+  })
+  const setHero = useMutation({
+    mutationFn: (heroId: number | null) => apiClient.catSetDaySetting(dateKey, heroId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['catDaySetting', dateKey] }); toast({ title: 'この日の表示画像を更新しました' }) },
+    onError: (e: Error) => toast({ title: 'エラー', description: e.message, variant: 'destructive' }),
   })
 
   if (!token) {
@@ -210,6 +226,49 @@ export default function AdminCatalogPage() {
                   onMove={(d) => move(idx, d)}
                   onDelete={() => delDaily.mutate(dm.id)} />
               ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Image library / hero image */}
+        <Card className="shadow-sm">
+          <CardHeader><CardTitle>画像（この日の表示画像）</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-32 h-32 rounded-lg border bg-gray-50 flex items-center justify-center overflow-hidden">
+                {daySetting.data?.hero_image_url
+                  ? <img src={mediaUrl(daySetting.data.hero_image_url)} alt="hero" className="w-full h-full object-cover" />
+                  : <span className="text-xs text-gray-400">未設定</span>}
+              </div>
+              <div className="text-sm text-gray-600">
+                <p>{dateKey} にお客様画面トップへ表示する画像です。</p>
+                {daySetting.data?.hero_image_id && (
+                  <Button size="sm" variant="outline" className="mt-2" onClick={() => setHero.mutate(null)}>表示を解除</Button>
+                )}
+              </div>
+              <label className="ml-auto">
+                <input type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadMedia.mutate(f); e.currentTarget.value = '' }} />
+                <span className="inline-flex items-center gap-1 cursor-pointer border border-gray-300 rounded px-3 py-2 text-sm hover:bg-gray-50">
+                  <Plus className="h-4 w-4" />画像をアップロード
+                </span>
+              </label>
+            </div>
+            {/* library grid */}
+            <div className="flex flex-wrap gap-3">
+              {(media.data || []).length === 0 && <span className="text-sm text-muted-foreground">ライブラリに画像がありません</span>}
+              {(media.data || []).map((m: CatMediaAsset) => {
+                const selected = daySetting.data?.hero_image_id === m.id
+                return (
+                  <div key={m.id} className={`relative w-24 h-24 rounded-lg overflow-hidden border-2 ${selected ? 'border-blue-500' : 'border-transparent'}`}>
+                    <img src={mediaUrl(m.url)} alt={m.filename || ''} className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setHero.mutate(m.id)} title="この日の表示画像に設定" />
+                    <button className="absolute top-0.5 right-0.5 bg-white/80 rounded-full text-red-500 px-1 text-xs"
+                      onClick={() => { if (confirm('この画像をライブラリから削除しますか？')) deleteMedia.mutate(m.id) }}>×</button>
+                    {selected && <span className="absolute bottom-0 inset-x-0 bg-blue-500 text-white text-[10px] text-center">表示中</span>}
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
