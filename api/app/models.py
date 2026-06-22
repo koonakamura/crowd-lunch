@@ -65,14 +65,34 @@ class OrderSQLAlchemy(Base):
 
 class OrderItem(Base):
     __tablename__ = "order_items"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
-    menu_id = Column(Integer, ForeignKey("menus.id"), nullable=False)
+    menu_id = Column(Integer, ForeignKey("menus.id"), nullable=True)  # 旧モデル用（v2はNULL）
     qty = Column(Integer, nullable=False)
-    
+    # Phase 3: 新モデル対応（追加カラム・すべてnullableで後方互換）
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    daily_menu_id = Column(Integer, ForeignKey("daily_menus.id"), nullable=True)
+    name_snapshot = Column(String, nullable=True)
+    unit_price_snapshot = Column(Integer, nullable=True)
+
     order = relationship("OrderSQLAlchemy", back_populates="order_items")
     menu = relationship("MenuSQLAlchemy", back_populates="order_items")
+    product = relationship("Product")
+    item_options = relationship("OrderItemOption", back_populates="order_item")
+
+
+class OrderItemOption(Base):
+    """注文明細に紐づく選択オプション（時点スナップショット保存）"""
+    __tablename__ = "order_item_options"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), nullable=False)
+    option_id = Column(Integer, ForeignKey("options.id"), nullable=True)
+    name_snapshot = Column(String, nullable=False)
+    price_delta_snapshot = Column(Integer, nullable=False, default=0)
+
+    order_item = relationship("OrderItem", back_populates="item_options")
 
 
 # =====================================================================

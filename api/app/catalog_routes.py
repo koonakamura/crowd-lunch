@@ -483,3 +483,106 @@ def set_day_setting(date: date_type, body: DaySettingIn, admin=Depends(get_curre
 def public_day_setting(date: date_type, db: Session = Depends(get_db)):
     ds = db.query(models.DaySetting).get(date)
     return _day_setting_out(db, ds, date)
+
+
+# ----------------------------- v2 order (with options) -----------------------------
+class V2OrderItemIn(BaseModel):
+    daily_menu_id: int
+    qty: int = 1
+    option_ids: List[int] = []
+
+
+class V2OrderIn(BaseModel):
+    serve_date: date_type
+    delivery_type: str = "desk"
+    request_time: Optional[str] = None
+    pickup_at: Optional[str] = None
+    department: str
+    name: str
+    delivery_location: Optional[str] = None
+    note: Optional[str] = Field(default=None, max_length=500)
+    items: List[V2OrderItemIn]
+
+
+class V2OrderOut(BaseModel):
+    id: int
+    order_id: str
+    total_price: int
+    status: str
+
+
+@router.post("/v2/orders/guest", response_model=V2OrderOut)
+def create_v2_guest_order(body: V2OrderIn, db: Session = Depends(get_db)):
+    """新モデル（商品＋オプション）でのゲスト注文。価格は時点スナップショット保存。"""
+    import os
+    from datetime import datetime
+    from . import crud
+    from .time_utils import convert_to_pickup_at, validate_pickup_at
+
+    if not body.items:
+        raise HTTPException(status_code=422, detail={"code": "no_items", "message": "商品が選択されていません"})
+
+    # 受付時間の検証（本番運用と同じルール）
+    if os.getenv("TESTING") != "true":
+        if body.pickup_at:
+            pickup = datetime.fromisoformat(body.pickup_at)
+        elif body.request_time:
+            pickup = convert_to_pickup_at(body.serve_date, body.request_time)
+        else:
+            raise HTTPException(status_code=422, detail={"code": "invalid_timeslot", "message": "配達時間が指定されていません"})
+        ok, code = validate_pickup_at(pickup)
+        if not ok:
+            msg = {"cafe_time_closed": "本日のカフェタイム受付は終了しました", "invalid_timeslot": "選択した時間が有効範囲外です"}.get(code, "受付できません")
+            raise HTTPException(status_code=422, detail={"code": code, "message": msg})
+        cafe_time = pickup.hour >= 14
+    else:
+        cafe_time = False
+
+    try:
+        delivery_type = models.DeliveryType(body.delivery_type)
+    except ValueError:
+        delivery_type = models.DeliveryType.desk
+
+    customer_name = f"{body.department}／{body.name}"
+    guest = crud.get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
+    order_id = crud.generate_order_id(db, body.serve_date)
+
+    order = models.OrderSQLAlchemy(
+        user_id=guest.id, serve_date=body.serve_date, delivery_type=delivery_type,
+        request_time=body.request_time, delivery_location=body.delivery_location,
+        total_price=0, status=models.OrderStatus.new, department=body.department,
+        customer_name=body.name, order_id=order_id, note=body.note,
+    )
+    db.add(order)
+    db.flush()
+
+    total = 0
+    for it in body.items:
+        dm = db.query(models.DailyMenu).get(it.daily_menu_id)
+        if not dm or dm.serve_date != body.serve_date:
+            raise HTTPException(status_code=404, detail={"code": "menu_not_found", "message": "メニューが見つかりません"})
+        if cafe_time and not dm.cafe_time_available:
+            raise HTTPException(status_code=422, detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"})
+        base = dm.price_override if dm.price_override is not None else dm.product.base_price
+        oi = models.OrderItem(
+            order_id=order.id, daily_menu_id=dm.id, product_id=dm.product_id, menu_id=None,
+            name_snapshot=dm.product.name, unit_price_snapshot=base, qty=it.qty,
+        )
+        db.add(oi)
+        db.flush()
+        line = base
+        for oid in it.option_ids:
+            opt = db.query(models.Option).get(oid)
+            if not opt:
+                continue
+            db.add(models.OrderItemOption(
+                order_item_id=oi.id, option_id=opt.id, name_snapshot=opt.name,
+                price_delta_snapshot=opt.price_delta,
+            ))
+            line += opt.price_delta
+        total += line * it.qty
+
+    order.total_price = total
+    db.commit()
+    db.refresh(order)
+    return V2OrderOut(id=order.id, order_id=order.order_id, total_price=order.total_price, status=order.status.value)
