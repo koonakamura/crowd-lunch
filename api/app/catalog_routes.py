@@ -217,6 +217,38 @@ def get_v2_menus(date: date_type, db: Session = Depends(get_db)):
     return out
 
 
+@router.get("/v2/menus-range")
+def get_v2_menus_range(start: date_type, end: date_type, db: Session = Depends(get_db)):
+    """期間の日次メニューをまとめて返す（お客様画面の週表示用）。days: {date: [items]}"""
+    rows = (
+        db.query(models.DailyMenu)
+        .filter(models.DailyMenu.serve_date >= start, models.DailyMenu.serve_date <= end,
+                models.DailyMenu.is_available == True)  # noqa: E712
+        .order_by(models.DailyMenu.serve_date, models.DailyMenu.sort_order, models.DailyMenu.id)
+        .all()
+    )
+    days: dict = {}
+    for dm in rows:
+        p = dm.product
+        if not p or not p.is_active:
+            continue
+        groups = (
+            db.query(models.OptionGroup)
+            .filter(models.OptionGroup.product_id == p.id)
+            .order_by(models.OptionGroup.sort_order, models.OptionGroup.id)
+            .all()
+        )
+        key = dm.serve_date.isoformat()
+        days.setdefault(key, []).append(PublicMenuItem(
+            daily_menu_id=dm.id, product_id=p.id, name=p.name, description=p.description,
+            price=dm.price_override if dm.price_override is not None else p.base_price,
+            image_url=p.image_url, max_qty=dm.max_qty, cafe_time_available=dm.cafe_time_available,
+            category=p.category.name if p.category else None,
+            option_groups=[OptionGroupOut.model_validate(g) for g in groups],
+        ))
+    return {"range": {"start": start.isoformat(), "end": end.isoformat(), "tz": "Asia/Tokyo"}, "days": days}
+
+
 # ----------------------------- Admin: categories -----------------------------
 @router.get("/admin/catalog/categories", response_model=List[CategoryOut])
 def list_categories(admin=Depends(get_current_admin), db: Session = Depends(get_db)):

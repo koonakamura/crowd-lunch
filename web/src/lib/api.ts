@@ -607,6 +607,9 @@ class ApiClient {
   async getV2Menus(date: string): Promise<CatV2MenuItem[]> {
     return this.request(`/v2/menus?date=${date}`);
   }
+  async getV2MenusRange(start: string, end: string): Promise<{ range: { start: string; end: string; tz: string }; days: Record<string, CatV2MenuItem[]> }> {
+    return this.request(`/v2/menus-range?start=${start}&end=${end}`);
+  }
   async getV2DaySetting(date: string): Promise<CatDaySetting> {
     return this.request(`/v2/day-settings?date=${date}`);
   }
