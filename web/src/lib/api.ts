@@ -603,6 +603,20 @@ class ApiClient {
   async catGetDaySetting(date: string): Promise<CatDaySetting> {
     return this.request(`/admin/catalog/day-settings?date=${date}`);
   }
+  // ----- public v2 (customer) -----
+  async getV2Menus(date: string): Promise<CatV2MenuItem[]> {
+    return this.request(`/v2/menus?date=${date}`);
+  }
+  async getV2DaySetting(date: string): Promise<CatDaySetting> {
+    return this.request(`/v2/day-settings?date=${date}`);
+  }
+  async createV2GuestOrder(body: {
+    serve_date: string; delivery_type: 'pickup' | 'desk'; request_time?: string;
+    department: string; name: string; delivery_location?: string; note?: string;
+    items: Array<{ daily_menu_id: number; qty: number; option_ids: number[] }>;
+  }): Promise<{ id: number; order_id: string; total_price: number; status: string }> {
+    return this.request('/v2/orders/guest', { method: 'POST', body: JSON.stringify(body) });
+  }
   async catSetDaySetting(date: string, hero_image_id: number | null): Promise<CatDaySetting> {
     return this.request(`/admin/catalog/day-settings?date=${date}`, { method: 'PUT', body: JSON.stringify({ hero_image_id }) });
   }
@@ -701,6 +715,19 @@ export interface CatDaySetting {
   hero_image_id?: number | null;
   hero_image_url?: string | null;
   banner_text?: string | null;
+}
+
+export interface CatV2MenuItem {
+  daily_menu_id: number;
+  product_id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  image_url?: string | null;
+  max_qty: number;
+  cafe_time_available: boolean;
+  category?: string | null;
+  option_groups: CatOptionGroup[];
 }
 
 /**

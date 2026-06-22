@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 // import LoginPage from './pages/LoginPage' // No longer needed
 import HomePage from './pages/HomePage'
 import OrderPage from './pages/OrderPage'
+import OrderV2Page from './pages/OrderV2Page'
 import ConfirmPage from './pages/ConfirmPage'
 import AdminPage from './pages/AdminPage'
 import AdminCatalogPage from './pages/AdminCatalogPage'
@@ -26,6 +27,7 @@ function App() {
     <div className="min-h-screen bg-background">
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/order2" element={<OrderV2Page />} />
         <Route path="/order" element={<OrderPage />} />
         <Route path="/order/confirm/:orderId" element={<ConfirmPage />} />
         <Route path="/admin" element={<AdminPage />} />
