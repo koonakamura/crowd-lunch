@@ -25,8 +25,6 @@ export const isTimeSlotExpired = (timeSlot: string): boolean => {
 
 export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, disabled: boolean}> => {
   const timeSlots = [
-    "11:30～11:45",
-    "11:45～12:00", 
     "12:00～12:15",
     "12:15～12:30",
     "12:30～12:45",
