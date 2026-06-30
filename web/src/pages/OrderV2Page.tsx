@@ -66,7 +66,6 @@ export default function OrderV2Page() {
   }
 
   const total = lines.reduce((s, l) => s + (l.unitBase + l.optionDelta) * l.qty, 0)
-  const count = lines.reduce((s, l) => s + l.qty, 0)
 
   const onTapMenu = (m: CatV2MenuItem) => {
     if (m.option_groups.length > 0) {
