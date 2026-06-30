@@ -30,11 +30,12 @@ async def validation_exception_handler(request, exc):
     )
 
 ALLOWED_ORIGINS = [
-    "https://cheery-dango-2fd190.netlify.app",  # prod
+    "https://crowd-lunch.netlify.app",          # prod
+    "https://cheery-dango-2fd190.netlify.app",  # prod (旧URL・移行用)
     "http://localhost:3000",
     "http://localhost:3001",
 ]
-ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$"
+ALLOW_ORIGIN_REGEX = r"^https://deploy-preview-\d+--(crowd-lunch|cheery-dango-2fd190)\.netlify\.app$"
 
 logging.info(f"CORS Configuration - ALLOWED_ORIGINS: {ALLOWED_ORIGINS}")
 logging.info(f"CORS Configuration - ALLOW_ORIGIN_REGEX: {ALLOW_ORIGIN_REGEX}")
@@ -157,6 +158,7 @@ async def login_redirect(redirect_uri: str, state: str = None):
             raise ValueError("Invalid callback path")
         
         ALLOWED_HOSTS = {
+            "crowd-lunch.netlify.app",
             "cheery-dango-2fd190.netlify.app"
         }
         
@@ -165,7 +167,7 @@ async def login_redirect(redirect_uri: str, state: str = None):
             "localhost:3001"
         }
         
-        PREVIEW_PATTERN = re.compile(r"^deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$")
+        PREVIEW_PATTERN = re.compile(r"^deploy-preview-\d+--(crowd-lunch|cheery-dango-2fd190)\.netlify\.app$")
         
         host_allowed = (
             normalized_netloc in ALLOWED_HOSTS or 
@@ -329,7 +331,7 @@ async def get_public_menus_range(start: date, end: date, request: Request, db: S
     PREVIEW = os.getenv("APP_ENV") == "preview"
     if not PREVIEW:
         origin = request.headers.get("origin", "")
-        PREVIEW = bool(re.match(r"^https://deploy-preview-\d+--cheery-dango-2fd190\.netlify\.app$", origin))
+        PREVIEW = bool(re.match(r"^https://deploy-preview-\d+--(crowd-lunch|cheery-dango-2fd190)\.netlify\.app$", origin))
     
     headers = {"Cache-Control": "no-store"} if PREVIEW else {"Cache-Control": "public, max-age=0, must-revalidate"}
     # 現在は no-store/must-revalidate、将来は ETag + Last-Modified に移行予定
