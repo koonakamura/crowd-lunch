@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError, JWTClaimsError
@@ -28,10 +28,11 @@ oauth2 = HTTPBearer(auto_error=False)
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if "exp" not in to_encode:
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
+        # naive な utcnow() に .timestamp() を掛けるとローカルタイムとして
+        # 解釈され、UTC以外のマシン（JST等）では exp がずれて即時失効する。
+        # 必ず aware な UTC を使う。
+        now = datetime.now(timezone.utc)
+        expire = now + (expires_delta if expires_delta else timedelta(minutes=15))
         to_encode.update({"exp": int(expire.timestamp())})
     
     if "iat" not in to_encode:

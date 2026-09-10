@@ -110,7 +110,8 @@ export default function OrderV2Page() {
     setOptSel((s) => {
       const grp = new Set(s[groupId] || [])
       if (single) { grp.clear(); grp.add(optionId) }
-      else grp.has(optionId) ? grp.delete(optionId) : grp.add(optionId)
+      else if (grp.has(optionId)) grp.delete(optionId)
+      else grp.add(optionId)
       return { ...s, [groupId]: grp }
     })
   }

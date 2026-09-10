@@ -39,14 +39,14 @@ jobs:
             -H "Origin: https://deploy-preview-62--cheery-dango-2fd190.netlify.app" \
             -H "Access-Control-Request-Method: PUT")
           
-          if echo "$headers" | grep -q "access-control-max-age: 600"; then
+          if echo "$headers" | grep -qi "access-control-max-age: *600"; then
             echo "✅ CORS Max-Age header present"
           else
             echo "❌ CORS Max-Age header missing"
             exit 1
           fi
           
-          if echo "$headers" | grep -q "vary:.*origin"; then
+          if echo "$headers" | grep -qi "vary:.*origin"; then
             echo "✅ Vary: Origin header present"
           else
             echo "❌ Vary: Origin header missing"

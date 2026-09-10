@@ -44,9 +44,21 @@ jobs:
       working-directory: ./api
       env:
         TESTING: "true"
+        # 負荷試験は専用の使い捨てDBで実行する。既定の crowdlunch.db を使うと
+        # 直前の pytest 実行(app.main import 時の create_all)でテーブルが
+        # できてしまい、後続のスキーマ作成が "already exists" で落ちる。
+        DATABASE_URL: "sqlite:///./loadtest.db"
       run: |
-        # Run database migration
-        poetry run alembic upgrade head
+        # Create a clean schema for the load test
+        # （alembic の履歴は 001 と d61f7bd8daca が両方 menus を作るため base から
+        #   upgrade head は通らない。本番は 8a3e1c2f9b21 に stamp 済みで運用中）
+        rm -f loadtest.db
+        poetry run python -c "
+        from app import models  # noqa: F401  Base.metadata にモデルを登録するため必須
+        from app.database import create_db_and_tables
+        create_db_and_tables()
+        print('Load test schema created')
+        "
         
         # Create sample menu data for load testing
         poetry run python -c "
