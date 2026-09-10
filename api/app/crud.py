@@ -408,17 +408,22 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     return True
 
 def generate_order_id(db: Session, serve_date: date) -> str:
-    """Generate order ID in #MMDD000 format.
+    """Generate order ID in #MMDD000 format with race condition protection.
 
-    使うのは件数だけなので COUNT で数える。以前はその日の注文を
-    全件ORMハイドレート(.all())していたため、注文が増えるほど1件の登録が
-    重くなり負荷試験で p95 が跳ねていた。
-    重複は orders.order_id の UNIQUE 制約が最終防衛線（衝突時は IntegrityError）。
+    FOR UPDATE でその日の注文行をロックする。呼び出し側(create_guest_order /
+    create_v2_guest_order)は直後に INSERT → commit するので、採番からINSERTまでが
+    直列化され、同じ連番が二重に振られない。ロックを外して COUNT(*) にすると
+    速いが、同時注文で同一IDを採番して orders.order_id の UNIQUE 制約に
+    ぶつかり、片方の客に500が返る。
+    （Postgres の集約関数には FOR UPDATE を付けられないため COUNT は使えない）
+
+    ORM オブジェクトの生成は不要なので id 列だけを取る。以前は全カラムを
+    ハイドレートしており、その日の注文が増えるほど1件の登録が重くなっていた。
     """
-    existing_count = db.query(func.count(models.OrderSQLAlchemy.id)).filter(
+    existing_ids = db.query(models.OrderSQLAlchemy.id).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
-    ).scalar() or 0
+    ).with_for_update().all()
 
     month_day = serve_date.strftime("%m%d")
-    order_number = str(existing_count + 1).zfill(3)
+    order_number = str(len(existing_ids) + 1).zfill(3)
     return f"#{month_day}{order_number}"
