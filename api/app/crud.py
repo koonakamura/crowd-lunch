@@ -408,11 +408,17 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     return True
 
 def generate_order_id(db: Session, serve_date: date) -> str:
-    """Generate order ID in #MMDD000 format with race condition protection"""
-    existing_orders = db.query(models.OrderSQLAlchemy).filter(
+    """Generate order ID in #MMDD000 format.
+
+    使うのは件数だけなので COUNT で数える。以前はその日の注文を
+    全件ORMハイドレート(.all())していたため、注文が増えるほど1件の登録が
+    重くなり負荷試験で p95 が跳ねていた。
+    重複は orders.order_id の UNIQUE 制約が最終防衛線（衝突時は IntegrityError）。
+    """
+    existing_count = db.query(func.count(models.OrderSQLAlchemy.id)).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
-    ).with_for_update().order_by(models.OrderSQLAlchemy.created_at.asc()).all()
-    
+    ).scalar() or 0
+
     month_day = serve_date.strftime("%m%d")
-    order_number = str(len(existing_orders) + 1).zfill(3)
+    order_number = str(existing_count + 1).zfill(3)
     return f"#{month_day}{order_number}"
