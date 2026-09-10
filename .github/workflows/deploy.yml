@@ -86,7 +86,14 @@ jobs:
           --csv=reports/load_test_stats
         
         # Check p95 response time from CSV stats
-        P95_TIME=$(tail -n 1 reports/load_test_stats_stats.csv | cut -d',' -f10)
+        # 列番号(-f10)は "Requests/s" を指しており p95 を見ていなかった。
+        # ヘッダ名で "95%" 列を引くことで locust の列順変更にも耐える。
+        P95_TIME=$(poetry run python -c "
+        import csv
+        with open('reports/load_test_stats_stats.csv') as f:
+            rows = [r for r in csv.DictReader(f) if r['Name'] == 'Aggregated']
+        print(rows[-1]['95%'])
+        ")
         echo "P95 response time: ${P95_TIME}ms"
         
         # Kill the server
@@ -117,52 +124,8 @@ jobs:
         VITE_API_BASE_URL: https://crowd-lunch.fly.dev
       run: npm run build
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-    
-    - name: Install frontend dependencies
-      working-directory: ./web
-      run: npm install
-    
-    - name: Build frontend
-      working-directory: ./web
-      env:
-        VITE_API_BASE_URL: https://crowd-lunch.fly.dev
-      run: npm run build
-    
-    - name: Verify Netlify secrets
-      run: |
-        if [ -z "${{ secrets.NETLIFY_AUTH_TOKEN }}" ]; then
-          echo "ERROR: NETLIFY_AUTH_TOKEN secret is not set"
-          exit 1
-        fi
-        if [ -z "${{ secrets.NETLIFY_SITE_ID }}" ]; then
-          echo "ERROR: NETLIFY_SITE_ID secret is not set"
-          exit 1
-        fi
-        echo "Netlify secrets are configured"
-    
-    - name: Deploy Frontend to Netlify
-      uses: nwtgck/actions-netlify@v3.0
-      with:
-        publish-dir: './web/dist'
-        production-branch: main
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        deploy-message: "Deploy from GitHub Actions - Build ${{ github.run_number }}"
-        enable-pull-request-comment: false
-        enable-commit-comment: false
-        overwrites-pull-request-comment: false
-      env:
-        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-      continue-on-error: false
+# フロントエンドのデプロイは Netlify 自身の Git 連携（main push でビルド）が
+# 担っている。ここに GitHub Actions 経由の Netlify デプロイジョブがあったが、
+# 同じコミットを二重にビルドするだけで NETLIFY_AUTH_TOKEN も失効していたため削除した。
+# 復活させる場合は Netlify の Personal Access Token を再発行し、
+# Netlify 側の自動ビルドを止めてから入れること（経路は1つに保つ）。
