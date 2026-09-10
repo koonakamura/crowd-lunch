@@ -96,9 +96,14 @@ export interface Order {
   user: User;
   order_items: Array<{
     id: number;
-    menu_id: number;
     qty: number;
-    menu: Menu;
+    // 旧モデル注文(/orders/guest)のみ menu_id/menu が入る。
+    // v2注文(/v2/orders/guest)は menu が無く name_snapshot 側に商品名が入る。
+    menu_id?: number | null;
+    menu?: Menu | null;
+    name_snapshot?: string | null;
+    unit_price_snapshot?: number | null;
+    item_options?: Array<{ id: number; name_snapshot: string; price_delta_snapshot: number }>;
     menu_item_name?: string;
   }>;
   order_id?: string;

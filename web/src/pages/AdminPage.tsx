@@ -95,8 +95,14 @@ interface Order {
 
 interface OrderItem {
   id: number
-  menu: { title: string; price: number }
   qty: number
+  // 旧モデル注文(/orders/guest)のみ menu が入る。
+  // v2注文(/v2/orders/guest)は menu=null で name_snapshot 側に商品名が入る。
+  menu?: { title: string; price: number } | null
+  menu_id?: number | null
+  name_snapshot?: string | null
+  unit_price_snapshot?: number | null
+  item_options?: Array<{ id: number; name_snapshot: string; price_delta_snapshot: number }>
   menu_item_name?: string
 }
 
@@ -187,7 +193,7 @@ export default function AdminPage() {
   const serveDateKey = selectedDateKey;
   const token = apiClient.getAdminToken();
 
-  const { data: orders } = useQuery<Order[]>({
+  const { data: orders, error: ordersError } = useQuery<Order[]>({
     queryKey: createOrdersQueryKey(serveDateKey),
     queryFn: () => apiClient.getOrdersByDate(serveDateKey),
     enabled: !!selectedDateKey && !!token,
@@ -207,7 +213,7 @@ export default function AdminPage() {
     refetchOnWindowFocus: false,
   })
 
-  const { data: confirmedOrders } = useQuery<Order[]>({
+  const { data: confirmedOrders, error: confirmedOrdersError } = useQuery<Order[]>({
     queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
     enabled: !!selectedDateKey && !!token && showConfirmedOnly,
@@ -584,6 +590,16 @@ export default function AdminPage() {
     saveMenusMutation.mutate()
   }
 
+  // 旧モデル注文は menu、v2注文は name_snapshot に商品名が入る
+  const formatOrderItems = (order: Order): string =>
+    order.order_items
+      .map(item => {
+        const name = item.menu?.title ?? item.name_snapshot ?? '(商品不明)'
+        const options = (item.item_options ?? []).map(o => o.name_snapshot).join('・')
+        return options ? `${name}(${options})` : name
+      })
+      .join('、')
+
   const generateCSV = (orders: Order[]): string => {
     const BOM = '\uFEFF';
     const headers = [
@@ -600,7 +616,7 @@ export default function AdminPage() {
         order.department || '',
         order.customer_name || order.user?.name || '',
         order.note || '',
-        order.order_items.map(item => item.menu.title).join('、'),
+        formatOrderItems(order),
         order.total_price.toString(),
         order.delivery_location || '',
         order.request_time || '',
@@ -936,12 +952,18 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(showConfirmedOnly ? confirmedOrders : orders)?.length ? (
+                  {(showConfirmedOnly ? confirmedOrdersError : ordersError) ? (
+                    <tr>
+                      <td colSpan={9} className="text-center text-destructive py-8">
+                        注文の取得に失敗しました（{toUserMessage(showConfirmedOnly ? confirmedOrdersError : ordersError)}）
+                      </td>
+                    </tr>
+                  ) : (showConfirmedOnly ? confirmedOrders : orders)?.length ? (
                     (showConfirmedOnly ? confirmedOrders : orders)?.map((order: Order) => (
                       <tr key={order.id} className="border-b">
                         <td className="p-2">{order.order_id || `#${order.id.toString().padStart(7, '0')}`}</td>
                         <td className="p-2"><JstTime value={order.created_at} /></td>
-                        <td className="p-2">{order.order_items.map(item => item.menu.title).join('、')}</td>
+                        <td className="p-2">{formatOrderItems(order)}</td>
                         <td className="p-2">{order.total_price.toLocaleString()}円</td>
                         <td className="p-2">{order.user.name}</td>
                         <td className="p-2 whitespace-pre-wrap break-words max-w-[16rem]">{order.note || '-'}</td>

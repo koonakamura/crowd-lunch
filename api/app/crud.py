@@ -90,7 +90,13 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
     return db_order
 
 def get_order(db: Session, order_id: int):
-    return db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
+    from sqlalchemy.orm import joinedload
+
+    return db.query(models.OrderSQLAlchemy).options(
+        joinedload(models.OrderSQLAlchemy.user),
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu),
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.item_options),
+    ).filter(models.OrderSQLAlchemy.id == order_id).first()
 
 def update_order_status(db: Session, order_id: int, status: models.OrderStatus):
     order = db.query(models.OrderSQLAlchemy).filter(models.OrderSQLAlchemy.id == order_id).first()
@@ -105,7 +111,8 @@ def get_today_orders(db: Session, serve_date: date, status_filter: Optional[str]
     
     query = db.query(models.OrderSQLAlchemy).options(
         joinedload(models.OrderSQLAlchemy.user),
-        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu)
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu),
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.item_options),
     ).filter(models.OrderSQLAlchemy.serve_date == serve_date)
     
     if status_filter:
@@ -298,7 +305,8 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     
     from sqlalchemy.orm import joinedload
     db_order_with_menus = db.query(models.OrderSQLAlchemy).options(
-        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu)
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu),
+        joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.item_options),
     ).filter(models.OrderSQLAlchemy.id == db_order.id).first()
     
     return db_order_with_menus

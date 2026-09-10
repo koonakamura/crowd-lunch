@@ -46,10 +46,31 @@ class OrderItemBase(BaseModel):
 class OrderItemCreate(OrderItemBase):
     pass
 
-class OrderItem(OrderItemBase):
+class OrderItemOption(BaseModel):
+    """注文明細に紐づく選択オプション（v2注文のみ）"""
     id: int
-    menu: Menu
-    
+    name_snapshot: str
+    price_delta_snapshot: int
+
+    class Config:
+        from_attributes = True
+
+class OrderItem(BaseModel):
+    """注文明細のレスポンス。
+
+    旧モデル(/orders/guest)は menu_id + menu、v2モデル(/v2/orders/guest)は
+    menu_id=NULL で name_snapshot/unit_price_snapshot を持つ。両方を返せるよう
+    menu 系は Optional にする（必須にすると v2 注文が1件でも混ざった日の
+    GET /orders 全体が ResponseValidationError で500になる）。
+    """
+    id: int
+    qty: int
+    menu_id: Optional[int] = None
+    menu: Optional[Menu] = None
+    name_snapshot: Optional[str] = None
+    unit_price_snapshot: Optional[int] = None
+    item_options: List[OrderItemOption] = []
+
     class Config:
         from_attributes = True
 
