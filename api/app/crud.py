@@ -80,7 +80,10 @@ def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> 
 
 def create_order(db: Session, order: schemas.OrderCreate, user_id: int, slot_key: Optional[str] = None):
     total_price = calculate_order_total(db, order.items)
-    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items]
+    # slot_key は TESTING モードでは None になる（main.py のルートハンドラ側の分岐に揃える）。
+    # 在庫チェックも同じ条件でスキップし、負荷試験等のTESTING実行で在庫不足エラーが
+    # 混ざらないようにする。
+    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items] if slot_key is not None else None
     order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key, items_for_stock_check)
 
     db_order = models.OrderSQLAlchemy(
@@ -290,7 +293,10 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
     customer_name = f"{order.department}／{order.name}"
     guest_user = get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
 
-    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items]
+    # slot_key は TESTING モードでは None になる（main.py のルートハンドラ側の分岐に揃える）。
+    # 在庫チェックも同じ条件でスキップし、負荷試験等のTESTING実行で在庫不足エラーが
+    # 混ざらないようにする。
+    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items] if slot_key is not None else None
     order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key, items_for_stock_check)
 
 

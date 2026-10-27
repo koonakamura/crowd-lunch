@@ -462,3 +462,26 @@ def test_stock_insufficient_blocks_order(client, test_user):
     assert other_order_id is not None
 
     db.close()
+
+def test_stock_check_skipped_in_testing_mode(client, test_user, test_menu):
+    """TESTING=true では在庫チェックをスキップすること（負荷試験のCIゲート対策）。
+
+    TESTING時は main.py のルートハンドラがslot_keyをNoneのまま渡すため、時間帯上限
+    チェックと同じ条件で在庫チェックも無効化している。これを在庫チェック追加時に
+    崩すと、CIの負荷試験(同一メニューへ大量注文)が本物の在庫切れとして次々
+    422になり、「失敗0件」ゲートが落ちる(実際に一度発生した)。
+    """
+    token = create_user_token("test@example.com")
+
+    # test_menu.max_qty は10。TESTINGなら超える数量でも通るはず。
+    response = client.post(
+        "/orders",
+        json={
+            "serve_date": str(date.today()),
+            "delivery_type": "pickup",
+            "pickup_at": "2025-08-27T12:00:00+09:00",
+            "items": [{"menu_id": test_menu.id, "qty": 999}],
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
