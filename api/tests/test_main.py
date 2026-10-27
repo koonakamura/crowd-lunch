@@ -424,3 +424,41 @@ def test_pickup_at_to_slot_key_rounds_down_to_15min_grid():
     assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 7)) == "12:00～12:15"
     assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 14)) == "12:00～12:15"
     assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 59)) == "12:45～13:00"
+
+def test_stock_insufficient_blocks_order(client, test_user):
+    """旧メニューモデルで、残数を超える注文は StockInsufficientError で拒否されること。
+    他のメニューの残数には影響しないことも確認する。
+    """
+    from app.crud import generate_order_id_and_check_capacity, StockInsufficientError
+    from app.models import DeliveryType, OrderStatus
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 4)
+    menu = Menu(serve_date=serve_date, title="在庫確認用メニュー", price=500, max_qty=5)
+    other_menu = Menu(serve_date=serve_date, title="別メニュー", price=500, max_qty=5)
+    db.add(menu); db.add(other_menu)
+    db.commit(); db.refresh(menu); db.refresh(other_menu)
+
+    # 1件目: 残数5のメニューを5個注文 → ちょうど埋まる
+    order_id = generate_order_id_and_check_capacity(db, serve_date, None, [(menu.id, 5)])
+    order = Order(
+        user_id=test_user.id, serve_date=serve_date, delivery_type=DeliveryType.desk,
+        total_price=0, status=OrderStatus.new, order_id=order_id,
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    db.add(OrderItem(order_id=order.id, menu_id=menu.id, qty=5))
+    db.commit()
+
+    # 2件目: 残り0のはずなので1個でも拒否される
+    with pytest.raises(StockInsufficientError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, None, [(menu.id, 1)])
+    assert exc_info.value.menu_id == menu.id
+    assert exc_info.value.remaining == 0
+
+    # 別メニューの残数には影響しない
+    other_order_id = generate_order_id_and_check_capacity(db, serve_date, None, [(other_menu.id, 5)])
+    assert other_order_id is not None
+
+    db.close()

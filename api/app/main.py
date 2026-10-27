@@ -446,6 +446,12 @@ async def create_order(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
         )
+    except crud.StockInsufficientError as e:
+        log_order_event("reject", code="stock_insufficient", user_id=current_user.id, menu_id=e.menu_id, remaining=e.remaining)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
+        )
 
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -515,6 +521,12 @@ async def create_guest_order(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
+        )
+    except crud.StockInsufficientError as e:
+        log_order_event("reject", code="stock_insufficient", department=order.department, name=order.name, menu_id=e.menu_id, remaining=e.remaining)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
         )
 
     await manager.broadcast(json.dumps({
