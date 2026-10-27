@@ -348,6 +348,65 @@ def test_websocket_connection_basic(client):
 def test_invalid_jwt_scenarios(client):
     response = client.get("/orders/1", headers={"Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiZXhwIjoxfQ.invalid"})
     assert response.status_code == 401
-    
+
     response = client.get("/orders/1", headers={"Authorization": "Bearer malformed.token"})
     assert response.status_code == 401
+
+def test_remaining_qty_counts_new_status_orders(client, test_user):
+    """2026-10-26: 終日 remaining_qty が減らなかった不具合の再発防止。
+
+    注文は作成時に status=new のまま運用されており、それを他ステータスへ進める
+    操作が存在しない。ordered_qty の集計を status で絞ると実質すべて漏れるため、
+    status を問わず集計できていることを確認する。
+    """
+    from app.models import DeliveryType, OrderStatus
+    from app.crud import get_weekly_menus
+
+    db = TestingSessionLocal()
+    menu = Menu(serve_date=date(2025, 9, 2), title="残数確認用メニュー", price=500, max_qty=10)
+    db.add(menu)
+    db.commit()
+    db.refresh(menu)
+
+    order = Order(
+        user_id=test_user.id, serve_date=menu.serve_date, delivery_type=DeliveryType.pickup,
+        request_time="12:00～12:15", total_price=500, status=OrderStatus.new, order_id="#TESTQTY001",
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    db.add(OrderItem(order_id=order.id, menu_id=menu.id, qty=3))
+    db.commit()
+
+    menus = get_weekly_menus(db, menu.serve_date, menu.serve_date)
+    target = next(m for m in menus if m['id'] == menu.id)
+    assert target['remaining_qty'] == 7
+
+    db.close()
+
+def test_slot_capacity_limit(client, test_user):
+    """希望時間帯あたりの予約上限(SLOT_CAPACITY件)に達したら SlotFullError になること。
+    別の時間帯には影響しないことも確認する。
+    """
+    from app.crud import generate_order_id_and_check_capacity, SlotFullError, SLOT_CAPACITY
+    from app.models import DeliveryType, OrderStatus
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 3)
+    slot = "12:00～12:15"
+
+    for _ in range(SLOT_CAPACITY):
+        order_id = generate_order_id_and_check_capacity(db, serve_date, slot)
+        db.add(Order(
+            user_id=test_user.id, serve_date=serve_date, delivery_type=DeliveryType.desk,
+            request_time=slot, total_price=0, status=OrderStatus.new, order_id=order_id,
+        ))
+        db.commit()
+
+    with pytest.raises(SlotFullError):
+        generate_order_id_and_check_capacity(db, serve_date, slot)
+
+    other_slot_id = generate_order_id_and_check_capacity(db, serve_date, "12:15～12:30")
+    assert other_slot_id is not None
+
+    db.close()

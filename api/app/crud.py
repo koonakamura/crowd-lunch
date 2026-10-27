@@ -36,20 +36,29 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
     
     menu_with_remaining = []
     for menu in menus:
-        ordered_qty = db.query(func.sum(models.OrderItem.qty)).join(models.OrderSQLAlchemy).filter(
-            and_(
-                models.OrderItem.menu_id == menu.id,
-                models.OrderSQLAlchemy.serve_date == menu.serve_date,
-                models.OrderSQLAlchemy.status != models.OrderStatus.new
-            )
-        ).scalar() or 0
-        
+        ordered_qty = calculate_ordered_qty(db, menu.id, menu.serve_date)
+
         remaining_qty = menu.max_qty - ordered_qty
         menu_dict = menu.__dict__.copy()
         menu_dict['remaining_qty'] = max(0, remaining_qty)
         menu_with_remaining.append(menu_dict)
-    
+
     return menu_with_remaining
+
+def calculate_ordered_qty(db: Session, menu_id: int, serve_date: date) -> int:
+    """指定メニューのその日の注文済み数量。
+
+    status での絞り込みはしない。注文は作成時に status=new のまま固定され、
+    運用上それを他ステータスへ進める操作が存在しないため、
+    「status != new」で絞ると実質すべての注文が集計から漏れる
+    （2026-10-26: 終日 remaining_qty が減らない不具合の原因）。
+    """
+    return db.query(func.sum(models.OrderItem.qty)).join(models.OrderSQLAlchemy).filter(
+        and_(
+            models.OrderItem.menu_id == menu_id,
+            models.OrderSQLAlchemy.serve_date == serve_date,
+        )
+    ).scalar() or 0
 
 def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> int:
     """Calculate total price for order items"""
@@ -60,15 +69,15 @@ def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> 
             total_price += menu.price * item.qty
     return total_price
 
-def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
+def create_order(db: Session, order: schemas.OrderCreate, user_id: int, slot_key: Optional[str] = None):
     total_price = calculate_order_total(db, order.items)
-    order_id = generate_order_id(db, order.serve_date)
-    
+    order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key)
+
     db_order = models.OrderSQLAlchemy(
         user_id=user_id,
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
-        request_time=order.request_time,
+        request_time=slot_key or order.request_time,
         total_price=total_price,
         status=models.OrderStatus.new,
         order_id=order_id
@@ -263,22 +272,22 @@ def delete_menu_item(db: Session, item_id: int):
     db.commit()
     return True
 
-def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName):
+def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName, slot_key: Optional[str] = None):
     """Create an order without user authentication using customer name"""
-    
+
     total_price = calculate_order_total(db, order.items)
-    
+
     customer_name = f"{order.department}／{order.name}"
     guest_user = get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
-    
-    order_id = generate_order_id(db, order.serve_date)
-    
-    
+
+    order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key)
+
+
     db_order = models.OrderSQLAlchemy(
         user_id=guest_user.id,
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
-        request_time=order.request_time,
+        request_time=slot_key or order.request_time,
         delivery_location=order.delivery_location,
         total_price=total_price,
         status=models.OrderStatus.new,
@@ -407,23 +416,43 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     db.commit()
     return True
 
-def generate_order_id(db: Session, serve_date: date) -> str:
-    """Generate order ID in #MMDD000 format with race condition protection.
+SLOT_CAPACITY = 10
 
-    FOR UPDATE でその日の注文行をロックする。呼び出し側(create_guest_order /
-    create_v2_guest_order)は直後に INSERT → commit するので、採番からINSERTまでが
-    直列化され、同じ連番が二重に振られない。ロックを外して COUNT(*) にすると
-    速いが、同時注文で同一IDを採番して orders.order_id の UNIQUE 制約に
-    ぶつかり、片方の客に500が返る。
+
+class SlotFullError(Exception):
+    """指定の時間帯(slot_key)が予約上限(SLOT_CAPACITY)に達している"""
+    def __init__(self, slot_key: str):
+        self.slot_key = slot_key
+        super().__init__(f"slot full: {slot_key}")
+
+
+def generate_order_id_and_check_capacity(db: Session, serve_date: date, slot_key: Optional[str]) -> str:
+    """注文ID採番(#MMDD000)と、希望時間帯の予約上限チェックを同一ロックの中で行う。
+
+    FOR UPDATE でその日の注文行をロックする。呼び出し側(create_order /
+    create_guest_order / create_v2_guest_order)は直後に INSERT → commit するので、
+    採番からINSERTまでが直列化され、同じ連番が二重に振られない。ロックを外して
+    COUNT(*) にすると速いが、同時注文で同一IDを採番して orders.order_id の
+    UNIQUE 制約にぶつかり、片方の客に500が返る。
     （Postgres の集約関数には FOR UPDATE を付けられないため COUNT は使えない）
 
-    ORM オブジェクトの生成は不要なので id 列だけを取る。以前は全カラムを
-    ハイドレートしており、その日の注文が増えるほど1件の登録が重くなっていた。
+    時間帯あたりの予約上限（pickup/desk合算で15分枠10件）も、専用テーブルを
+    増やさずこの同じロック内で判定する。日単位ロックなので枠より粗い直列化だが、
+    枠ごとの二重受付を確実に防げる。
+
+    ORM オブジェクトの生成は不要なので id と request_time 列だけを取る。
     """
-    existing_ids = db.query(models.OrderSQLAlchemy.id).filter(
+    existing_rows = db.query(
+        models.OrderSQLAlchemy.id, models.OrderSQLAlchemy.request_time
+    ).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
     ).with_for_update().all()
 
+    if slot_key is not None:
+        slot_count = sum(1 for _id, request_time in existing_rows if request_time == slot_key)
+        if slot_count >= SLOT_CAPACITY:
+            raise SlotFullError(slot_key)
+
     month_day = serve_date.strftime("%m%d")
-    order_number = str(len(existing_ids) + 1).zfill(3)
+    order_number = str(len(existing_rows) + 1).zfill(3)
     return f"#{month_day}{order_number}"

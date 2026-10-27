@@ -193,6 +193,7 @@ class MenuSQLAlchemyUpdate(BaseModel):
 class MenuSQLAlchemyResponse(MenuSQLAlchemyBase):
     id: int
     created_at: datetime
-    
+    remaining_qty: Optional[int] = None
+
     class Config:
         from_attributes = True

@@ -115,6 +115,20 @@ def convert_to_pickup_at(serve_date: date, request_time: str) -> datetime:
     )
     return pickup_datetime.replace(tzinfo=jst)
 
+def pickup_at_to_slot_key(pickup_at: datetime) -> str:
+    """pickup_at(15分境界のはず)から '12:00～12:15' 形式のスロット文字列を作る。
+
+    request_time(文字列)とpickup_at(ISO日時)のどちらで注文が来ても、時間帯あたりの
+    予約上限チェックで同じキーに正規化するために使う。
+    """
+    start_hour, start_min = pickup_at.hour, pickup_at.minute
+    end_hour, end_min = start_hour, start_min + 15
+    if end_min >= 60:
+        end_min -= 60
+        end_hour += 1
+    return f"{start_hour:02d}:{start_min:02d}～{end_hour:02d}:{end_min:02d}"
+
+
 def validate_pickup_at(pickup_at: datetime) -> Tuple[bool, str]:
     """Validate pickup_at and return (is_valid, error_code)"""
     current_jst = get_jst_time()

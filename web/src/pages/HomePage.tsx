@@ -128,6 +128,17 @@ export default function HomePage() {
     enabled: Boolean(startKey && endKey),
   })
 
+  const selectedDateKeyForSlots = toServeDateKey(selectedDate)
+  const { data: slotCountsData } = useQuery({
+    queryKey: ['slotCounts', selectedDateKeyForSlots] as const,
+    queryFn: () => apiClient.getSlotCounts(selectedDateKeyForSlots),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+    enabled: Boolean(selectedDateKeyForSlots),
+  })
+
   useEffect(() => {
     const fetchServerTime = async () => {
       try {
@@ -372,6 +383,7 @@ export default function HomePage() {
           q.queryKey[0] === 'weeklyMenus' &&
           rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
       })
+      queryClient.invalidateQueries({ queryKey: ['slotCounts', orderDateKey], exact: true })
 
       setShowOrderModal(false)
       setShowThankYouModal(true)
@@ -394,20 +406,24 @@ export default function HomePage() {
         toast.error('このメニューはカフェタイムでは注文できません')
       } else if (errorWithCode.code === 'invalid_timeslot') {
         toast.error('選択した時間が有効範囲外です')
+      } else if (errorWithCode.code === 'slot_full') {
+        toast.error('選択した時間帯は予約上限に達しました。別の時間帯をお選びください')
+        setDeliveryTime('')
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }
       const orderDateKey = toServeDateKey(getSelectedDate() || new Date())
-      
+
       queryClient.invalidateQueries({ queryKey: ['menus', orderDateKey], exact: true })
       queryClient.invalidateQueries({ queryKey: ['publicMenus', orderDateKey], exact: true })
-      
+
       queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
           q.queryKey[0] === 'weeklyMenus' &&
           rangeContains(q.queryKey[1] as string, q.queryKey[2] as string, orderDateKey)
       })
+      queryClient.invalidateQueries({ queryKey: ['slotCounts', orderDateKey], exact: true })
     } finally {
       setIsSubmitting(false)
     }
@@ -554,23 +570,26 @@ export default function HomePage() {
                 {/* メニュー：ヘッダー直下から下に積む */}
                 <div className="px-3 md:px-4 mt-4 md:mt-5 relative z-10">
                   <div className="mx-auto w-[92%] sm:w-[86%] md:w-[80%] max-w-[960px] flex flex-col gap-3 md:gap-4 pb-16 md:pb-20">
-                    {dayMenus.map((menu) => (
+                    {dayMenus.map((menu) => {
+                      const remaining = menu.remaining_qty ?? menu.max_qty ?? 0
+                      const soldOut = remaining <= 0
+                      return (
                       <button
                         key={menu.id}
                         onClick={() => addToCart(menu.id, dateKey)}
-                        disabled={(menu.max_qty || 0) <= 0}
+                        disabled={soldOut}
                         className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
-                          cart[menu.id] > 0 
-                            ? 'bg-primary' 
-                            : (menu.max_qty || 0) <= 0 
-                              ? 'bg-gray-500 cursor-not-allowed' 
+                          cart[menu.id] > 0
+                            ? 'bg-primary'
+                            : soldOut
+                              ? 'bg-gray-500 cursor-not-allowed'
                               : 'bg-black/50 hover:bg-black/70'
                         }`}
                       >
                         <div className="flex justify-between items-center w-full">
                           <div className="flex items-center gap-2">
                             <span className="text-lg whitespace-nowrap truncate max-w-[65vw] md:max-w-[480px]">{menu.title}</span>
-                            <span className="text-sm whitespace-nowrap">({menu.max_qty})</span>
+                            <span className="text-sm whitespace-nowrap">{soldOut ? '(売り切れ)' : `(残り${remaining})`}</span>
                           </div>
                           <div className="flex items-center gap-2 md:gap-2.5 leading-none">
                             {menu.cafe_time_available && (
@@ -583,7 +602,8 @@ export default function HomePage() {
                           </div>
                         </div>
                       </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -711,14 +731,14 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(getSelectedDate() || undefined).map((slot) => (
-                      <SelectItem 
+                    {getAvailableTimeSlots(getSelectedDate() || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 10).map((slot) => (
+                      <SelectItem
                         key={slot.value}
                         value={slot.value}
                         disabled={slot.disabled}
                         className={slot.disabled ? "bg-gray-200 text-gray-400" : ""}
                       >
-                        {slot.value}{slot.disabled ? " (終了)" : ""}
+                        {slot.value}{slot.full ? " (満席)" : slot.disabled ? " (終了)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

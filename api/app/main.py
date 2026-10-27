@@ -316,6 +316,7 @@ async def get_public_menus_range(start: date, end: date, request: Request, db: S
             "title": getattr(m, "title", None) if hasattr(m, "title") else m.get("title"),
             "price": getattr(m, "price", None) if hasattr(m, "price") else m.get("price"),
             "max_qty": getattr(m, "max_qty", None) if hasattr(m, "max_qty") else m.get("max_qty"),
+            "remaining_qty": getattr(m, "remaining_qty", None) if hasattr(m, "remaining_qty") else m.get("remaining_qty"),
             "img_url": getattr(m, "img_url", None) if hasattr(m, "img_url") else m.get("img_url"),
             "cafe_time_available": getattr(m, "cafe_time_available", None) if hasattr(m, "cafe_time_available") else m.get("cafe_time_available"),
             "created_at": (getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at")).isoformat() if (getattr(m, "created_at", None) if hasattr(m, "created_at") else m.get("created_at")) else None,
@@ -344,6 +345,29 @@ async def get_public_menus_range(start: date, end: date, request: Request, db: S
         headers=headers,
     )
 
+@app.get("/public/slot-counts")
+async def get_public_slot_counts(date: date, db: Session = Depends(get_db)):
+    """指定日の希望お届け時間(request_time)ごとの予約件数。pickup/desk合算、SLOT_CAPACITYが上限。
+
+    フロントの時間帯選択で満枠のスロットをグレーアウトするための参照用。
+    実際の受付可否は注文作成時にサーバ側で再チェックする（ここはUI表示用の目安）。
+    """
+    from fastapi.responses import JSONResponse
+
+    rows = db.query(models.OrderSQLAlchemy.request_time).filter(
+        models.OrderSQLAlchemy.serve_date == date,
+        models.OrderSQLAlchemy.request_time.isnot(None),
+    ).all()
+
+    counts: dict = {}
+    for (request_time,) in rows:
+        counts[request_time] = counts.get(request_time, 0) + 1
+
+    return JSONResponse(
+        content={"capacity": crud.SLOT_CAPACITY, "counts": counts},
+        headers={"Cache-Control": "no-store"},
+    )
+
 @app.get("/menus", response_model=List[schemas.MenuSQLAlchemyResponse])
 async def get_menus_by_date(
     date: date = None,
@@ -351,9 +375,15 @@ async def get_menus_by_date(
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
-    return menus
+    result = []
+    for m in menus:
+        ordered_qty = crud.calculate_ordered_qty(db, m.id, m.serve_date)
+        menu_dict = m.__dict__.copy()
+        menu_dict['remaining_qty'] = max(0, m.max_qty - ordered_qty)
+        result.append(menu_dict)
+    return result
 
-@app.post("/orders", response_model=schemas.Order, 
+@app.post("/orders", response_model=schemas.Order,
          summary="Create Order (Requires Bearer Token)",
          description="Create a new order. **Authentication required**: Include Bearer token in Authorization header.")
 async def create_order(
@@ -365,12 +395,13 @@ async def create_order(
     from .logging import log_order_event
     from datetime import time
     
+    slot_key = None
     if os.getenv("TESTING") != "true":
-        from .time_utils import get_jst_time, convert_to_pickup_at, validate_pickup_at
+        from .time_utils import get_jst_time, convert_to_pickup_at, validate_pickup_at, pickup_at_to_slot_key
         current_jst = get_jst_time()
-        
+
         log_order_event("order_attempt", user_id=current_user.id, time=current_jst.isoformat(), serve_date=str(order.serve_date))
-        
+
         if order.pickup_at:
             pickup_at = order.pickup_at
         elif order.request_time:
@@ -381,7 +412,7 @@ async def create_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"code": "invalid_timeslot", "message": "配達時間が指定されていません"}
             )
-        
+
         is_valid, error_code = validate_pickup_at(pickup_at)
         if not is_valid:
             log_order_event("reject", code=error_code, user_id=current_user.id, now=current_jst.isoformat())
@@ -393,7 +424,7 @@ async def create_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"code": error_code, "message": error_messages[error_code]}
             )
-        
+
         if pickup_at.hour >= 14:
             for item in order.items:
                 menu = crud.get_menu_by_id(db, item.menu_id)
@@ -403,15 +434,24 @@ async def create_order(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
-    
-    db_order = crud.create_order(db, order, current_user.id)
-    
+
+        slot_key = pickup_at_to_slot_key(pickup_at)
+
+    try:
+        db_order = crud.create_order(db, order, current_user.id, slot_key=slot_key)
+    except crud.SlotFullError:
+        log_order_event("reject", code="slot_full", user_id=current_user.id, slot=slot_key)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
+        )
+
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
         "user_id": current_user.id
     }))
-    
+
     return db_order
 
 @app.post("/orders/guest", response_model=schemas.Order,
@@ -425,12 +465,13 @@ async def create_guest_order(
     from .logging import log_order_event
     from datetime import time
     
+    slot_key = None
     if os.getenv("TESTING") != "true":
-        from .time_utils import get_jst_time, convert_to_pickup_at, validate_pickup_at
+        from .time_utils import get_jst_time, convert_to_pickup_at, validate_pickup_at, pickup_at_to_slot_key
         current_jst = get_jst_time()
-        
+
         log_order_event("guest_order_attempt", department=order.department, name=order.name, time=current_jst.isoformat(), serve_date=str(order.serve_date))
-        
+
         if order.pickup_at:
             pickup_at = order.pickup_at
         elif order.request_time:
@@ -441,7 +482,7 @@ async def create_guest_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"code": "invalid_timeslot", "message": "配達時間が指定されていません"}
             )
-        
+
         is_valid, error_code = validate_pickup_at(pickup_at)
         if not is_valid:
             log_order_event("reject", code=error_code, department=order.department, name=order.name, now=current_jst.isoformat())
@@ -453,7 +494,7 @@ async def create_guest_order(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={"code": error_code, "message": error_messages[error_code]}
             )
-        
+
         if pickup_at.hour >= 14:
             for item in order.items:
                 menu = crud.get_menu_by_id(db, item.menu_id)
@@ -463,15 +504,24 @@ async def create_guest_order(
                         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                         detail={"code": "menu_not_available", "message": "このメニューはカフェタイムでは注文できません"}
                     )
-    
-    db_order = crud.create_guest_order(db, order)
-    
+
+        slot_key = pickup_at_to_slot_key(pickup_at)
+
+    try:
+        db_order = crud.create_guest_order(db, order, slot_key=slot_key)
+    except crud.SlotFullError:
+        log_order_event("reject", code="slot_full", department=order.department, name=order.name, slot=slot_key)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
+        )
+
     await manager.broadcast(json.dumps({
         "type": "order_created",
         "order_id": db_order.id,
         "customer_name": f"{order.department}／{order.name}"
     }))
-    
+
     return db_order
 
 @app.get("/orders/{order_id}", response_model=schemas.Order,
