@@ -485,3 +485,50 @@ def test_stock_check_skipped_in_testing_mode(client, test_user, test_menu):
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
+
+def test_negative_qty_rejected(client, test_user, test_menu):
+    """qty<=0は受け付けないこと。
+
+    在庫チェック(stock_insufficient)は `already_ordered + qty > max_qty` でしか
+    判定しておらず、qtyに負数を送ると判定式が常に真にならず、在庫チェックを
+    丸ごとすり抜けられてしまう上に、以後の集計(SUM(qty))まで負に汚染されて
+    その日のそのメニューが実質無制限に注文できてしまう。qtyはリクエスト受付時点
+    (スキーマ)でgt=0を強制し、ビジネスロジックに到達する前に弾く。
+    """
+    token = create_user_token("test@example.com")
+
+    response = client.post(
+        "/orders",
+        json={
+            "serve_date": str(date.today()),
+            "delivery_type": "pickup",
+            "pickup_at": "2025-08-27T12:00:00+09:00",
+            "items": [{"menu_id": test_menu.id, "qty": -1000000}],
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 422
+
+def test_stock_check_scoped_to_serve_date(client, test_user):
+    """在庫チェックは、注文のserve_dateと一致するメニューだけを見ること。
+
+    menu_idだけで引くと、別日のメニューのmax_qtyと比較してしまい、両日の
+    remaining_qtyが食い違う。日付が一致しないmenu_idは在庫チェックの対象外
+    (チェックをスキップ)になり、注文自体はブロックされないことを確認する。
+    """
+    from app.crud import generate_order_id_and_check_capacity
+
+    db = TestingSessionLocal()
+    other_day_menu = Menu(serve_date=date(2025, 9, 5), title="別日メニュー", price=500, max_qty=1)
+    db.add(other_day_menu)
+    db.commit()
+    db.refresh(other_day_menu)
+
+    different_serve_date = date(2025, 9, 6)
+    # other_day_menuの日付(9/5)とは別日(9/6)の注文として、max_qty(1)を超える数量を注文
+    order_id = generate_order_id_and_check_capacity(
+        db, different_serve_date, None, [(other_day_menu.id, 100)]
+    )
+    assert order_id is not None  # 日付が違うメニューなのでブロックされない
+
+    db.close()

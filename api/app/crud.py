@@ -503,9 +503,16 @@ def generate_order_id_and_check_capacity(
             .all()
         ) if existing_order_ids else {}
 
+        # serve_date も絞る。menu_idだけで引くと、注文のserve_dateとは別の日の
+        # メニューを誤って参照した場合にその日の残数と比較してしまい、
+        # 両日のremaining_qtyが食い違う(該当menu_idが見つからなければ在庫チェックは
+        # スキップされ、404等は後続のcreate_order側に委ねる)。
         menus = {
             m.id: m for m in db.query(models.MenuSQLAlchemy)
-            .filter(models.MenuSQLAlchemy.id.in_(requested_by_menu.keys())).all()
+            .filter(
+                models.MenuSQLAlchemy.id.in_(requested_by_menu.keys()),
+                models.MenuSQLAlchemy.serve_date == serve_date,
+            ).all()
         }
         for menu_id, requested_qty in requested_by_menu.items():
             menu = menus.get(menu_id)

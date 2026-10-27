@@ -520,7 +520,7 @@ def public_day_setting(date: date_type, db: Session = Depends(get_db)):
 # ----------------------------- v2 order (with options) -----------------------------
 class V2OrderItemIn(BaseModel):
     daily_menu_id: int
-    qty: int = 1
+    qty: int = Field(default=1, gt=0)
     option_ids: List[int] = []
 
 

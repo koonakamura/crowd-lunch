@@ -41,7 +41,7 @@ class MenuWithRemaining(Menu):
 
 class OrderItemBase(BaseModel):
     menu_id: int
-    qty: int
+    qty: int = Field(gt=0)
 
 class OrderItemCreate(OrderItemBase):
     pass
