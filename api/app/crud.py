@@ -33,10 +33,12 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
     menus = db.query(models.MenuSQLAlchemy).filter(
         and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
     ).order_by(models.MenuSQLAlchemy.serve_date.asc(), models.MenuSQLAlchemy.id.asc()).all()
-    
+
+    ordered_by_menu = calculate_ordered_qty_batch(db, start_date, end_date)
+
     menu_with_remaining = []
     for menu in menus:
-        ordered_qty = calculate_ordered_qty(db, menu.id, menu.serve_date)
+        ordered_qty = ordered_by_menu.get(menu.id, 0)
 
         remaining_qty = menu.max_qty - ordered_qty
         menu_dict = menu.__dict__.copy()
@@ -45,20 +47,27 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
 
     return menu_with_remaining
 
-def calculate_ordered_qty(db: Session, menu_id: int, serve_date: date) -> int:
-    """指定メニューのその日の注文済み数量。
+def calculate_ordered_qty_batch(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> dict:
+    """menu_idごとの注文済み数量をまとめて取得(1クエリ)。
 
     status での絞り込みはしない。注文は作成時に status=new のまま固定され、
     運用上それを他ステータスへ進める操作が存在しないため、
     「status != new」で絞ると実質すべての注文が集計から漏れる
     （2026-10-26: 終日 remaining_qty が減らない不具合の原因）。
+
+    menu_id は MenuSQLAlchemy の主キーでserve_dateと1:1なので、date範囲は
+    「スキャン範囲を絞る」ためだけに使う（省略可）。メニュー1件ごとにクエリを
+    投げるとメニュー数に比例してDBラウンドトリップが増えるため、
+    GROUP BY でまとめて取る。
     """
-    return db.query(func.sum(models.OrderItem.qty)).join(models.OrderSQLAlchemy).filter(
-        and_(
-            models.OrderItem.menu_id == menu_id,
-            models.OrderSQLAlchemy.serve_date == serve_date,
-        )
-    ).scalar() or 0
+    query = db.query(
+        models.OrderItem.menu_id, func.sum(models.OrderItem.qty)
+    ).join(models.OrderSQLAlchemy).filter(models.OrderItem.menu_id.isnot(None))
+    if start_date is not None:
+        query = query.filter(models.OrderSQLAlchemy.serve_date >= start_date)
+    if end_date is not None:
+        query = query.filter(models.OrderSQLAlchemy.serve_date <= end_date)
+    return dict(query.group_by(models.OrderItem.menu_id).all())
 
 def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> int:
     """Calculate total price for order items"""

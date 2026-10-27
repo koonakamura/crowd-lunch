@@ -573,11 +573,12 @@ export default function HomePage() {
                     {dayMenus.map((menu) => {
                       const remaining = menu.remaining_qty ?? menu.max_qty ?? 0
                       const soldOut = remaining <= 0
+                      const inCart = (cart[menu.id] ?? 0) > 0
                       return (
                       <button
                         key={menu.id}
                         onClick={() => addToCart(menu.id, dateKey)}
-                        disabled={soldOut}
+                        disabled={soldOut && !inCart}
                         className={`px-3 py-[6px] md:px-4 md:py-[10px] rounded-full text-white font-semibold transition-colors inline-flex mx-3 md:mx-4 backdrop-blur-sm ring-[0.66px] md:ring-[0.75px] ring-gray-300/70 relative z-10 leading-tight w-full ${
                           cart[menu.id] > 0
                             ? 'bg-primary'

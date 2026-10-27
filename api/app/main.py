@@ -375,9 +375,10 @@ async def get_menus_by_date(
     db: Session = Depends(get_db),
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
+    ordered_by_menu = crud.calculate_ordered_qty_batch(db, date, date)
     result = []
     for m in menus:
-        ordered_qty = crud.calculate_ordered_qty(db, m.id, m.serve_date)
+        ordered_qty = ordered_by_menu.get(m.id, 0)
         menu_dict = m.__dict__.copy()
         menu_dict['remaining_qty'] = max(0, m.max_qty - ordered_qty)
         result.append(menu_dict)
