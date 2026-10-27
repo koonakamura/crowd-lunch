@@ -135,7 +135,9 @@ export default function OrderV2Page() {
       const map: Record<string, string> = {
         cafe_time_closed: '本日のカフェタイム受付は終了しました', menu_not_available: 'このメニューはカフェタイムでは注文できません',
         invalid_timeslot: '選択した時間が有効範囲外です',
+        slot_full: '選択した時間帯は予約上限に達しました。別の時間帯をお選びください',
       }
+      if (err.code === 'slot_full') setDeliveryTime('')
       toast.error(map[err.code || ''] || '注文の送信に失敗しました。')
     } finally { setIsSubmitting(false) }
   }
@@ -149,6 +151,15 @@ export default function OrderV2Page() {
     return dayKeys[0] || toServeDateKey(todayJST(undefined))
   }, [lines, dayKeys, days])
   const selDate = windowDates.find((d) => toServeDateKey(d) === selectedDateKey)
+
+  const { data: slotCountsData } = useQuery({
+    queryKey: ['slotCounts', selectedDateKey] as const,
+    queryFn: () => apiClient.getSlotCounts(selectedDateKey),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+    enabled: Boolean(selectedDateKey),
+  })
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="text-lg">Loading...</div></div>
 
@@ -293,8 +304,8 @@ export default function OrderV2Page() {
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                   <SelectTrigger className="bg-white border-gray-300 text-black"><SelectValue placeholder="時間を選択" /></SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(selDate || undefined).map((slot) => (
-                      <SelectItem key={slot.value} value={slot.value} disabled={slot.disabled} className={slot.disabled ? 'bg-gray-200 text-gray-400' : ''}>{slot.value}{slot.disabled ? ' (終了)' : ''}</SelectItem>
+                    {getAvailableTimeSlots(selDate || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 10).map((slot) => (
+                      <SelectItem key={slot.value} value={slot.value} disabled={slot.disabled} className={slot.disabled ? 'bg-gray-200 text-gray-400' : ''}>{slot.value}{slot.full ? ' (満席)' : slot.disabled ? ' (終了)' : ''}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

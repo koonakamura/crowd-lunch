@@ -116,12 +116,17 @@ def convert_to_pickup_at(serve_date: date, request_time: str) -> datetime:
     return pickup_datetime.replace(tzinfo=jst)
 
 def pickup_at_to_slot_key(pickup_at: datetime) -> str:
-    """pickup_at(15分境界のはず)から '12:00～12:15' 形式のスロット文字列を作る。
+    """pickup_atから '12:00～12:15' 形式のスロット文字列を作る。
 
     request_time(文字列)とpickup_at(ISO日時)のどちらで注文が来ても、時間帯あたりの
     予約上限チェックで同じキーに正規化するために使う。
+
+    分は15分境界に切り下げる。pickup_atはフロント経由なら常に :00/:15/:30/:45 だが、
+    pickup_atを直接指定できるAPIに中途半端な分(例: 12:07)が来た場合に切り下げないと
+    "12:07～12:22" のような別キーになり、本来の"12:00～12:15"の予約上限カウントから
+    漏れて上限チェックをすり抜けられてしまう。
     """
-    start_hour, start_min = pickup_at.hour, pickup_at.minute
+    start_hour, start_min = pickup_at.hour, (pickup_at.minute // 15) * 15
     end_hour, end_min = start_hour, start_min + 15
     if end_min >= 60:
         end_min -= 60

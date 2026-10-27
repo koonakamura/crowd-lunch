@@ -410,3 +410,17 @@ def test_slot_capacity_limit(client, test_user):
     assert other_slot_id is not None
 
     db.close()
+
+def test_pickup_at_to_slot_key_rounds_down_to_15min_grid():
+    """pickup_atが15分境界ちょうどでなくても、本来のスロットに正しく丸め込まれること。
+
+    丸めないと "12:07" のような中途半端な時刻が "12:07～12:22" という別キーになり、
+    本来の "12:00～12:15" の予約上限カウントから漏れて上限チェックをすり抜けられる。
+    """
+    from datetime import datetime
+    from app.time_utils import pickup_at_to_slot_key
+
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 0)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 7)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 14)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 59)) == "12:45～13:00"
