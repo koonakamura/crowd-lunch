@@ -513,10 +513,11 @@ def test_stock_check_scoped_to_serve_date(client, test_user):
     """在庫チェックは、注文のserve_dateと一致するメニューだけを見ること。
 
     menu_idだけで引くと、別日のメニューのmax_qtyと比較してしまい、両日の
-    remaining_qtyが食い違う。日付が一致しないmenu_idは在庫チェックの対象外
-    (チェックをスキップ)になり、注文自体はブロックされないことを確認する。
+    remaining_qtyが食い違う。日付が一致しないmenu_idは「見つからない」扱いになり
+    MenuNotFoundErrorで拒否される(黙って通すとFKが壊れたOrderItemが
+    INSERTされかねないため)。
     """
-    from app.crud import generate_order_id_and_check_capacity
+    from app.crud import generate_order_id_and_check_capacity, MenuNotFoundError
 
     db = TestingSessionLocal()
     other_day_menu = Menu(serve_date=date(2025, 9, 5), title="別日メニュー", price=500, max_qty=1)
@@ -525,10 +526,56 @@ def test_stock_check_scoped_to_serve_date(client, test_user):
     db.refresh(other_day_menu)
 
     different_serve_date = date(2025, 9, 6)
-    # other_day_menuの日付(9/5)とは別日(9/6)の注文として、max_qty(1)を超える数量を注文
-    order_id = generate_order_id_and_check_capacity(
-        db, different_serve_date, None, [(other_day_menu.id, 100)]
+    # other_day_menuの日付(9/5)とは別日(9/6)の注文として参照
+    with pytest.raises(MenuNotFoundError) as exc_info:
+        generate_order_id_and_check_capacity(db, different_serve_date, None, [(other_day_menu.id, 1)])
+    assert exc_info.value.menu_id == other_day_menu.id
+
+    db.close()
+
+def test_menu_not_found_rejects_order(client, test_user):
+    """存在しないmenu_idを含む注文はMenuNotFoundErrorで拒否されること。"""
+    from app.crud import generate_order_id_and_check_capacity, MenuNotFoundError
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 7)
+    nonexistent_menu_id = 999999
+
+    with pytest.raises(MenuNotFoundError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, None, [(nonexistent_menu_id, 1)])
+    assert exc_info.value.menu_id == nonexistent_menu_id
+
+    db.close()
+
+def test_create_guest_order_items_visible_to_next_stock_check():
+    """create_guest_orderで作った注文の明細が、直後の在庫チェックから見えること。
+
+    2026-10-28のレビューで、注文行をcommitしてから明細を別commitで追加していたため
+    (FOR UPDATEロックが明細確定前に解放される)、同時アクセス時に在庫の二重消費が
+    起き得ると指摘された。注文行と明細を同じトランザクションでcommitするよう
+    修正した。この単体テストはsqlite・単一スレッドのため真の競合は再現できないが、
+    「create_guest_orderを抜けた時点で明細が確定しており、直後の集計に正しく
+    反映される」という最低限の回帰は保証する。
+    """
+    from app import schemas
+    from app.crud import create_guest_order, generate_order_id_and_check_capacity, StockInsufficientError
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 8)
+    menu = Menu(serve_date=serve_date, title="コミット順序確認用", price=500, max_qty=3)
+    db.add(menu)
+    db.commit()
+    db.refresh(menu)
+
+    order = schemas.OrderCreateWithDepartmentName(
+        serve_date=serve_date, delivery_type=schemas.DeliveryType.desk, request_time="12:00～12:15",
+        department="検証部", name="太郎", items=[schemas.OrderItemCreate(menu_id=menu.id, qty=3)],
     )
-    assert order_id is not None  # 日付が違うメニューなのでブロックされない
+    create_guest_order(db, order, slot_key="12:00～12:15")
+
+    # max_qty(3)を使い切っているはずなので、1個でも追加注文は拒否される
+    with pytest.raises(StockInsufficientError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, "12:00～12:15", [(menu.id, 1)])
+    assert exc_info.value.remaining == 0
 
     db.close()

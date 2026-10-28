@@ -96,9 +96,14 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int, slot_key
         order_id=order_id
     )
     db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    
+    # commitではなくflush: INSERTしてdb_order.idを採番するだけでトランザクションは
+    # 終えない。ここでcommitすると、generate_order_id_and_check_capacityが取った
+    # FOR UPDATEロックが明細(OrderItem)のcommit前に解放され、その隙間で別注文が
+    # 「ロック中の注文の明細合計」を集計すると今回の明細がまだ見えず、在庫を
+    # 二重に消費できてしまう（2026-10-28のレビューで発覚）。注文行と明細を同じ
+    # トランザクションでcommitし、ロックを明細確定まで保持する。
+    db.flush()
+
     for item in order.items:
         db_item = models.OrderItem(
             order_id=db_order.id,
@@ -106,7 +111,7 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int, slot_key
             qty=item.qty
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(db_order)
     return db_order
@@ -314,10 +319,11 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
         note=order.note,
     )
     db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    
-    
+    # commitではなくflush: create_orderと同じ理由で、注文行と明細を同じ
+    # トランザクションでcommitしFOR UPDATEロックを明細確定まで保持する。
+    db.flush()
+
+
     for item in order.items:
         db_item = models.OrderItem(
             order_id=db_order.id,
@@ -325,10 +331,10 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
             qty=item.qty
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(db_order)
-    
+
     from sqlalchemy.orm import joinedload
     db_order_with_menus = db.query(models.OrderSQLAlchemy).options(
         joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu),
@@ -452,6 +458,13 @@ class StockInsufficientError(Exception):
         super().__init__(f"stock insufficient for menu {menu_id} ({title}): remaining={remaining}")
 
 
+class MenuNotFoundError(Exception):
+    """注文対象のmenu_idが、注文のserve_dateのメニューとして見つからない"""
+    def __init__(self, menu_id: int):
+        self.menu_id = menu_id
+        super().__init__(f"menu not found for this serve_date: {menu_id}")
+
+
 def generate_order_id_and_check_capacity(
     db: Session,
     serve_date: date,
@@ -505,8 +518,7 @@ def generate_order_id_and_check_capacity(
 
         # serve_date も絞る。menu_idだけで引くと、注文のserve_dateとは別の日の
         # メニューを誤って参照した場合にその日の残数と比較してしまい、
-        # 両日のremaining_qtyが食い違う(該当menu_idが見つからなければ在庫チェックは
-        # スキップされ、404等は後続のcreate_order側に委ねる)。
+        # 両日のremaining_qtyが食い違う。
         menus = {
             m.id: m for m in db.query(models.MenuSQLAlchemy)
             .filter(
@@ -517,7 +529,10 @@ def generate_order_id_and_check_capacity(
         for menu_id, requested_qty in requested_by_menu.items():
             menu = menus.get(menu_id)
             if menu is None:
-                continue  # 存在しないmenu_idは後続のcreate_order側で扱う
+                # 存在しない/別日のmenu_idをスキップして通すと、在庫チェックを
+                # すり抜けた上に calculate_order_total が price=0 として扱い、
+                # 存在しないFKを持つOrderItemがINSERTされてしまう。ここで弾く。
+                raise MenuNotFoundError(menu_id)
             already = ordered_so_far.get(menu_id, 0)
             if already + requested_qty > menu.max_qty:
                 raise StockInsufficientError(menu_id, menu.title, max(0, menu.max_qty - already))

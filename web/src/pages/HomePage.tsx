@@ -409,8 +409,13 @@ export default function HomePage() {
       } else if (errorWithCode.code === 'slot_full') {
         toast.error('選択した時間帯は予約上限に達しました。別の時間帯をお選びください')
         setDeliveryTime('')
+        setShowConfirmationModal(false)
       } else if (errorWithCode.code === 'stock_insufficient') {
         toast.error(errorWithCode.message || 'その商品は在庫が不足しています。数量をご確認ください')
+        setShowConfirmationModal(false)
+      } else if (errorWithCode.code === 'menu_not_found') {
+        toast.error(errorWithCode.message || '選択したメニューが見つかりません。画面を更新してやり直してください')
+        setShowConfirmationModal(false)
       } else {
         toast.error('注文の送信に失敗しました。もう一度お試しください。')
       }

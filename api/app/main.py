@@ -452,6 +452,12 @@ async def create_order(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
         )
+    except crud.MenuNotFoundError as e:
+        log_order_event("reject", code="menu_not_found", user_id=current_user.id, menu_id=e.menu_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "menu_not_found", "message": "選択したメニューが見つかりません。画面を更新してやり直してください", "menu_id": e.menu_id}
+        )
 
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -527,6 +533,12 @@ async def create_guest_order(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
+        )
+    except crud.MenuNotFoundError as e:
+        log_order_event("reject", code="menu_not_found", department=order.department, name=order.name, menu_id=e.menu_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "menu_not_found", "message": "選択したメニューが見つかりません。画面を更新してやり直してください", "menu_id": e.menu_id}
         )
 
     await manager.broadcast(json.dumps({
