@@ -376,13 +376,36 @@ async def get_menus_by_date(
 ):
     menus = crud.get_menus_sqlalchemy(db, date)
     ordered_by_menu = crud.calculate_ordered_qty_batch(db, date, date)
-    result = []
-    for m in menus:
-        ordered_qty = ordered_by_menu.get(m.id, 0)
-        menu_dict = m.__dict__.copy()
-        menu_dict['remaining_qty'] = max(0, m.max_qty - ordered_qty)
-        result.append(menu_dict)
-    return result
+    return crud.attach_remaining_qty(menus, ordered_by_menu)
+
+def _raise_order_creation_error(e: Exception, **log_fields):
+    """SlotFullError/StockInsufficientError/MenuNotFoundErrorを422/404のHTTPExceptionに変換して送出する。
+
+    create_order と create_guest_order の両方で同じマッピングを使うため共通化
+    (片方だけ直すと認証済みユーザーとゲストでエラー応答が食い違う)。
+    log_fieldsは呼び出し元固有のログ情報(user_id、またはdepartment/name)。
+    """
+    from .logging import log_order_event
+
+    if isinstance(e, crud.SlotFullError):
+        log_order_event("reject", code="slot_full", slot=e.slot_key, **log_fields)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
+        )
+    if isinstance(e, crud.StockInsufficientError):
+        log_order_event("reject", code="stock_insufficient", menu_id=e.menu_id, remaining=e.remaining, **log_fields)
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
+        )
+    if isinstance(e, crud.MenuNotFoundError):
+        log_order_event("reject", code="menu_not_found", menu_id=e.menu_id, **log_fields)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "menu_not_found", "message": "選択したメニューが見つかりません。画面を更新してやり直してください", "menu_id": e.menu_id}
+        )
+    raise e
 
 @app.post("/orders", response_model=schemas.Order,
          summary="Create Order (Requires Bearer Token)",
@@ -440,24 +463,8 @@ async def create_order(
 
     try:
         db_order = crud.create_order(db, order, current_user.id, slot_key=slot_key)
-    except crud.SlotFullError:
-        log_order_event("reject", code="slot_full", user_id=current_user.id, slot=slot_key)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
-        )
-    except crud.StockInsufficientError as e:
-        log_order_event("reject", code="stock_insufficient", user_id=current_user.id, menu_id=e.menu_id, remaining=e.remaining)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
-        )
-    except crud.MenuNotFoundError as e:
-        log_order_event("reject", code="menu_not_found", user_id=current_user.id, menu_id=e.menu_id)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "menu_not_found", "message": "選択したメニューが見つかりません。画面を更新してやり直してください", "menu_id": e.menu_id}
-        )
+    except (crud.SlotFullError, crud.StockInsufficientError, crud.MenuNotFoundError) as e:
+        _raise_order_creation_error(e, user_id=current_user.id)
 
     await manager.broadcast(json.dumps({
         "type": "order_created",
@@ -522,24 +529,8 @@ async def create_guest_order(
 
     try:
         db_order = crud.create_guest_order(db, order, slot_key=slot_key)
-    except crud.SlotFullError:
-        log_order_event("reject", code="slot_full", department=order.department, name=order.name, slot=slot_key)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"}
-        )
-    except crud.StockInsufficientError as e:
-        log_order_event("reject", code="stock_insufficient", department=order.department, name=order.name, menu_id=e.menu_id, remaining=e.remaining)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"code": "stock_insufficient", "message": f"「{e.title}」は残り{e.remaining}個です。数量をご確認ください", "menu_id": e.menu_id, "remaining": e.remaining}
-        )
-    except crud.MenuNotFoundError as e:
-        log_order_event("reject", code="menu_not_found", department=order.department, name=order.name, menu_id=e.menu_id)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "menu_not_found", "message": "選択したメニューが見つかりません。画面を更新してやり直してください", "menu_id": e.menu_id}
-        )
+    except (crud.SlotFullError, crud.StockInsufficientError, crud.MenuNotFoundError) as e:
+        _raise_order_creation_error(e, department=order.department, name=order.name)
 
     await manager.broadcast(json.dumps({
         "type": "order_created",

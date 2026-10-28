@@ -142,8 +142,11 @@ def validate_pickup_at(pickup_at: datetime) -> Tuple[bool, str]:
         return False, "cafe_time_closed"
     
     pickup_time = pickup_at.time()
-    # 受付時間の下限はフロントの表示スロットに合わせ 11:30。上限 18:30。
-    if not (time(11, 30) <= pickup_time <= time(18, 30)):
+    # 受付時間はフロントの表示スロット(12:00〜18:30、15分刻み)に合わせる。
+    # 以前は11:30が下限だったが、フロントから11:30/11:45の選択肢を削除した際
+    # (2a9c64d)ここの更新が漏れていた。ズレたままだと、フロント未表示の時間帯
+    # (例: 11:45)で受け付けた注文が時間帯上限の「満席」判定・表示に乗らない。
+    if not (time(12, 0) <= pickup_time <= time(18, 30)):
         return False, "invalid_timeslot"
     
     if pickup_at.date() == current_jst.date() and current_jst >= pickup_at:

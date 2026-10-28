@@ -139,7 +139,8 @@ export default function OrderV2Page() {
         cafe_time_closed: '本日のカフェタイム受付は終了しました', menu_not_available: 'このメニューはカフェタイムでは注文できません',
         invalid_timeslot: '選択した時間が有効範囲外です',
         slot_full: '選択した時間帯は予約上限に達しました。別の時間帯をお選びください',
-        stock_insufficient: err.message || 'その商品は在庫が不足しています。数量をご確認ください',
+        // stock_insufficientはこの画面の商品モデル(daily_menus)では未実装のため含めない
+        // (在庫チェックの対象は旧メニューモデルのみ。crud.generate_order_id_and_check_capacity参照)
         menu_not_found: err.message || '選択したメニューが見つかりません。画面を更新してやり直してください',
       }
       if (err.code === 'slot_full') setDeliveryTime('')

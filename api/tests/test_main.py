@@ -579,3 +579,24 @@ def test_create_guest_order_items_visible_to_next_stock_check():
     assert exc_info.value.remaining == 0
 
     db.close()
+
+def test_validate_pickup_at_lower_bound_matches_frontend_slots():
+    """受付可能時刻の下限が、フロントの実際の選択肢(12:00〜)と一致していること。
+
+    以前は下限が11:30のままで、フロントから11:30/11:45の選択肢を削除した
+    コミット(2a9c64d)で更新が漏れていた。ズレたままだと、フロント未表示の
+    時間帯(11:45等)で受け付けた注文が時間帯上限の「満席」判定・表示に乗らない
+    (2026-10-28のレビューで発覚)。
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.time_utils import validate_pickup_at
+
+    jst = timezone(timedelta(hours=9))
+    tomorrow = (datetime.now(jst) + timedelta(days=1)).date()
+
+    ok, _ = validate_pickup_at(datetime.combine(tomorrow, time(12, 0), tzinfo=jst))
+    assert ok is True
+
+    ok, code = validate_pickup_at(datetime.combine(tomorrow, time(11, 45), tzinfo=jst))
+    assert ok is False
+    assert code == "invalid_timeslot"

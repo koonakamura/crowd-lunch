@@ -35,17 +35,21 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
     ).order_by(models.MenuSQLAlchemy.serve_date.asc(), models.MenuSQLAlchemy.id.asc()).all()
 
     ordered_by_menu = calculate_ordered_qty_batch(db, start_date, end_date)
+    return attach_remaining_qty(menus, ordered_by_menu)
 
-    menu_with_remaining = []
+def attach_remaining_qty(menus: List[models.MenuSQLAlchemy], ordered_by_menu: dict) -> List[dict]:
+    """各メニューにremaining_qty(max_qty - 注文済み数量、0未満にはしない)を付けた辞書を返す。
+
+    get_weekly_menus と main.py の管理画面用 /menus ハンドラの両方で使う
+    （計算式がずれると一覧ごとに残数表示が食い違うため、ここに1本化する）。
+    """
+    result = []
     for menu in menus:
         ordered_qty = ordered_by_menu.get(menu.id, 0)
-
-        remaining_qty = menu.max_qty - ordered_qty
         menu_dict = menu.__dict__.copy()
-        menu_dict['remaining_qty'] = max(0, remaining_qty)
-        menu_with_remaining.append(menu_dict)
-
-    return menu_with_remaining
+        menu_dict['remaining_qty'] = max(0, menu.max_qty - ordered_qty)
+        result.append(menu_dict)
+    return result
 
 def calculate_ordered_qty_batch(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> dict:
     """menu_idごとの注文済み数量をまとめて取得(1クエリ)。
