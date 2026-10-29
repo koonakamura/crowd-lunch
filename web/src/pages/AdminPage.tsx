@@ -221,6 +221,14 @@ export default function AdminPage() {
     return map
   }, [sqlAlchemyMenus])
 
+  const orderedQtyById = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const m of sqlAlchemyMenus ?? []) {
+      if (typeof m.ordered_qty === 'number') map.set(m.id, m.ordered_qty)
+    }
+    return map
+  }, [sqlAlchemyMenus])
+
   const { data: confirmedOrders, error: confirmedOrdersError } = useQuery<Order[]>({
     queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
@@ -601,7 +609,7 @@ export default function AdminPage() {
 
     if (zeroQtyTitles.length > 0) {
       const ok = confirm(
-        `販売数が0のメニューがあります。このまま保存すると注文を受け付けられません。\n\n${zeroQtyTitles.join('\n')}\n\nこのまま保存しますか？`
+        `在庫が0のメニューがあります。このまま保存すると注文を受け付けられません。\n\n${zeroQtyTitles.join('\n')}\n\nこのまま保存しますか？`
       )
       if (!ok) return
     }
@@ -811,15 +819,17 @@ export default function AdminPage() {
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
                 {/* Column Headers */}
                 <div className="flex gap-3 items-center mb-3 pb-2 border-b border-gray-200">
-                  <div className="flex-1 text-sm font-medium text-gray-700">メニュー</div>
-                  <div className="w-24 text-sm font-medium text-gray-700 text-center">金額</div>
-                  <div className="w-24 text-sm font-medium text-gray-700 text-center">販売数</div>
+                  <div className="w-40 text-sm font-medium text-gray-700">メニュー</div>
+                  <div className="w-20 text-sm font-medium text-gray-700 text-center">金額</div>
+                  <div className="w-16 text-sm font-medium text-gray-700 text-center">在庫</div>
+                  <div className="w-16 text-sm font-medium text-gray-700 text-center">注文</div>
+                  <div className="w-16 text-sm font-medium text-gray-700 text-center">残り</div>
                   <div className="w-16 text-sm font-medium text-gray-700 text-center">カフェ</div>
                   <div className="w-8 text-sm font-medium text-gray-700 text-center">順序</div>
                   <div className="w-8"></div> {/* Edit button space */}
                   <div className="w-8"></div> {/* Delete button space */}
                 </div>
-                
+
                 <div className="space-y-3">
                   {menuRows.map((row, index) => (
                     <div key={index} className="flex gap-3 items-center">
@@ -827,7 +837,7 @@ export default function AdminPage() {
                         placeholder="メニュー名"
                         value={row.title}
                         onChange={(e) => updateMenuRow(index, 'title', e.target.value)}
-                        className="flex-1"
+                        className="w-40"
                       />
                       <div className="space-y-1">
                         <Input
@@ -835,7 +845,7 @@ export default function AdminPage() {
                           placeholder="金額"
                           value={row.price}
                           onChange={(e) => updateMenuRow(index, 'price', parseInt(e.target.value) || 0)}
-                          className={`w-24 ${validationErrors[`${index}-price`] ? 'border-red-500' : ''}`}
+                          className={`w-20 ${validationErrors[`${index}-price`] ? 'border-red-500' : ''}`}
                         />
                         {validationErrors[`${index}-price`] && (
                           <p className="text-sm text-red-500">{validationErrors[`${index}-price`]}</p>
@@ -844,21 +854,22 @@ export default function AdminPage() {
                       <div className="space-y-1">
                         <Input
                           type="number"
-                          placeholder="数量"
+                          placeholder="在庫"
                           value={row.max_qty}
                           onChange={(e) => updateMenuRow(index, 'max_qty', parseInt(e.target.value) || 0)}
-                          className={`w-24 ${validationErrors[`${index}-max_qty`] ? 'border-red-500' : ''}`}
+                          className={`w-16 ${validationErrors[`${index}-max_qty`] ? 'border-red-500' : ''}`}
                         />
                         {validationErrors[`${index}-max_qty`] && (
                           <p className="text-sm text-red-500">{validationErrors[`${index}-max_qty`]}</p>
                         )}
-                        {row.id && remainingQtyById.has(row.id) && (
-                          <p className="text-sm text-gray-500 whitespace-nowrap">
-                            残り{remainingQtyById.get(row.id)}
-                          </p>
-                        )}
                       </div>
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="w-16 text-center text-sm text-gray-700">
+                        {row.id && orderedQtyById.has(row.id) ? orderedQtyById.get(row.id) : '-'}
+                      </div>
+                      <div className="w-16 text-center text-sm text-gray-700">
+                        {row.id && remainingQtyById.has(row.id) ? remainingQtyById.get(row.id) : '-'}
+                      </div>
+                      <div className="flex flex-col items-center gap-1 w-16">
                         <Switch
                           checked={row.cafe_time_available}
                           onCheckedChange={(checked) => updateMenuRow(index, 'cafe_time_available', checked)}
