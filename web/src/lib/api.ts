@@ -640,6 +640,7 @@ export interface MenuSQLAlchemy {
   title: string;
   price: number;
   max_qty: number;
+  ordered_qty?: number;
   remaining_qty?: number;
   img_url?: string;
   cafe_time_available: boolean;
