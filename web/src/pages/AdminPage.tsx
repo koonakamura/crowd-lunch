@@ -68,7 +68,7 @@ function applySavedOrder(rows: MenuRow[], dateKey: string): MenuRow[] {
     return rows;
   }
 }
-import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX, ChevronUp, ChevronDown, Save } from 'lucide-react'
+import { ArrowLeft, Plus, Edit, Trash2, Download, Volume2, VolumeX, ChevronUp, ChevronDown, Save, HelpCircle, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { getTodayFormatted, toServeDateKey, createMenuQueryKey, createOrdersQueryKey } from '../lib/dateUtils'
@@ -148,6 +148,7 @@ export default function AdminPage() {
   const [showConfirmedOnly, setShowConfirmedOnly] = useState(false)
   const [templates, setTemplates] = useState<MenuTemplate[]>(() => loadTemplates())
   const [templateName, setTemplateName] = useState('')
+  const [showHelp, setShowHelp] = useState(false)
 
   function toUserMessage(e: unknown): string {
     if (!e) return "不明なエラーです";
@@ -704,6 +705,15 @@ export default function AdminPage() {
           >
             新プランニング(β)
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => setShowHelp(v => !v)}
+          >
+            <HelpCircle className="h-4 w-4 mr-1" />
+            使い方
+          </Button>
           <div className="flex items-center gap-2 ml-auto">
             {isNotificationEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             <span className="text-sm text-muted-foreground">通知音</span>
@@ -716,6 +726,48 @@ export default function AdminPage() {
             />
           </div>
         </div>
+        {showHelp && (
+          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-gray-700 relative">
+            <button
+              type="button"
+              onClick={() => setShowHelp(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              aria-label="閉じる"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <p className="font-semibold mb-2">このページの使い方</p>
+            <div className="space-y-3">
+              <div>
+                <p className="font-medium">① その日のメニューを作る</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-gray-600">
+                  <li>上部の日付タブで編集したい日を選びます。</li>
+                  <li>「メニュー追加」で行を増やし、メニュー名・金額・在庫（その日用意する数）を入力します。</li>
+                  <li>「カフェ」をONにすると、14時以降のカフェタイムでも注文できるメニューになります。</li>
+                  <li>並び順は行右側の ↑↓ ボタンで変更でき、お客様画面の表示順に反映されます。</li>
+                  <li>入力し終えたら必ず「保存」を押してください。在庫を0のまま保存しようとすると確認が出ます。</li>
+                  <li>よく使う構成は「現在の構成を保存」でテンプレート化し、次回以降プルダウンから呼び出せます。</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium">② 在庫・注文・残りの見方</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-gray-600">
+                  <li><b>在庫</b>：その日に用意する数（編集できます）。</li>
+                  <li><b>注文</b>：実際に入った注文数（自動計算・編集不可）。</li>
+                  <li><b>残り</b>：在庫−注文（自動計算）。0になるとお客様画面でそのメニューは選択できなくなります。</li>
+                </ul>
+              </div>
+              <div>
+                <p className="font-medium">③ 注文を確認する</p>
+                <ul className="list-disc pl-5 space-y-0.5 text-gray-600">
+                  <li>下の「注文一覧」に、選んだ日の注文がリアルタイムで表示されます。</li>
+                  <li>配達し終えたら「配達完了」のチェックを入れてください（もう一度押すと取り消せます）。</li>
+                  <li>「確定済みのみ」で表示を絞り込めます。「ダウンロード」で注文一覧をCSVに書き出せます。</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="p-4 space-y-6">
@@ -819,7 +871,7 @@ export default function AdminPage() {
               <div className="flex-1" style={{ pointerEvents: 'auto' }}>
                 {/* Column Headers */}
                 <div className="flex gap-3 items-center mb-3 pb-2 border-b border-gray-200">
-                  <div className="w-40 text-sm font-medium text-gray-700">メニュー</div>
+                  <div className="flex-1 min-w-0 text-sm font-medium text-gray-700">メニュー</div>
                   <div className="w-20 text-sm font-medium text-gray-700 text-center">金額</div>
                   <div className="w-16 text-sm font-medium text-gray-700 text-center">在庫</div>
                   <div className="w-16 text-sm font-medium text-gray-700 text-center">注文</div>
@@ -837,7 +889,7 @@ export default function AdminPage() {
                         placeholder="メニュー名"
                         value={row.title}
                         onChange={(e) => updateMenuRow(index, 'title', e.target.value)}
-                        className="w-40"
+                        className="flex-1 min-w-0"
                       />
                       <div className="space-y-1">
                         <Input
