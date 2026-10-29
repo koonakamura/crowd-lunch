@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { apiClient, mediaUrl, type CatV2MenuItem } from '../lib/api'
@@ -48,6 +48,7 @@ export default function OrderV2Page() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showThankYou, setShowThankYou] = useState(false)
 
+  const queryClient = useQueryClient()
   const windowDates = useMemo(() => makeTodayWindow(undefined, 7), [])
   const startKey = toServeDateKey(windowDates[0])
   const endKey = toServeDateKey(windowDates[6])
@@ -130,13 +131,22 @@ export default function OrderV2Page() {
       })
       setShowOrderModal(false); setShowThankYou(true)
       setLines([]); setDepartment(''); setCustomerName(''); setNote(''); setDeliveryTime(''); setDeliveryLocation('')
+      queryClient.invalidateQueries({ queryKey: ['v2Range', startKey, endKey] })
+      queryClient.invalidateQueries({ queryKey: ['slotCounts', selectedDateKey] })
     } catch (e) {
       const err = e as Error & { code?: string }
       const map: Record<string, string> = {
         cafe_time_closed: '本日のカフェタイム受付は終了しました', menu_not_available: 'このメニューはカフェタイムでは注文できません',
         invalid_timeslot: '選択した時間が有効範囲外です',
+        slot_full: '選択した時間帯は予約上限に達しました。別の時間帯をお選びください',
+        // stock_insufficientはこの画面の商品モデル(daily_menus)では未実装のため含めない
+        // (在庫チェックの対象は旧メニューモデルのみ。crud.generate_order_id_and_check_capacity参照)
+        menu_not_found: err.message || '選択したメニューが見つかりません。画面を更新してやり直してください',
       }
+      if (err.code === 'slot_full') setDeliveryTime('')
       toast.error(map[err.code || ''] || '注文の送信に失敗しました。')
+      queryClient.invalidateQueries({ queryKey: ['v2Range', startKey, endKey] })
+      queryClient.invalidateQueries({ queryKey: ['slotCounts', selectedDateKey] })
     } finally { setIsSubmitting(false) }
   }
 
@@ -149,6 +159,15 @@ export default function OrderV2Page() {
     return dayKeys[0] || toServeDateKey(todayJST(undefined))
   }, [lines, dayKeys, days])
   const selDate = windowDates.find((d) => toServeDateKey(d) === selectedDateKey)
+
+  const { data: slotCountsData } = useQuery({
+    queryKey: ['slotCounts', selectedDateKey] as const,
+    queryFn: () => apiClient.getSlotCounts(selectedDateKey),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
+    enabled: Boolean(selectedDateKey),
+  })
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="text-lg">Loading...</div></div>
 
@@ -293,8 +312,8 @@ export default function OrderV2Page() {
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                   <SelectTrigger className="bg-white border-gray-300 text-black"><SelectValue placeholder="時間を選択" /></SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(selDate || undefined).map((slot) => (
-                      <SelectItem key={slot.value} value={slot.value} disabled={slot.disabled} className={slot.disabled ? 'bg-gray-200 text-gray-400' : ''}>{slot.value}{slot.disabled ? ' (終了)' : ''}</SelectItem>
+                    {getAvailableTimeSlots(selDate || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 10).map((slot) => (
+                      <SelectItem key={slot.value} value={slot.value} disabled={slot.disabled} className={slot.disabled ? 'bg-gray-200 text-gray-400' : ''}>{slot.value}{slot.full ? ' (満席)' : slot.disabled ? ' (終了)' : ''}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

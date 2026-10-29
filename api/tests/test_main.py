@@ -348,6 +348,255 @@ def test_websocket_connection_basic(client):
 def test_invalid_jwt_scenarios(client):
     response = client.get("/orders/1", headers={"Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0QGV4YW1wbGUuY29tIiwiZXhwIjoxfQ.invalid"})
     assert response.status_code == 401
-    
+
     response = client.get("/orders/1", headers={"Authorization": "Bearer malformed.token"})
     assert response.status_code == 401
+
+def test_remaining_qty_counts_new_status_orders(client, test_user):
+    """2026-10-26: 終日 remaining_qty が減らなかった不具合の再発防止。
+
+    注文は作成時に status=new のまま運用されており、それを他ステータスへ進める
+    操作が存在しない。ordered_qty の集計を status で絞ると実質すべて漏れるため、
+    status を問わず集計できていることを確認する。
+    """
+    from app.models import DeliveryType, OrderStatus
+    from app.crud import get_weekly_menus
+
+    db = TestingSessionLocal()
+    menu = Menu(serve_date=date(2025, 9, 2), title="残数確認用メニュー", price=500, max_qty=10)
+    db.add(menu)
+    db.commit()
+    db.refresh(menu)
+
+    order = Order(
+        user_id=test_user.id, serve_date=menu.serve_date, delivery_type=DeliveryType.pickup,
+        request_time="12:00～12:15", total_price=500, status=OrderStatus.new, order_id="#TESTQTY001",
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    db.add(OrderItem(order_id=order.id, menu_id=menu.id, qty=3))
+    db.commit()
+
+    menus = get_weekly_menus(db, menu.serve_date, menu.serve_date)
+    target = next(m for m in menus if m['id'] == menu.id)
+    assert target['remaining_qty'] == 7
+
+    db.close()
+
+def test_slot_capacity_limit(client, test_user):
+    """希望時間帯あたりの予約上限(SLOT_CAPACITY件)に達したら SlotFullError になること。
+    別の時間帯には影響しないことも確認する。
+    """
+    from app.crud import generate_order_id_and_check_capacity, SlotFullError, SLOT_CAPACITY
+    from app.models import DeliveryType, OrderStatus
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 3)
+    slot = "12:00～12:15"
+
+    for _ in range(SLOT_CAPACITY):
+        order_id = generate_order_id_and_check_capacity(db, serve_date, slot)
+        db.add(Order(
+            user_id=test_user.id, serve_date=serve_date, delivery_type=DeliveryType.desk,
+            request_time=slot, total_price=0, status=OrderStatus.new, order_id=order_id,
+        ))
+        db.commit()
+
+    with pytest.raises(SlotFullError):
+        generate_order_id_and_check_capacity(db, serve_date, slot)
+
+    other_slot_id = generate_order_id_and_check_capacity(db, serve_date, "12:15～12:30")
+    assert other_slot_id is not None
+
+    db.close()
+
+def test_pickup_at_to_slot_key_rounds_down_to_15min_grid():
+    """pickup_atが15分境界ちょうどでなくても、本来のスロットに正しく丸め込まれること。
+
+    丸めないと "12:07" のような中途半端な時刻が "12:07～12:22" という別キーになり、
+    本来の "12:00～12:15" の予約上限カウントから漏れて上限チェックをすり抜けられる。
+    """
+    from datetime import datetime
+    from app.time_utils import pickup_at_to_slot_key
+
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 0)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 7)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 14)) == "12:00～12:15"
+    assert pickup_at_to_slot_key(datetime(2025, 9, 3, 12, 59)) == "12:45～13:00"
+
+def test_stock_insufficient_blocks_order(client, test_user):
+    """旧メニューモデルで、残数を超える注文は StockInsufficientError で拒否されること。
+    他のメニューの残数には影響しないことも確認する。
+    """
+    from app.crud import generate_order_id_and_check_capacity, StockInsufficientError
+    from app.models import DeliveryType, OrderStatus
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 4)
+    menu = Menu(serve_date=serve_date, title="在庫確認用メニュー", price=500, max_qty=5)
+    other_menu = Menu(serve_date=serve_date, title="別メニュー", price=500, max_qty=5)
+    db.add(menu); db.add(other_menu)
+    db.commit(); db.refresh(menu); db.refresh(other_menu)
+
+    # 1件目: 残数5のメニューを5個注文 → ちょうど埋まる
+    order_id = generate_order_id_and_check_capacity(db, serve_date, None, [(menu.id, 5)])
+    order = Order(
+        user_id=test_user.id, serve_date=serve_date, delivery_type=DeliveryType.desk,
+        total_price=0, status=OrderStatus.new, order_id=order_id,
+    )
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+    db.add(OrderItem(order_id=order.id, menu_id=menu.id, qty=5))
+    db.commit()
+
+    # 2件目: 残り0のはずなので1個でも拒否される
+    with pytest.raises(StockInsufficientError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, None, [(menu.id, 1)])
+    assert exc_info.value.menu_id == menu.id
+    assert exc_info.value.remaining == 0
+
+    # 別メニューの残数には影響しない
+    other_order_id = generate_order_id_and_check_capacity(db, serve_date, None, [(other_menu.id, 5)])
+    assert other_order_id is not None
+
+    db.close()
+
+def test_stock_check_skipped_in_testing_mode(client, test_user, test_menu):
+    """TESTING=true では在庫チェックをスキップすること（負荷試験のCIゲート対策）。
+
+    TESTING時は main.py のルートハンドラがslot_keyをNoneのまま渡すため、時間帯上限
+    チェックと同じ条件で在庫チェックも無効化している。これを在庫チェック追加時に
+    崩すと、CIの負荷試験(同一メニューへ大量注文)が本物の在庫切れとして次々
+    422になり、「失敗0件」ゲートが落ちる(実際に一度発生した)。
+    """
+    token = create_user_token("test@example.com")
+
+    # test_menu.max_qty は10。TESTINGなら超える数量でも通るはず。
+    response = client.post(
+        "/orders",
+        json={
+            "serve_date": str(date.today()),
+            "delivery_type": "pickup",
+            "pickup_at": "2025-08-27T12:00:00+09:00",
+            "items": [{"menu_id": test_menu.id, "qty": 999}],
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+
+def test_negative_qty_rejected(client, test_user, test_menu):
+    """qty<=0は受け付けないこと。
+
+    在庫チェック(stock_insufficient)は `already_ordered + qty > max_qty` でしか
+    判定しておらず、qtyに負数を送ると判定式が常に真にならず、在庫チェックを
+    丸ごとすり抜けられてしまう上に、以後の集計(SUM(qty))まで負に汚染されて
+    その日のそのメニューが実質無制限に注文できてしまう。qtyはリクエスト受付時点
+    (スキーマ)でgt=0を強制し、ビジネスロジックに到達する前に弾く。
+    """
+    token = create_user_token("test@example.com")
+
+    response = client.post(
+        "/orders",
+        json={
+            "serve_date": str(date.today()),
+            "delivery_type": "pickup",
+            "pickup_at": "2025-08-27T12:00:00+09:00",
+            "items": [{"menu_id": test_menu.id, "qty": -1000000}],
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 422
+
+def test_stock_check_scoped_to_serve_date(client, test_user):
+    """在庫チェックは、注文のserve_dateと一致するメニューだけを見ること。
+
+    menu_idだけで引くと、別日のメニューのmax_qtyと比較してしまい、両日の
+    remaining_qtyが食い違う。日付が一致しないmenu_idは「見つからない」扱いになり
+    MenuNotFoundErrorで拒否される(黙って通すとFKが壊れたOrderItemが
+    INSERTされかねないため)。
+    """
+    from app.crud import generate_order_id_and_check_capacity, MenuNotFoundError
+
+    db = TestingSessionLocal()
+    other_day_menu = Menu(serve_date=date(2025, 9, 5), title="別日メニュー", price=500, max_qty=1)
+    db.add(other_day_menu)
+    db.commit()
+    db.refresh(other_day_menu)
+
+    different_serve_date = date(2025, 9, 6)
+    # other_day_menuの日付(9/5)とは別日(9/6)の注文として参照
+    with pytest.raises(MenuNotFoundError) as exc_info:
+        generate_order_id_and_check_capacity(db, different_serve_date, None, [(other_day_menu.id, 1)])
+    assert exc_info.value.menu_id == other_day_menu.id
+
+    db.close()
+
+def test_menu_not_found_rejects_order(client, test_user):
+    """存在しないmenu_idを含む注文はMenuNotFoundErrorで拒否されること。"""
+    from app.crud import generate_order_id_and_check_capacity, MenuNotFoundError
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 7)
+    nonexistent_menu_id = 999999
+
+    with pytest.raises(MenuNotFoundError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, None, [(nonexistent_menu_id, 1)])
+    assert exc_info.value.menu_id == nonexistent_menu_id
+
+    db.close()
+
+def test_create_guest_order_items_visible_to_next_stock_check():
+    """create_guest_orderで作った注文の明細が、直後の在庫チェックから見えること。
+
+    2026-10-28のレビューで、注文行をcommitしてから明細を別commitで追加していたため
+    (FOR UPDATEロックが明細確定前に解放される)、同時アクセス時に在庫の二重消費が
+    起き得ると指摘された。注文行と明細を同じトランザクションでcommitするよう
+    修正した。この単体テストはsqlite・単一スレッドのため真の競合は再現できないが、
+    「create_guest_orderを抜けた時点で明細が確定しており、直後の集計に正しく
+    反映される」という最低限の回帰は保証する。
+    """
+    from app import schemas
+    from app.crud import create_guest_order, generate_order_id_and_check_capacity, StockInsufficientError
+
+    db = TestingSessionLocal()
+    serve_date = date(2025, 9, 8)
+    menu = Menu(serve_date=serve_date, title="コミット順序確認用", price=500, max_qty=3)
+    db.add(menu)
+    db.commit()
+    db.refresh(menu)
+
+    order = schemas.OrderCreateWithDepartmentName(
+        serve_date=serve_date, delivery_type=schemas.DeliveryType.desk, request_time="12:00～12:15",
+        department="検証部", name="太郎", items=[schemas.OrderItemCreate(menu_id=menu.id, qty=3)],
+    )
+    create_guest_order(db, order, slot_key="12:00～12:15")
+
+    # max_qty(3)を使い切っているはずなので、1個でも追加注文は拒否される
+    with pytest.raises(StockInsufficientError) as exc_info:
+        generate_order_id_and_check_capacity(db, serve_date, "12:00～12:15", [(menu.id, 1)])
+    assert exc_info.value.remaining == 0
+
+    db.close()
+
+def test_validate_pickup_at_lower_bound_matches_frontend_slots():
+    """受付可能時刻の下限が、フロントの実際の選択肢(12:00〜)と一致していること。
+
+    以前は下限が11:30のままで、フロントから11:30/11:45の選択肢を削除した
+    コミット(2a9c64d)で更新が漏れていた。ズレたままだと、フロント未表示の
+    時間帯(11:45等)で受け付けた注文が時間帯上限の「満席」判定・表示に乗らない
+    (2026-10-28のレビューで発覚)。
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.time_utils import validate_pickup_at
+
+    jst = timezone(timedelta(hours=9))
+    tomorrow = (datetime.now(jst) + timedelta(days=1)).date()
+
+    ok, _ = validate_pickup_at(datetime.combine(tomorrow, time(12, 0), tzinfo=jst))
+    assert ok is True
+
+    ok, code = validate_pickup_at(datetime.combine(tomorrow, time(11, 45), tzinfo=jst))
+    assert ok is False
+    assert code == "invalid_timeslot"

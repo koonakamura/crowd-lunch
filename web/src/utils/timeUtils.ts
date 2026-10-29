@@ -23,7 +23,13 @@ export const isTimeSlotExpired = (timeSlot: string): boolean => {
   return currentJST >= startTime;
 };
 
-export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, disabled: boolean}> => {
+export const getAvailableTimeSlots = (
+  targetDate?: Date,
+  slotCounts?: Record<string, number>,
+  slotCapacity: number = 10,
+): Array<{value: string, disabled: boolean, full: boolean}> => {
+  const isFull = (slot: string): boolean => (slotCounts?.[slot] ?? 0) >= slotCapacity;
+
   const timeSlots = [
     "12:00～12:15",
     "12:15～12:30",
@@ -54,20 +60,24 @@ export const getAvailableTimeSlots = (targetDate?: Date): Array<{value: string, 
   ];
   
   if (!targetDate) {
-    return timeSlots.map(slot => ({ value: slot, disabled: false }));
+    return timeSlots.map(slot => ({ value: slot, disabled: isFull(slot), full: isFull(slot) }));
   }
-  
+
   const today = getJSTTime();
   const isToday = targetDate.toDateString() === today.toDateString();
-  
+
   if (!isToday) {
-    return timeSlots.map(slot => ({ value: slot, disabled: false }));
+    return timeSlots.map(slot => ({ value: slot, disabled: isFull(slot), full: isFull(slot) }));
   }
-  
-  return timeSlots.map(slot => ({
-    value: slot,
-    disabled: isTimeSlotExpired(slot) || isCutoffTimeExpired()
-  }));
+
+  return timeSlots.map(slot => {
+    const full = isFull(slot);
+    return {
+      value: slot,
+      disabled: isTimeSlotExpired(slot) || isCutoffTimeExpired() || full,
+      full,
+    };
+  });
 };
 
 export const isCafeTime = (timeSlot: string): boolean => {

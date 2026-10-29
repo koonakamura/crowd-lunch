@@ -370,6 +370,10 @@ class ApiClient {
     return this.request(`/public/menus-range?start=${startDate}&end=${endDate}`);
   }
 
+  async getSlotCounts(date: string): Promise<{ capacity: number; counts: Record<string, number> }> {
+    return this.request(`/public/slot-counts?date=${date}`);
+  }
+
   async createMenuSQLAlchemy(menu: {
     serve_date: string;
     title: string;
@@ -636,6 +640,7 @@ export interface MenuSQLAlchemy {
   title: string;
   price: number;
   max_qty: number;
+  remaining_qty?: number;
   img_url?: string;
   cafe_time_available: boolean;
   created_at: string;

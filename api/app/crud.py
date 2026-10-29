@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from datetime import date, datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from . import models, schemas
 from sqlmodel import select
 
@@ -33,23 +33,45 @@ def get_weekly_menus(db: Session, start_date: date, end_date: date):
     menus = db.query(models.MenuSQLAlchemy).filter(
         and_(models.MenuSQLAlchemy.serve_date >= start_date, models.MenuSQLAlchemy.serve_date <= end_date)
     ).order_by(models.MenuSQLAlchemy.serve_date.asc(), models.MenuSQLAlchemy.id.asc()).all()
-    
-    menu_with_remaining = []
+
+    ordered_by_menu = calculate_ordered_qty_batch(db, start_date, end_date)
+    return attach_remaining_qty(menus, ordered_by_menu)
+
+def attach_remaining_qty(menus: List[models.MenuSQLAlchemy], ordered_by_menu: dict) -> List[dict]:
+    """各メニューにremaining_qty(max_qty - 注文済み数量、0未満にはしない)を付けた辞書を返す。
+
+    get_weekly_menus と main.py の管理画面用 /menus ハンドラの両方で使う
+    （計算式がずれると一覧ごとに残数表示が食い違うため、ここに1本化する）。
+    """
+    result = []
     for menu in menus:
-        ordered_qty = db.query(func.sum(models.OrderItem.qty)).join(models.OrderSQLAlchemy).filter(
-            and_(
-                models.OrderItem.menu_id == menu.id,
-                models.OrderSQLAlchemy.serve_date == menu.serve_date,
-                models.OrderSQLAlchemy.status != models.OrderStatus.new
-            )
-        ).scalar() or 0
-        
-        remaining_qty = menu.max_qty - ordered_qty
+        ordered_qty = ordered_by_menu.get(menu.id, 0)
         menu_dict = menu.__dict__.copy()
-        menu_dict['remaining_qty'] = max(0, remaining_qty)
-        menu_with_remaining.append(menu_dict)
-    
-    return menu_with_remaining
+        menu_dict['remaining_qty'] = max(0, menu.max_qty - ordered_qty)
+        result.append(menu_dict)
+    return result
+
+def calculate_ordered_qty_batch(db: Session, start_date: Optional[date] = None, end_date: Optional[date] = None) -> dict:
+    """menu_idごとの注文済み数量をまとめて取得(1クエリ)。
+
+    status での絞り込みはしない。注文は作成時に status=new のまま固定され、
+    運用上それを他ステータスへ進める操作が存在しないため、
+    「status != new」で絞ると実質すべての注文が集計から漏れる
+    （2026-10-26: 終日 remaining_qty が減らない不具合の原因）。
+
+    menu_id は MenuSQLAlchemy の主キーでserve_dateと1:1なので、date範囲は
+    「スキャン範囲を絞る」ためだけに使う（省略可）。メニュー1件ごとにクエリを
+    投げるとメニュー数に比例してDBラウンドトリップが増えるため、
+    GROUP BY でまとめて取る。
+    """
+    query = db.query(
+        models.OrderItem.menu_id, func.sum(models.OrderItem.qty)
+    ).join(models.OrderSQLAlchemy).filter(models.OrderItem.menu_id.isnot(None))
+    if start_date is not None:
+        query = query.filter(models.OrderSQLAlchemy.serve_date >= start_date)
+    if end_date is not None:
+        query = query.filter(models.OrderSQLAlchemy.serve_date <= end_date)
+    return dict(query.group_by(models.OrderItem.menu_id).all())
 
 def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> int:
     """Calculate total price for order items"""
@@ -60,23 +82,32 @@ def calculate_order_total(db: Session, items: List[schemas.OrderItemCreate]) -> 
             total_price += menu.price * item.qty
     return total_price
 
-def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
+def create_order(db: Session, order: schemas.OrderCreate, user_id: int, slot_key: Optional[str] = None):
     total_price = calculate_order_total(db, order.items)
-    order_id = generate_order_id(db, order.serve_date)
-    
+    # slot_key は TESTING モードでは None になる（main.py のルートハンドラ側の分岐に揃える）。
+    # 在庫チェックも同じ条件でスキップし、負荷試験等のTESTING実行で在庫不足エラーが
+    # 混ざらないようにする。
+    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items] if slot_key is not None else None
+    order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key, items_for_stock_check)
+
     db_order = models.OrderSQLAlchemy(
         user_id=user_id,
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
-        request_time=order.request_time,
+        request_time=slot_key or order.request_time,
         total_price=total_price,
         status=models.OrderStatus.new,
         order_id=order_id
     )
     db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    
+    # commitではなくflush: INSERTしてdb_order.idを採番するだけでトランザクションは
+    # 終えない。ここでcommitすると、generate_order_id_and_check_capacityが取った
+    # FOR UPDATEロックが明細(OrderItem)のcommit前に解放され、その隙間で別注文が
+    # 「ロック中の注文の明細合計」を集計すると今回の明細がまだ見えず、在庫を
+    # 二重に消費できてしまう（2026-10-28のレビューで発覚）。注文行と明細を同じ
+    # トランザクションでcommitし、ロックを明細確定まで保持する。
+    db.flush()
+
     for item in order.items:
         db_item = models.OrderItem(
             order_id=db_order.id,
@@ -84,7 +115,7 @@ def create_order(db: Session, order: schemas.OrderCreate, user_id: int):
             qty=item.qty
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(db_order)
     return db_order
@@ -263,22 +294,26 @@ def delete_menu_item(db: Session, item_id: int):
     db.commit()
     return True
 
-def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName):
+def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName, slot_key: Optional[str] = None):
     """Create an order without user authentication using customer name"""
-    
+
     total_price = calculate_order_total(db, order.items)
-    
+
     customer_name = f"{order.department}／{order.name}"
     guest_user = get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
-    
-    order_id = generate_order_id(db, order.serve_date)
-    
-    
+
+    # slot_key は TESTING モードでは None になる（main.py のルートハンドラ側の分岐に揃える）。
+    # 在庫チェックも同じ条件でスキップし、負荷試験等のTESTING実行で在庫不足エラーが
+    # 混ざらないようにする。
+    items_for_stock_check = [(item.menu_id, item.qty) for item in order.items] if slot_key is not None else None
+    order_id = generate_order_id_and_check_capacity(db, order.serve_date, slot_key, items_for_stock_check)
+
+
     db_order = models.OrderSQLAlchemy(
         user_id=guest_user.id,
         serve_date=order.serve_date,
         delivery_type=order.delivery_type,
-        request_time=order.request_time,
+        request_time=slot_key or order.request_time,
         delivery_location=order.delivery_location,
         total_price=total_price,
         status=models.OrderStatus.new,
@@ -288,10 +323,11 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
         note=order.note,
     )
     db.add(db_order)
-    db.commit()
-    db.refresh(db_order)
-    
-    
+    # commitではなくflush: create_orderと同じ理由で、注文行と明細を同じ
+    # トランザクションでcommitしFOR UPDATEロックを明細確定まで保持する。
+    db.flush()
+
+
     for item in order.items:
         db_item = models.OrderItem(
             order_id=db_order.id,
@@ -299,10 +335,10 @@ def create_guest_order(db: Session, order: schemas.OrderCreateWithDepartmentName
             qty=item.qty
         )
         db.add(db_item)
-    
+
     db.commit()
     db.refresh(db_order)
-    
+
     from sqlalchemy.orm import joinedload
     db_order_with_menus = db.query(models.OrderSQLAlchemy).options(
         joinedload(models.OrderSQLAlchemy.order_items).joinedload(models.OrderItem.menu),
@@ -407,23 +443,104 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     db.commit()
     return True
 
-def generate_order_id(db: Session, serve_date: date) -> str:
-    """Generate order ID in #MMDD000 format with race condition protection.
+SLOT_CAPACITY = 10
 
-    FOR UPDATE でその日の注文行をロックする。呼び出し側(create_guest_order /
-    create_v2_guest_order)は直後に INSERT → commit するので、採番からINSERTまでが
-    直列化され、同じ連番が二重に振られない。ロックを外して COUNT(*) にすると
-    速いが、同時注文で同一IDを採番して orders.order_id の UNIQUE 制約に
-    ぶつかり、片方の客に500が返る。
+
+class SlotFullError(Exception):
+    """指定の時間帯(slot_key)が予約上限(SLOT_CAPACITY)に達している"""
+    def __init__(self, slot_key: str):
+        self.slot_key = slot_key
+        super().__init__(f"slot full: {slot_key}")
+
+
+class StockInsufficientError(Exception):
+    """指定メニューの残数が注文数量に足りない（旧メニューモデルのみ対象）"""
+    def __init__(self, menu_id: int, title: str, remaining: int):
+        self.menu_id = menu_id
+        self.title = title
+        self.remaining = remaining
+        super().__init__(f"stock insufficient for menu {menu_id} ({title}): remaining={remaining}")
+
+
+class MenuNotFoundError(Exception):
+    """注文対象のmenu_idが、注文のserve_dateのメニューとして見つからない"""
+    def __init__(self, menu_id: int):
+        self.menu_id = menu_id
+        super().__init__(f"menu not found for this serve_date: {menu_id}")
+
+
+def generate_order_id_and_check_capacity(
+    db: Session,
+    serve_date: date,
+    slot_key: Optional[str],
+    items: Optional[List[Tuple[int, int]]] = None,
+) -> str:
+    """注文ID採番(#MMDD000)と、希望時間帯の予約上限・メニュー残数チェックを同一ロックの中で行う。
+
+    FOR UPDATE でその日の注文行をロックする。呼び出し側(create_order /
+    create_guest_order / create_v2_guest_order)は直後に INSERT → commit するので、
+    採番からINSERTまでが直列化され、同じ連番が二重に振られない。ロックを外して
+    COUNT(*) にすると速いが、同時注文で同一IDを採番して orders.order_id の
+    UNIQUE 制約にぶつかり、片方の客に500が返る。
     （Postgres の集約関数には FOR UPDATE を付けられないため COUNT は使えない）
 
-    ORM オブジェクトの生成は不要なので id 列だけを取る。以前は全カラムを
-    ハイドレートしており、その日の注文が増えるほど1件の登録が重くなっていた。
+    時間帯あたりの予約上限（pickup/desk合算で15分枠10件）、メニューごとの残数
+    （max_qty）も、専用テーブルを増やさずこの同じロック内で判定する。日単位ロック
+    なので枠/メニュー単位より粗い直列化だが、二重受付・在庫超過を確実に防げる。
+    ロック中は他の新規注文が作れないため、ロック済みの注文idに紐づくorder_itemsは
+    この時点で確定しており、追加で行ロックせずに安全に集計できる。
+
+    items: [(menu_id, qty), ...] を渡すと旧メニューモデル(MenuSQLAlchemy)の残数も
+    チェックする。渡さなければ残数チェックはスキップする（v2/商品モデルは対象外）。
     """
-    existing_ids = db.query(models.OrderSQLAlchemy.id).filter(
+    existing_rows = db.query(
+        models.OrderSQLAlchemy.id, models.OrderSQLAlchemy.request_time
+    ).filter(
         models.OrderSQLAlchemy.serve_date == serve_date
     ).with_for_update().all()
 
+    if slot_key is not None:
+        slot_count = sum(1 for _id, request_time in existing_rows if request_time == slot_key)
+        if slot_count >= SLOT_CAPACITY:
+            raise SlotFullError(slot_key)
+
+    if items:
+        requested_by_menu: dict = {}
+        for menu_id, qty in items:
+            requested_by_menu[menu_id] = requested_by_menu.get(menu_id, 0) + qty
+
+        existing_order_ids = [row[0] for row in existing_rows]
+        ordered_so_far = dict(
+            db.query(models.OrderItem.menu_id, func.sum(models.OrderItem.qty))
+            .filter(
+                models.OrderItem.order_id.in_(existing_order_ids),
+                models.OrderItem.menu_id.in_(requested_by_menu.keys()),
+            )
+            .group_by(models.OrderItem.menu_id)
+            .all()
+        ) if existing_order_ids else {}
+
+        # serve_date も絞る。menu_idだけで引くと、注文のserve_dateとは別の日の
+        # メニューを誤って参照した場合にその日の残数と比較してしまい、
+        # 両日のremaining_qtyが食い違う。
+        menus = {
+            m.id: m for m in db.query(models.MenuSQLAlchemy)
+            .filter(
+                models.MenuSQLAlchemy.id.in_(requested_by_menu.keys()),
+                models.MenuSQLAlchemy.serve_date == serve_date,
+            ).all()
+        }
+        for menu_id, requested_qty in requested_by_menu.items():
+            menu = menus.get(menu_id)
+            if menu is None:
+                # 存在しない/別日のmenu_idをスキップして通すと、在庫チェックを
+                # すり抜けた上に calculate_order_total が price=0 として扱い、
+                # 存在しないFKを持つOrderItemがINSERTされてしまう。ここで弾く。
+                raise MenuNotFoundError(menu_id)
+            already = ordered_so_far.get(menu_id, 0)
+            if already + requested_qty > menu.max_qty:
+                raise StockInsufficientError(menu_id, menu.title, max(0, menu.max_qty - already))
+
     month_day = serve_date.strftime("%m%d")
-    order_number = str(len(existing_ids) + 1).zfill(3)
+    order_number = str(len(existing_rows) + 1).zfill(3)
     return f"#{month_day}{order_number}"

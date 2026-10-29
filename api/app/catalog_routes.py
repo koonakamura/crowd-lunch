@@ -520,7 +520,7 @@ def public_day_setting(date: date_type, db: Session = Depends(get_db)):
 # ----------------------------- v2 order (with options) -----------------------------
 class V2OrderItemIn(BaseModel):
     daily_menu_id: int
-    qty: int = 1
+    qty: int = Field(default=1, gt=0)
     option_ids: List[int] = []
 
 
@@ -555,7 +555,9 @@ def create_v2_guest_order(body: V2OrderIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=422, detail={"code": "no_items", "message": "商品が選択されていません"})
 
     # 受付時間の検証（本番運用と同じルール）
+    slot_key = None
     if os.getenv("TESTING") != "true":
+        from .time_utils import pickup_at_to_slot_key
         if body.pickup_at:
             pickup = datetime.fromisoformat(body.pickup_at)
         elif body.request_time:
@@ -567,6 +569,7 @@ def create_v2_guest_order(body: V2OrderIn, db: Session = Depends(get_db)):
             msg = {"cafe_time_closed": "本日のカフェタイム受付は終了しました", "invalid_timeslot": "選択した時間が有効範囲外です"}.get(code, "受付できません")
             raise HTTPException(status_code=422, detail={"code": code, "message": msg})
         cafe_time = pickup.hour >= 14
+        slot_key = pickup_at_to_slot_key(pickup)
     else:
         cafe_time = False
 
@@ -577,11 +580,14 @@ def create_v2_guest_order(body: V2OrderIn, db: Session = Depends(get_db)):
 
     customer_name = f"{body.department}／{body.name}"
     guest = crud.get_or_create_user(db, f"guest_{customer_name}@temp.com", customer_name)
-    order_id = crud.generate_order_id(db, body.serve_date)
+    try:
+        order_id = crud.generate_order_id_and_check_capacity(db, body.serve_date, slot_key)
+    except crud.SlotFullError:
+        raise HTTPException(status_code=422, detail={"code": "slot_full", "message": f"選択した時間帯は予約上限（{crud.SLOT_CAPACITY}件）に達しました。別の時間帯をお選びください"})
 
     order = models.OrderSQLAlchemy(
         user_id=guest.id, serve_date=body.serve_date, delivery_type=delivery_type,
-        request_time=body.request_time, delivery_location=body.delivery_location,
+        request_time=slot_key or body.request_time, delivery_location=body.delivery_location,
         total_price=0, status=models.OrderStatus.new, department=body.department,
         customer_name=body.name, order_id=order_id, note=body.note,
     )

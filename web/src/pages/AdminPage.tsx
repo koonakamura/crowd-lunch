@@ -213,6 +213,14 @@ export default function AdminPage() {
     refetchOnWindowFocus: false,
   })
 
+  const remainingQtyById = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const m of sqlAlchemyMenus ?? []) {
+      if (typeof m.remaining_qty === 'number') map.set(m.id, m.remaining_qty)
+    }
+    return map
+  }, [sqlAlchemyMenus])
+
   const { data: confirmedOrders, error: confirmedOrdersError } = useQuery<Order[]>({
     queryKey: [...createOrdersQueryKey(serveDateKey), 'confirmed'] as const,
     queryFn: () => apiClient.getOrdersByDate(serveDateKey, 'confirmed'),
@@ -587,6 +595,17 @@ export default function AdminPage() {
   }
 
   const handleSave = () => {
+    const zeroQtyTitles = menuRows
+      .filter(row => row.title.trim() !== '' && Number(row.max_qty) === 0)
+      .map(row => row.title.trim())
+
+    if (zeroQtyTitles.length > 0) {
+      const ok = confirm(
+        `販売数が0のメニューがあります。このまま保存すると注文を受け付けられません。\n\n${zeroQtyTitles.join('\n')}\n\nこのまま保存しますか？`
+      )
+      if (!ok) return
+    }
+
     saveMenusMutation.mutate()
   }
 
@@ -832,6 +851,11 @@ export default function AdminPage() {
                         />
                         {validationErrors[`${index}-max_qty`] && (
                           <p className="text-sm text-red-500">{validationErrors[`${index}-max_qty`]}</p>
+                        )}
+                        {row.id && remainingQtyById.has(row.id) && (
+                          <p className="text-sm text-gray-500 whitespace-nowrap">
+                            残り{remainingQtyById.get(row.id)}
+                          </p>
                         )}
                       </div>
                       <div className="flex flex-col items-center gap-1">
