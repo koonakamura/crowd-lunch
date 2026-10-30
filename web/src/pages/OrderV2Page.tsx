@@ -312,7 +312,7 @@ export default function OrderV2Page() {
                 <Select value={deliveryTime} onValueChange={setDeliveryTime}>
                   <SelectTrigger className="bg-white border-gray-300 text-black"><SelectValue placeholder="時間を選択" /></SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(selDate || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 10).map((slot) => (
+                    {getAvailableTimeSlots(selDate || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 15).map((slot) => (
                       <SelectItem key={slot.value} value={slot.value} disabled={slot.disabled} className={slot.disabled ? 'bg-gray-200 text-gray-400' : ''}>{slot.value}{slot.full ? ' (満席)' : slot.disabled ? ' (終了)' : ''}</SelectItem>
                     ))}
                   </SelectContent>

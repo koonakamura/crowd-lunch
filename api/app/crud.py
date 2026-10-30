@@ -444,7 +444,7 @@ def delete_menu_sqlalchemy(db: Session, menu_id: int):
     db.commit()
     return True
 
-SLOT_CAPACITY = 10
+SLOT_CAPACITY = 15
 
 
 class SlotFullError(Exception):
@@ -485,7 +485,7 @@ def generate_order_id_and_check_capacity(
     UNIQUE 制約にぶつかり、片方の客に500が返る。
     （Postgres の集約関数には FOR UPDATE を付けられないため COUNT は使えない）
 
-    時間帯あたりの予約上限（pickup/desk合算で15分枠10件）、メニューごとの残数
+    時間帯あたりの予約上限（pickup/desk合算で15分枠SLOT_CAPACITY件）、メニューごとの残数
     （max_qty）も、専用テーブルを増やさずこの同じロック内で判定する。日単位ロック
     なので枠/メニュー単位より粗い直列化だが、二重受付・在庫超過を確実に防げる。
     ロック中は他の新規注文が作れないため、ロック済みの注文idに紐づくorder_itemsは
