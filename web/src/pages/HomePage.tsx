@@ -739,7 +739,7 @@ export default function HomePage() {
                     <SelectValue placeholder="時間を選択" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-gray-300">
-                    {getAvailableTimeSlots(getSelectedDate() || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 10).map((slot) => (
+                    {getAvailableTimeSlots(getSelectedDate() || undefined, slotCountsData?.counts, slotCountsData?.capacity ?? 15).map((slot) => (
                       <SelectItem
                         key={slot.value}
                         value={slot.value}
